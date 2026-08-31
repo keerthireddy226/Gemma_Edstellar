@@ -1,0 +1,214 @@
+@import "tailwindcss";
+
+/*
+ * Sage & Clay — "Sunlit Clay" (light) / "Kiln Dusk" (dark).
+ * Four brand hues, each with a light and dark variant that are tuned
+ * independently (dark isn't just "light but brighter"):
+ *   primary/moss · secondary/terracotta / ember · tertiary/wheat / amber ·
+ *   quaternary/clay-pink / rose
+ * These map 1:1 onto the four skill tags (listening/speaking/reading/writing)
+ * as well as the app-wide primary/accent/warning roles, so one set of values
+ * drives both the brand chrome and the per-skill rings/tags/badges.
+ * Token *names* are kept stable (--color-navy, --color-lime, etc.) so
+ * existing component classNames (bg-navy, text-lime...) keep working.
+ *
+ * Dark mode activates via `[data-theme="dark"]` (explicit user choice,
+ * toggled in the Header) or automatically via `prefers-color-scheme` when
+ * the user hasn't chosen explicitly (no `data-theme` attribute set at all).
+ */
+@theme {
+  --font-display: "Outfit", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+  --font-sans: "Inter", sans-serif;
+
+  --color-navy: #c97c5c; /* clay (primary in light mode) — sidebar, main buttons, active states */
+  --color-navy-soft: #dda084; /* lighter clay — active states, hero gradient */
+  --color-navy-deep: #a8613f; /* deeper clay */
+  --color-sidebar: #c97c5c; /* sidebar panel fill — same clay as navy in light mode */
+
+  --color-lime: #fdfbf6; /* warm cream — text on the sidebar */
+  --color-lime-soft: #f0e8dc;
+
+  --color-ink: #2e2419; /* ink */
+  --color-paper: #f3ebd8; /* page background */
+  --color-paper-warm: #efe4cc;
+  --color-paper-cream: #eadfc4;
+  --color-white: #ffffff;
+  --color-surface: #ffffff; /* card surface */
+
+  --color-rule: rgba(46, 36, 25, 0.08);
+  --color-rule-strong: rgba(46, 36, 25, 0.16);
+  --color-muted: #8a7c68;
+  --color-muted-soft: rgba(138, 124, 104, 0.7);
+
+  --color-accent: #6e9660; /* moss (secondary pop accent in light mode) — CTAs, badges */
+  --color-accent-soft: #e3ead9;
+  --color-success: #6e9660; /* moss for correct/success states */
+  --color-warning: #e0aa52; /* wheat / amber (tertiary) — rewards, streak */
+  --color-error: #c15c4a; /* muted brick red */
+
+  --color-listening: #6e9660; /* moss (primary) */
+  --color-speaking: #d9713d; /* terracotta / ember (secondary) */
+  --color-reading: #e0aa52; /* wheat / amber (tertiary) */
+  --color-writing: #d98f72; /* clay pink / rose (quaternary) */
+
+  --glow-accent: rgba(110, 150, 96, 0.1);
+  --glow-navy: rgba(201, 124, 92, 0.14);
+  --shine: none; /* dark mode gets a subtle glossy highlight on cards/buttons; light mode stays flat */
+
+  --radius-focus: 6px;
+  --radius-input: 12px;
+  --radius-card: 20px;
+  --radius-pill: 100px;
+}
+
+/* System preference: applies only when the user hasn't made an explicit choice (no data-theme attribute at all). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    --color-navy: #7fcb6b;
+    --color-navy-soft: #9ddb8c;
+    --color-navy-deep: #63a857;
+    --color-sidebar: #1c2417; /* dark, muted moss panel — keeps the vivid primary as an accent, not a neon fill */
+
+    --color-ink: #f4e9d6;
+    --color-paper: #18140d; /* lighter than pure-black Kiln Dusk so it doesn't feel flat */
+    --color-paper-warm: #1e1810;
+    --color-paper-cream: #251f15;
+    --color-surface: #241e15; /* lifted a step above paper so cards read as distinct, lit surfaces */
+
+    --color-rule: rgba(244, 233, 214, 0.09);
+    --color-rule-strong: rgba(244, 233, 214, 0.18);
+    --color-muted: #b8a98f;
+    --color-muted-soft: rgba(184, 169, 143, 0.7);
+
+    --color-accent: #c97c5c; /* muted clay — calmer than a bright ember, reads better on Kiln Dusk */
+    --color-accent-soft: #3a281c;
+    --color-success: #7fcb6b;
+    --color-warning: #ffcb66;
+    --color-error: #d9634a;
+
+    --color-listening: #7fcb6b; /* moss (primary, bright) */
+    --color-speaking: #c97c5c; /* muted clay (secondary) */
+    --color-reading: #ffcb66; /* wheat / amber (tertiary, bright) */
+    --color-writing: #e08b9a; /* clay pink / rose (quaternary, bright) */
+
+    --glow-accent: rgba(201, 124, 92, 0.18);
+    --glow-navy: rgba(127, 203, 107, 0.18);
+    --shine: linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 55%);
+  }
+}
+
+/* Explicit choice: wins regardless of system preference. */
+:root[data-theme="dark"] {
+  --color-navy: #7fcb6b;
+  --color-navy-soft: #9ddb8c;
+  --color-navy-deep: #63a857;
+  --color-sidebar: #1c2417; /* dark, muted moss panel — keeps the vivid primary as an accent, not a neon fill */
+
+  --color-ink: #f4e9d6;
+  --color-paper: #18140d; /* lighter than pure-black Kiln Dusk so it doesn't feel flat */
+  --color-paper-warm: #1e1810;
+  --color-paper-cream: #251f15;
+  --color-surface: #241e15; /* lifted a step above paper so cards read as distinct, lit surfaces */
+
+  --color-rule: rgba(244, 233, 214, 0.09);
+  --color-rule-strong: rgba(244, 233, 214, 0.18);
+  --color-muted: #b8a98f;
+  --color-muted-soft: rgba(184, 169, 143, 0.7);
+
+  --color-accent: #c97c5c; /* muted clay — calmer than a bright ember, reads better on Kiln Dusk */
+  --color-accent-soft: #3a281c;
+  --color-success: #7fcb6b;
+  --color-warning: #ffcb66;
+  --color-error: #d9634a;
+
+  --color-listening: #7fcb6b; /* moss (primary, bright) */
+  --color-speaking: #c97c5c; /* muted clay (secondary) */
+  --color-reading: #ffcb66; /* wheat / amber (tertiary, bright) */
+  --color-writing: #e08b9a; /* clay pink / rose (quaternary, bright) */
+
+  --glow-accent: rgba(201, 124, 92, 0.18);
+  --glow-navy: rgba(127, 203, 107, 0.18);
+  --shine: linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 55%);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+/*
+ * Soft ambient warmth behind the app content — subtle, not busy.
+ */
+.app-surface {
+  background-color: var(--color-paper);
+  background-image:
+    radial-gradient(circle at 90% -5%, var(--glow-accent), transparent 45%),
+    radial-gradient(circle at -5% 60%, var(--glow-navy), transparent 45%);
+  background-attachment: fixed;
+}
+
+/*
+ * Glossy highlight — a no-op in light mode (--shine: none). In dark mode it
+ * layers a soft top-light gradient on cards and the primary button so Kiln
+ * Dusk doesn't read as flat matte black.
+ */
+.bg-surface {
+  background-image: var(--shine);
+}
+
+.btn-shine {
+  background-image: var(--shine);
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.mascot-breathe {
+  animation: breathe 4.5s ease-in-out infinite;
+}
+
+@keyframes leaf-grow {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.3);
+  }
+  100% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+.leaf-grow {
+  animation: leaf-grow 1.2s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  transform-origin: bottom;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button {
+  font-family: inherit;
+}
