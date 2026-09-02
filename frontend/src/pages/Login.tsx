@@ -22,11 +22,13 @@ export function Login() {
       await login(email, password);
       navigate("/onboarding", { replace: true });
     } catch (err) {
-      setError(
-        err instanceof Error && err.message === "invalid_credentials"
-          ? "Incorrect email or password."
-          : "Something went wrong. Please check your connection and try again.",
-      );
+      if (err instanceof Error && err.message === "invalid_credentials") {
+        setError("Incorrect email or password.");
+      } else if (err instanceof Error && err.message === "email_not_verified") {
+        setError("Please verify your email before signing in — check your inbox for the verification link.");
+      } else {
+        setError("Something went wrong. Please check your connection and try again.");
+      }
     } finally {
       setSubmitting(false);
     }

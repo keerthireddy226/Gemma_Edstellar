@@ -51,16 +51,14 @@ export function useAuthState() {
     setState({ user, loading: false, error: null });
   }, []);
 
-  const signup = useCallback(
-    async (email: string, password: string, firstName?: string) => {
-      const user = await api<AuthUser>("/auth/signup", {
-        method: "POST",
-        body: JSON.stringify({ email, password, firstName }),
-      });
-      setState({ user, loading: false, error: null });
-    },
-    [],
-  );
+  // Deliberately doesn't set auth state — signup ends with "check your email,"
+  // not an automatic login (the backend doesn't create a session either).
+  const signup = useCallback(async (email: string, password: string, firstName?: string) => {
+    await api<{ email: string }>("/auth/signup", {
+      method: "POST",
+      body: JSON.stringify({ email, password, firstName }),
+    });
+  }, []);
 
   const logout = useCallback(async () => {
     await api("/auth/logout", { method: "POST" });

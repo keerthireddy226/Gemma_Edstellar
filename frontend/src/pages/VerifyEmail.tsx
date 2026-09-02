@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/Button";
 import { AuthCard } from "@/components/AuthCard";
 
 export function VerifyEmail() {
+  const navigate = useNavigate();
   const { verifyEmail } = useAuth();
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token") ?? "";
@@ -23,12 +25,12 @@ export function VerifyEmail() {
     <AuthCard eyebrow="Gemma_Edstellar" title="Email verification" subtitle="">
       {status === "pending" && <p className="text-center text-sm text-muted">Verifying…</p>}
       {status === "success" && (
-        <p className="text-center text-sm text-ink">
-          Your email is verified.{" "}
-          <Link to="/onboarding" className="font-medium hover:underline">
-            Continue
-          </Link>
-        </p>
+        <>
+          <p className="text-sm text-ink text-center">Your email is verified. Sign in to continue.</p>
+          <Button className="mt-1 w-full" onClick={() => navigate("/login")}>
+            Sign In
+          </Button>
+        </>
       )}
       {status === "error" && (
         <p className="text-center text-sm text-error">This verification link is invalid or has expired.</p>

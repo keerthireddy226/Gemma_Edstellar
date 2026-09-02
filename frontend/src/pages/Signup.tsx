@@ -12,6 +12,7 @@ export function Signup() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
 
   if (user) return <Navigate to="/onboarding" replace />;
 
@@ -25,7 +26,7 @@ export function Signup() {
     setSubmitting(true);
     try {
       await signup(email, password, firstName || undefined);
-      navigate("/onboarding", { replace: true });
+      setSubmittedEmail(email);
     } catch (err) {
       setError(err instanceof Error && err.message === "email_already_registered"
         ? "An account with that email already exists."
@@ -33,6 +34,20 @@ export function Signup() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (submittedEmail) {
+    return (
+      <AuthCard eyebrow="Gemma_Edstellar" title="Check your email" subtitle="">
+        <p className="text-sm text-ink text-center">
+          We sent a verification link to <strong>{submittedEmail}</strong>. Once you've verified, sign in to
+          continue.
+        </p>
+        <Button className="mt-1 w-full" onClick={() => navigate("/login")}>
+          Sign In
+        </Button>
+      </AuthCard>
+    );
   }
 
   return (

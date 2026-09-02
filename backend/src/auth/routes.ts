@@ -88,15 +88,14 @@ authRouter.post("/signup", signupLimiter, async (req, res, next) => {
       [userId, hashToken(verifyToken), new Date(Date.now() + VERIFY_TOKEN_TTL_MS)],
     );
 
-    const { token } = await createSession(client, userId);
-
     await client.query("COMMIT");
 
-    setSessionCookie(res, token);
+    // No session is created here on purpose — signup ends with "check your
+    // email," not an automatic login. The learner logs in for real afterward.
     sendVerificationEmail(body.email, verifyToken).catch((err) =>
       console.error("failed to send verification email:", err),
     );
-    res.status(201).json({ id: userId, email: body.email, role: "learner", emailVerified: false });
+    res.status(201).json({ email: body.email });
   } catch (err) {
     await client.query("ROLLBACK");
     // A concurrent signup with the same email can race past an existence
@@ -120,6 +119,9 @@ authRouter.post("/login", loginLimiter, async (req, res, next) => {
     const user = result.rows[0];
     if (!user || !(await bcrypt.compare(body.password, user.password_hash))) {
       return res.status(401).json({ error: "invalid_credentials" });
+    }
+    if (!user.email_verified) {
+      return res.status(403).json({ error: "email_not_verified" });
     }
 
     const { token } = await createSession(pool, user.id);

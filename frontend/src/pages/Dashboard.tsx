@@ -16,11 +16,6 @@ export function Dashboard() {
             Log out
           </Button>
         </div>
-        {user && !user.emailVerified && (
-          <div className="rounded-input bg-warning/15 text-navy-deep text-sm px-4 py-3">
-            Please verify your email — check your inbox for the verification email.
-          </div>
-        )}
         <p className="text-sm text-muted">
           This is a placeholder — the real dashboard (level, plan progress, streak, badges) is built in a later
           phase.
