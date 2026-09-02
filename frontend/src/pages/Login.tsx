@@ -1,10 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/Button";
 import { AuthCard, FormField } from "@/components/AuthCard";
+import { ROUTES } from "@/constants/routes";
 
 export function Login() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, login } = useAuth();
   const [email, setEmail] = useState("");
@@ -12,7 +15,7 @@ export function Login() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  if (user) return <Navigate to="/onboarding" replace />;
+  if (user) return <Navigate to={ROUTES.ONBOARDING} replace />;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -20,14 +23,14 @@ export function Login() {
     setSubmitting(true);
     try {
       await login(email, password);
-      navigate("/onboarding", { replace: true });
+      navigate(ROUTES.ONBOARDING, { replace: true });
     } catch (err) {
       if (err instanceof Error && err.message === "invalid_credentials") {
-        setError("Incorrect email or password.");
+        setError(t("auth.login.errorInvalidCredentials"));
       } else if (err instanceof Error && err.message === "email_not_verified") {
-        setError("Please verify your email before signing in — check your inbox for the verification link.");
+        setError(t("auth.login.errorEmailNotVerified"));
       } else {
-        setError("Something went wrong. Please check your connection and try again.");
+        setError(t("auth.login.errorGeneric"));
       }
     } finally {
       setSubmitting(false);
@@ -35,39 +38,39 @@ export function Login() {
   }
 
   return (
-    <AuthCard eyebrow="Gemma_Edstellar" title="Welcome back" subtitle="Sign in to continue your practice.">
+    <AuthCard eyebrow={t("common.appName")} title={t("auth.login.title")} subtitle={t("auth.login.subtitle")}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <FormField
           id="email"
-          label="Email"
+          label={t("auth.login.emailLabel")}
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@example.com"
+          placeholder={t("auth.login.emailPlaceholder")}
           autoComplete="email"
           required
         />
         <FormField
           id="password"
-          label="Password"
+          label={t("auth.login.passwordLabel")}
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="••••••••"
+          placeholder={t("auth.login.passwordPlaceholder")}
           autoComplete="current-password"
           required
         />
         {error && <p className="text-sm text-error">{error}</p>}
         <Button type="submit" className="mt-1 w-full" disabled={submitting}>
-          {submitting ? "Signing in…" : "Sign In"}
+          {submitting ? t("auth.login.submitting") : t("auth.login.submit")}
         </Button>
       </form>
       <div className="flex justify-between text-sm text-muted">
-        <Link to="/forgot-password" className="hover:text-ink">
-          Forgot password?
+        <Link to={ROUTES.FORGOT_PASSWORD} className="hover:text-ink">
+          {t("auth.login.forgotPassword")}
         </Link>
-        <Link to="/signup" className="hover:text-ink">
-          Create an account
+        <Link to={ROUTES.SIGNUP} className="hover:text-ink">
+          {t("auth.login.createAccount")}
         </Link>
       </div>
     </AuthCard>

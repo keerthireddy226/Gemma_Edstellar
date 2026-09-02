@@ -1,10 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/Button";
 import { AuthCard, FormField } from "@/components/AuthCard";
+import { ROUTES } from "@/constants/routes";
 
 export function Signup() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, signup } = useAuth();
   const [firstName, setFirstName] = useState("");
@@ -14,13 +17,13 @@ export function Signup() {
   const [submitting, setSubmitting] = useState(false);
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
 
-  if (user) return <Navigate to="/onboarding" replace />;
+  if (user) return <Navigate to={ROUTES.ONBOARDING} replace />;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+      setError(t("auth.signup.passwordTooShort"));
       return;
     }
     setSubmitting(true);
@@ -28,9 +31,11 @@ export function Signup() {
       await signup(email, password, firstName || undefined);
       setSubmittedEmail(email);
     } catch (err) {
-      setError(err instanceof Error && err.message === "email_already_registered"
-        ? "An account with that email already exists."
-        : "Something went wrong. Please try again.");
+      setError(
+        err instanceof Error && err.message === "email_already_registered"
+          ? t("auth.signup.errorEmailTaken")
+          : t("auth.signup.errorGeneric"),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -38,59 +43,58 @@ export function Signup() {
 
   if (submittedEmail) {
     return (
-      <AuthCard eyebrow="Gemma_Edstellar" title="Check your email" subtitle="">
+      <AuthCard eyebrow={t("common.appName")} title={t("auth.signup.checkEmailTitle")} subtitle="">
         <p className="text-sm text-ink text-center">
-          We sent a verification link to <strong>{submittedEmail}</strong>. Once you've verified, sign in to
-          continue.
+          {t("auth.signup.checkEmailBody", { email: submittedEmail })}
         </p>
-        <Button className="mt-1 w-full" onClick={() => navigate("/login")}>
-          Sign In
+        <Button className="mt-1 w-full" onClick={() => navigate(ROUTES.LOGIN)}>
+          {t("auth.signup.signInButton")}
         </Button>
       </AuthCard>
     );
   }
 
   return (
-    <AuthCard eyebrow="Gemma_Edstellar" title="Create your account" subtitle="Start practicing in a few seconds.">
+    <AuthCard eyebrow={t("common.appName")} title={t("auth.signup.title")} subtitle={t("auth.signup.subtitle")}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <FormField
           id="firstName"
-          label="First name"
+          label={t("auth.signup.firstNameLabel")}
           type="text"
           value={firstName}
           onChange={(e) => setFirstName(e.target.value)}
-          placeholder="Alex"
+          placeholder={t("auth.signup.firstNamePlaceholder")}
           autoComplete="given-name"
         />
         <FormField
           id="email"
-          label="Email"
+          label={t("auth.signup.emailLabel")}
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@example.com"
+          placeholder={t("auth.signup.emailPlaceholder")}
           autoComplete="email"
           required
         />
         <FormField
           id="password"
-          label="Password"
+          label={t("auth.signup.passwordLabel")}
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="At least 8 characters"
+          placeholder={t("auth.signup.passwordPlaceholder")}
           autoComplete="new-password"
           required
         />
         {error && <p className="text-sm text-error">{error}</p>}
         <Button type="submit" className="mt-1 w-full" disabled={submitting}>
-          {submitting ? "Creating account…" : "Sign Up"}
+          {submitting ? t("auth.signup.submitting") : t("auth.signup.submit")}
         </Button>
       </form>
       <p className="text-center text-sm text-muted">
-        Already have an account?{" "}
-        <Link to="/login" className="text-ink font-medium hover:underline">
-          Sign in
+        {t("auth.signup.alreadyHaveAccount")}{" "}
+        <Link to={ROUTES.LOGIN} className="text-ink font-medium hover:underline">
+          {t("auth.signup.signIn")}
         </Link>
       </p>
     </AuthCard>

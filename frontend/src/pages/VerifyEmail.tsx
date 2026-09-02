@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/Button";
 import { AuthCard } from "@/components/AuthCard";
+import { ROUTES } from "@/constants/routes";
 
 export function VerifyEmail() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { verifyEmail } = useAuth();
   const [searchParams] = useSearchParams();
@@ -22,19 +25,17 @@ export function VerifyEmail() {
   }, [token, verifyEmail]);
 
   return (
-    <AuthCard eyebrow="Gemma_Edstellar" title="Email verification" subtitle="">
-      {status === "pending" && <p className="text-center text-sm text-muted">Verifying…</p>}
+    <AuthCard eyebrow={t("common.appName")} title={t("auth.verifyEmail.title")} subtitle="">
+      {status === "pending" && <p className="text-center text-sm text-muted">{t("auth.verifyEmail.pending")}</p>}
       {status === "success" && (
         <>
-          <p className="text-sm text-ink text-center">Your email is verified. Sign in to continue.</p>
-          <Button className="mt-1 w-full" onClick={() => navigate("/login")}>
-            Sign In
+          <p className="text-sm text-ink text-center">{t("auth.verifyEmail.success")}</p>
+          <Button className="mt-1 w-full" onClick={() => navigate(ROUTES.LOGIN)}>
+            {t("auth.verifyEmail.signInButton")}
           </Button>
         </>
       )}
-      {status === "error" && (
-        <p className="text-center text-sm text-error">This verification link is invalid or has expired.</p>
-      )}
+      {status === "error" && <p className="text-center text-sm text-error">{t("auth.verifyEmail.error")}</p>}
     </AuthCard>
   );
 }

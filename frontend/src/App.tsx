@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AuthContext, useAuthState } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ROUTES } from "@/constants/routes";
 import { Login } from "@/pages/Login";
 import { Signup } from "@/pages/Signup";
 import { ForgotPassword } from "@/pages/ForgotPassword";
@@ -15,13 +16,13 @@ function App() {
   return (
     <AuthContext.Provider value={auth}>
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path={ROUTES.LOGIN} element={<Login />} />
+        <Route path={ROUTES.SIGNUP} element={<Signup />} />
+        <Route path={ROUTES.FORGOT_PASSWORD} element={<ForgotPassword />} />
+        <Route path={ROUTES.RESET_PASSWORD} element={<ResetPassword />} />
+        <Route path={ROUTES.VERIFY_EMAIL} element={<VerifyEmail />} />
         <Route
-          path="/onboarding"
+          path={ROUTES.ONBOARDING}
           element={
             <ProtectedRoute>
               <Onboarding />
@@ -29,14 +30,14 @@ function App() {
           }
         />
         <Route
-          path="/dashboard"
+          path={ROUTES.DASHBOARD}
           element={
             <ProtectedRoute>
               <Dashboard />
             </ProtectedRoute>
           }
         />
-        <Route path="*" element={<Navigate to="/onboarding" replace />} />
+        <Route path="*" element={<Navigate to={ROUTES.ONBOARDING} replace />} />
       </Routes>
     </AuthContext.Provider>
   );

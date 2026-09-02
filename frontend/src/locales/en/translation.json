@@ -1,0 +1,83 @@
+{
+  "common": {
+    "appName": "Gemma_Edstellar"
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome back",
+      "subtitle": "Sign in to continue your practice.",
+      "emailLabel": "Email",
+      "emailPlaceholder": "you@example.com",
+      "passwordLabel": "Password",
+      "passwordPlaceholder": "••••••••",
+      "submit": "Sign In",
+      "submitting": "Signing in…",
+      "errorInvalidCredentials": "Incorrect email or password.",
+      "errorEmailNotVerified": "Please verify your email before signing in — check your inbox for the verification link.",
+      "errorGeneric": "Something went wrong. Please check your connection and try again.",
+      "forgotPassword": "Forgot password?",
+      "createAccount": "Create an account"
+    },
+    "signup": {
+      "title": "Create your account",
+      "subtitle": "Start practicing in a few seconds.",
+      "firstNameLabel": "First name",
+      "firstNamePlaceholder": "Alex",
+      "emailLabel": "Email",
+      "emailPlaceholder": "you@example.com",
+      "passwordLabel": "Password",
+      "passwordPlaceholder": "At least 8 characters",
+      "passwordTooShort": "Password must be at least 8 characters.",
+      "submit": "Sign Up",
+      "submitting": "Creating account…",
+      "errorEmailTaken": "An account with that email already exists.",
+      "errorGeneric": "Something went wrong. Please try again.",
+      "alreadyHaveAccount": "Already have an account?",
+      "signIn": "Sign in",
+      "checkEmailTitle": "Check your email",
+      "checkEmailBody": "We sent a verification link to {{email}}. Once you've verified, sign in to continue.",
+      "signInButton": "Sign In"
+    },
+    "forgotPassword": {
+      "title": "Reset your password",
+      "subtitle": "We'll email you a link to set a new one.",
+      "submitted": "If an account exists for that email, a reset link is on its way.",
+      "emailLabel": "Email",
+      "emailPlaceholder": "you@example.com",
+      "submit": "Send Reset Link",
+      "submitting": "Sending…",
+      "backToSignIn": "Back to sign in"
+    },
+    "resetPassword": {
+      "title": "Choose a new password",
+      "subtitle": "Make it at least 8 characters.",
+      "missingTokenTitle": "Reset your password",
+      "missingTokenSubtitle": "This link is missing its token.",
+      "requestNewLink": "Request a new reset link",
+      "passwordLabel": "New password",
+      "passwordPlaceholder": "At least 8 characters",
+      "passwordTooShort": "Password must be at least 8 characters.",
+      "submit": "Reset Password",
+      "submitting": "Saving…",
+      "error": "This reset link is invalid or has expired."
+    },
+    "verifyEmail": {
+      "title": "Email verification",
+      "pending": "Verifying…",
+      "success": "Your email is verified. Sign in to continue.",
+      "signInButton": "Sign In",
+      "error": "This verification link is invalid or has expired."
+    }
+  },
+  "onboarding": {
+    "title": "Welcome to onboarding",
+    "logout": "Log out",
+    "placeholder": "This is a placeholder — the real onboarding questionnaire (exam choice, target CEFR level, exam date, prep days, daily minutes, past attempts) is built in a later phase, then leads into the placement test."
+  },
+  "dashboard": {
+    "welcome": "Welcome, {{email}}",
+    "role": "Role: {{role}}",
+    "logout": "Log out",
+    "placeholder": "This is a placeholder — the real dashboard (level, plan progress, streak, badges) is built in a later phase."
+  }
+}
