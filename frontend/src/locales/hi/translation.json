@@ -1,0 +1,83 @@
+{
+  "common": {
+    "appName": "Gemma_Edstellar"
+  },
+  "auth": {
+    "login": {
+      "title": "वापसी पर स्वागत है",
+      "subtitle": "अपना अभ्यास जारी रखने के लिए साइन इन करें।",
+      "emailLabel": "ईमेल",
+      "emailPlaceholder": "you@example.com",
+      "passwordLabel": "पासवर्ड",
+      "passwordPlaceholder": "••••••••",
+      "submit": "साइन इन करें",
+      "submitting": "साइन इन हो रहा है…",
+      "errorInvalidCredentials": "गलत ईमेल या पासवर्ड।",
+      "errorEmailNotVerified": "साइन इन करने से पहले कृपया अपना ईमेल सत्यापित करें — सत्यापन लिंक के लिए अपना इनबॉक्स जांचें।",
+      "errorGeneric": "कुछ गलत हो गया। कृपया अपना कनेक्शन जांचें और फिर से प्रयास करें।",
+      "forgotPassword": "पासवर्ड भूल गए?",
+      "createAccount": "खाता बनाएं"
+    },
+    "signup": {
+      "title": "अपना खाता बनाएं",
+      "subtitle": "कुछ ही सेकंड में अभ्यास शुरू करें।",
+      "firstNameLabel": "पहला नाम",
+      "firstNamePlaceholder": "Alex",
+      "emailLabel": "ईमेल",
+      "emailPlaceholder": "you@example.com",
+      "passwordLabel": "पासवर्ड",
+      "passwordPlaceholder": "कम से कम 8 अक्षर",
+      "passwordTooShort": "पासवर्ड कम से कम 8 अक्षरों का होना चाहिए।",
+      "submit": "साइन अप करें",
+      "submitting": "खाता बनाया जा रहा है…",
+      "errorEmailTaken": "उस ईमेल से पहले से एक खाता मौजूद है।",
+      "errorGeneric": "कुछ गलत हो गया। कृपया फिर से प्रयास करें।",
+      "alreadyHaveAccount": "पहले से खाता है?",
+      "signIn": "साइन इन करें",
+      "checkEmailTitle": "अपना ईमेल जांचें",
+      "checkEmailBody": "हमने {{email}} पर एक सत्यापन लिंक भेजा है। सत्यापित करने के बाद, जारी रखने के लिए साइन इन करें।",
+      "signInButton": "साइन इन करें"
+    },
+    "forgotPassword": {
+      "title": "अपना पासवर्ड रीसेट करें",
+      "subtitle": "हम आपको नया पासवर्ड सेट करने के लिए एक लिंक ईमेल करेंगे।",
+      "submitted": "यदि उस ईमेल के लिए कोई खाता मौजूद है, तो एक रीसेट लिंक भेजा जा रहा है।",
+      "emailLabel": "ईमेल",
+      "emailPlaceholder": "you@example.com",
+      "submit": "रीसेट लिंक भेजें",
+      "submitting": "भेजा जा रहा है…",
+      "backToSignIn": "साइन इन पर वापस जाएं"
+    },
+    "resetPassword": {
+      "title": "एक नया पासवर्ड चुनें",
+      "subtitle": "इसे कम से कम 8 अक्षरों का बनाएं।",
+      "missingTokenTitle": "अपना पासवर्ड रीसेट करें",
+      "missingTokenSubtitle": "इस लिंक में टोकन गुम है।",
+      "requestNewLink": "नया रीसेट लिंक का अनुरोध करें",
+      "passwordLabel": "नया पासवर्ड",
+      "passwordPlaceholder": "कम से कम 8 अक्षर",
+      "passwordTooShort": "पासवर्ड कम से कम 8 अक्षरों का होना चाहिए।",
+      "submit": "पासवर्ड रीसेट करें",
+      "submitting": "सहेजा जा रहा है…",
+      "error": "यह रीसेट लिंक अमान्य है या समाप्त हो गया है।"
+    },
+    "verifyEmail": {
+      "title": "ईमेल सत्यापन",
+      "pending": "सत्यापित हो रहा है…",
+      "success": "आपका ईमेल सत्यापित हो गया है। जारी रखने के लिए साइन इन करें।",
+      "signInButton": "साइन इन करें",
+      "error": "यह सत्यापन लिंक अमान्य है या समाप्त हो गया है।"
+    }
+  },
+  "onboarding": {
+    "title": "ऑनबोर्डिंग में आपका स्वागत है",
+    "logout": "लॉग आउट करें",
+    "placeholder": "यह एक प्लेसहोल्डर है — असली ऑनबोर्डिंग प्रश्नावली (परीक्षा चयन, लक्ष्य CEFR स्तर, परीक्षा तिथि, तैयारी के दिन, दैनिक मिनट, पिछले प्रयास) बाद के चरण में बनाई जाएगी, फिर यह प्लेसमेंट टेस्ट की ओर ले जाएगी।"
+  },
+  "dashboard": {
+    "welcome": "स्वागत है, {{email}}",
+    "role": "भूमिका: {{role}}",
+    "logout": "लॉग आउट करें",
+    "placeholder": "यह एक प्लेसहोल्डर है — असली डैशबोर्ड (स्तर, योजना प्रगति, स्ट्रीक, बैज) बाद के चरण में बनाया जाएगा।"
+  }
+}

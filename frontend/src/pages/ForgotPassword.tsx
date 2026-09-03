@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/Button";
 import { AuthCard, FormField } from "@/components/AuthCard";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ROUTES } from "@/constants/routes";
 
 export function ForgotPassword() {
@@ -54,6 +55,7 @@ export function ForgotPassword() {
           {t("auth.forgotPassword.backToSignIn")}
         </Link>
       </p>
+      <LanguageSwitcher />
     </AuthCard>
   );
 }

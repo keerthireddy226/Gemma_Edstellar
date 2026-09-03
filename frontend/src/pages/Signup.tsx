@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/Button";
 import { AuthCard, FormField } from "@/components/AuthCard";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ROUTES } from "@/constants/routes";
 
 export function Signup() {
@@ -50,6 +51,7 @@ export function Signup() {
         <Button className="mt-1 w-full" onClick={() => navigate(ROUTES.LOGIN)}>
           {t("auth.signup.signInButton")}
         </Button>
+        <LanguageSwitcher />
       </AuthCard>
     );
   }
@@ -97,6 +99,7 @@ export function Signup() {
           {t("auth.signup.signIn")}
         </Link>
       </p>
+      <LanguageSwitcher />
     </AuthCard>
   );
 }

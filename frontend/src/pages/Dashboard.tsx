@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/Button";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export function Dashboard() {
   const { t } = useTranslation();
@@ -21,6 +22,7 @@ export function Dashboard() {
           </Button>
         </div>
         <p className="text-sm text-muted">{t("dashboard.placeholder")}</p>
+        <LanguageSwitcher />
       </div>
     </div>
   );

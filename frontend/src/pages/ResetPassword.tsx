@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/Button";
 import { AuthCard, FormField } from "@/components/AuthCard";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ROUTES } from "@/constants/routes";
 
 export function ResetPassword() {
@@ -46,6 +47,7 @@ export function ResetPassword() {
             {t("auth.resetPassword.requestNewLink")}
           </Link>
         </p>
+        <LanguageSwitcher />
       </AuthCard>
     );
   }
@@ -72,6 +74,7 @@ export function ResetPassword() {
           {submitting ? t("auth.resetPassword.submitting") : t("auth.resetPassword.submit")}
         </Button>
       </form>
+      <LanguageSwitcher />
     </AuthCard>
   );
 }

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/Button";
 import { AuthCard } from "@/components/AuthCard";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ROUTES } from "@/constants/routes";
 
 export function VerifyEmail() {
@@ -36,6 +37,7 @@ export function VerifyEmail() {
         </>
       )}
       {status === "error" && <p className="text-center text-sm text-error">{t("auth.verifyEmail.error")}</p>}
+      <LanguageSwitcher />
     </AuthCard>
   );
 }

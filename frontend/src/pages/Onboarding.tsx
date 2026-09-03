@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/Button";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export function Onboarding() {
   const { t } = useTranslation();
@@ -19,6 +20,7 @@ export function Onboarding() {
           </Button>
         </div>
         <p className="text-sm text-muted">{t("onboarding.placeholder")}</p>
+        <LanguageSwitcher />
       </div>
     </div>
   );
