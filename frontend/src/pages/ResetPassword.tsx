@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/Button";
 import { AuthCard, FormField } from "@/components/AuthCard";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { ROUTES } from "@/constants/routes";
+import { LOGIN_ROUTE_BY_ROLE, ROUTES } from "@/constants/routes";
 
 export function ResetPassword() {
   const { t } = useTranslation();
@@ -26,8 +26,8 @@ export function ResetPassword() {
     }
     setSubmitting(true);
     try {
-      await resetPassword(token, password);
-      navigate(ROUTES.LOGIN, { replace: true });
+      const { role } = await resetPassword(token, password);
+      navigate(LOGIN_ROUTE_BY_ROLE[role], { replace: true });
     } catch {
       setError(t("auth.resetPassword.error"));
     } finally {

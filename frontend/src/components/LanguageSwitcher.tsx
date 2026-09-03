@@ -2,8 +2,10 @@ import { useTranslation } from "react-i18next";
 
 const LANGUAGES = [
   { code: "en", label: "English" },
-  { code: "hi", label: "हिन्दी" },
-  { code: "te", label: "తెలుగు" },
+  // { code: "hi", label: "हिन्दी" },
+  // { code: "te", label: "తెలుగు" },
+  { code: "es", label: "Español" },
+  { code: "fr", label: "Français" },
 ] as const;
 
 export function LanguageSwitcher() {

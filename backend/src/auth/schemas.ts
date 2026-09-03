@@ -9,9 +9,13 @@ export const signupSchema = z.object({
   lastName: z.string().min(1).optional(),
 });
 
+// A login portal names which role(s) it accepts — a plain list, even when
+// there's only one — so a portal like /admin/login can accept either
+// 'admin' or 'super_admin' without a different check shape.
 export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
+  allowedRoles: z.array(z.enum(["learner", "org_admin", "admin", "super_admin"])).min(1),
 });
 
 export const forgotPasswordSchema = z.object({

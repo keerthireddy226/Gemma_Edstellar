@@ -1,0 +1,84 @@
+{
+  "common": {
+    "appName": "Gemma_Edstellar"
+  },
+  "auth": {
+    "login": {
+      "title": "Bienvenido de nuevo",
+      "subtitle": "Inicia sesión para continuar tu práctica.",
+      "emailLabel": "Correo electrónico",
+      "emailPlaceholder": "you@example.com",
+      "passwordLabel": "Contraseña",
+      "passwordPlaceholder": "••••••••",
+      "submit": "Iniciar sesión",
+      "submitting": "Iniciando sesión…",
+      "errorInvalidCredentials": "Correo electrónico o contraseña incorrectos.",
+      "errorEmailNotVerified": "Por favor verifica tu correo electrónico antes de iniciar sesión — revisa tu bandeja de entrada para el enlace de verificación.",
+      "errorWrongPortal": "Esta cuenta no tiene acceso a través de esta página de inicio de sesión.",
+      "errorGeneric": "Algo salió mal. Por favor verifica tu conexión e intenta de nuevo.",
+      "forgotPassword": "¿Olvidaste tu contraseña?",
+      "createAccount": "Crear una cuenta"
+    },
+    "signup": {
+      "title": "Crea tu cuenta",
+      "subtitle": "Empieza a practicar en unos segundos.",
+      "firstNameLabel": "Nombre",
+      "firstNamePlaceholder": "Alex",
+      "emailLabel": "Correo electrónico",
+      "emailPlaceholder": "you@example.com",
+      "passwordLabel": "Contraseña",
+      "passwordPlaceholder": "Al menos 8 caracteres",
+      "passwordTooShort": "La contraseña debe tener al menos 8 caracteres.",
+      "submit": "Registrarse",
+      "submitting": "Creando cuenta…",
+      "errorEmailTaken": "Ya existe una cuenta con ese correo electrónico.",
+      "errorGeneric": "Algo salió mal. Por favor intenta de nuevo.",
+      "alreadyHaveAccount": "¿Ya tienes una cuenta?",
+      "signIn": "Iniciar sesión",
+      "checkEmailTitle": "Revisa tu correo electrónico",
+      "checkEmailBody": "Enviamos un enlace de verificación a {{email}}. Una vez que hayas verificado, inicia sesión para continuar.",
+      "signInButton": "Iniciar sesión"
+    },
+    "forgotPassword": {
+      "title": "Restablece tu contraseña",
+      "subtitle": "Te enviaremos un enlace por correo electrónico para establecer una nueva.",
+      "submitted": "Si existe una cuenta con ese correo electrónico, un enlace de restablecimiento está en camino.",
+      "emailLabel": "Correo electrónico",
+      "emailPlaceholder": "you@example.com",
+      "submit": "Enviar enlace de restablecimiento",
+      "submitting": "Enviando…",
+      "backToSignIn": "Volver a iniciar sesión"
+    },
+    "resetPassword": {
+      "title": "Elige una nueva contraseña",
+      "subtitle": "Que tenga al menos 8 caracteres.",
+      "missingTokenTitle": "Restablece tu contraseña",
+      "missingTokenSubtitle": "A este enlace le falta el token.",
+      "requestNewLink": "Solicitar un nuevo enlace de restablecimiento",
+      "passwordLabel": "Nueva contraseña",
+      "passwordPlaceholder": "Al menos 8 caracteres",
+      "passwordTooShort": "La contraseña debe tener al menos 8 caracteres.",
+      "submit": "Restablecer contraseña",
+      "submitting": "Guardando…",
+      "error": "Este enlace de restablecimiento no es válido o ha expirado."
+    },
+    "verifyEmail": {
+      "title": "Verificación de correo electrónico",
+      "pending": "Verificando…",
+      "success": "Tu correo electrónico ha sido verificado. Inicia sesión para continuar.",
+      "signInButton": "Iniciar sesión",
+      "error": "Este enlace de verificación no es válido o ha expirado."
+    }
+  },
+  "onboarding": {
+    "title": "Bienvenido a la incorporación",
+    "logout": "Cerrar sesión",
+    "placeholder": "Esto es un marcador de posición — el cuestionario real de incorporación (elección de examen, nivel CEFR objetivo, fecha de examen, días de preparación, minutos diarios, intentos anteriores) se construirá en una fase posterior, y luego conducirá a la prueba de nivelación."
+  },
+  "dashboard": {
+    "welcome": "Bienvenido, {{email}}",
+    "role": "Rol: {{role}}",
+    "logout": "Cerrar sesión",
+    "placeholder": "Esto es un marcador de posición — el panel real (nivel, progreso del plan, racha, insignias) se construirá en una fase posterior."
+  }
+}

@@ -46,8 +46,15 @@ export function useAuthState() {
     refresh();
   }, [refresh]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const user = await api<AuthUser>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) });
+  // `allowedRoles` names which role(s) the login portal accepts (e.g.
+  // /admin/login accepts both admin and super_admin) — the backend rejects
+  // the login if the account's actual role isn't in that list, so this is a
+  // real access boundary, not just a different-looking page.
+  const login = useCallback(async (email: string, password: string, allowedRoles: Role[]) => {
+    const user = await api<AuthUser>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password, allowedRoles }),
+    });
     setState({ user, loading: false, error: null });
   }, []);
 
@@ -69,14 +76,19 @@ export function useAuthState() {
     await api("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) });
   }, []);
 
+  // Returns the account's role so the caller can redirect to *that* role's
+  // login page — neither of these actions creates a session, so this is the
+  // only way the frontend learns which portal the account belongs to.
   const resetPassword = useCallback(async (token: string, password: string) => {
-    await api("/auth/reset-password", { method: "POST", body: JSON.stringify({ token, password }) });
+    return api<{ role: Role }>("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, password }),
+    });
   }, []);
 
   const verifyEmail = useCallback(async (token: string) => {
-    await api("/auth/verify-email", { method: "POST", body: JSON.stringify({ token }) });
-    await refresh();
-  }, [refresh]);
+    return api<{ role: Role }>("/auth/verify-email", { method: "POST", body: JSON.stringify({ token }) });
+  }, []);
 
   return { ...state, login, signup, logout, forgotPassword, resetPassword, verifyEmail, refresh };
 }

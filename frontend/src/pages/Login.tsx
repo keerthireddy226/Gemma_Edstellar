@@ -1,13 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, type Role } from "@/hooks/useAuth";
 import { Button } from "@/components/Button";
 import { AuthCard, FormField } from "@/components/AuthCard";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ROUTES } from "@/constants/routes";
 
-export function Login() {
+export function Login({ allowedRoles }: { allowedRoles: Role[] }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, login } = useAuth();
@@ -23,13 +23,15 @@ export function Login() {
     setError(null);
     setSubmitting(true);
     try {
-      await login(email, password);
+      await login(email, password, allowedRoles);
       navigate(ROUTES.ONBOARDING, { replace: true });
     } catch (err) {
       if (err instanceof Error && err.message === "invalid_credentials") {
         setError(t("auth.login.errorInvalidCredentials"));
       } else if (err instanceof Error && err.message === "email_not_verified") {
         setError(t("auth.login.errorEmailNotVerified"));
+      } else if (err instanceof Error && err.message === "wrong_login_portal") {
+        setError(t("auth.login.errorWrongPortal"));
       } else {
         setError(t("auth.login.errorGeneric"));
       }
@@ -70,9 +72,11 @@ export function Login() {
         <Link to={ROUTES.FORGOT_PASSWORD} className="hover:text-ink">
           {t("auth.login.forgotPassword")}
         </Link>
-        <Link to={ROUTES.SIGNUP} className="hover:text-ink">
-          {t("auth.login.createAccount")}
-        </Link>
+        {allowedRoles.includes("learner") && (
+          <Link to={ROUTES.SIGNUP} className="hover:text-ink">
+            {t("auth.login.createAccount")}
+          </Link>
+        )}
       </div>
       <LanguageSwitcher />
     </AuthCard>

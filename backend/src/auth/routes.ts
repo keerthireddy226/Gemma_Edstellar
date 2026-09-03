@@ -123,6 +123,14 @@ authRouter.post("/login", loginLimiter, async (req, res, next) => {
     if (!user.email_verified) {
       return res.status(403).json({ error: "email_not_verified" });
     }
+    // Enforces the login portal as a real access boundary, not just a
+    // different-looking page — a learner's credentials don't work at
+    // /admin/login even though the password itself is correct. A portal may
+    // accept more than one role (e.g. /admin/login accepts admin and
+    // super_admin), so this is a membership check, not an exact match.
+    if (!body.allowedRoles.includes(user.role)) {
+      return res.status(403).json({ error: "wrong_login_portal" });
+    }
 
     const { token } = await createSession(pool, user.id);
     setSessionCookie(res, token);
@@ -187,8 +195,13 @@ authRouter.post("/verify-email", async (req, res, next) => {
     if (!row) return res.status(400).json({ error: "invalid_or_expired_token" });
 
     await pool.query("UPDATE email_verification_tokens SET used_at = now() WHERE id = $1", [row.id]);
-    await pool.query("UPDATE users SET email_verified = true WHERE id = $1", [row.user_id]);
-    res.status(204).send();
+    const user = await pool.query("UPDATE users SET email_verified = true WHERE id = $1 RETURNING role", [
+      row.user_id,
+    ]);
+    // Returned so the frontend can send the learner back to *their* role's
+    // login page, not always the learner one — verifying doesn't create a
+    // session, so this is the only way it knows which portal to point at.
+    res.json({ role: user.rows[0].role });
   } catch (err) {
     next(err);
   }
@@ -239,14 +252,19 @@ authRouter.post("/reset-password", async (req, res, next) => {
     if (!row) return res.status(400).json({ error: "invalid_or_expired_token" });
 
     const passwordHash = await bcrypt.hash(body.password, BCRYPT_ROUNDS);
-    await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2", [passwordHash, row.user_id]);
+    const user = await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2 RETURNING role", [
+      passwordHash,
+      row.user_id,
+    ]);
     await pool.query("UPDATE password_reset_tokens SET used_at = now() WHERE id = $1", [row.id]);
     // Resetting a password invalidates every existing session, in case the reset
     // was prompted by a compromised account.
     await pool.query("UPDATE auth_sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL", [
       row.user_id,
     ]);
-    res.status(204).send();
+    // Returned so the frontend can send the learner back to *their* role's
+    // login page, not always the learner one.
+    res.json({ role: user.rows[0].role });
   } catch (err) {
     next(err);
   }

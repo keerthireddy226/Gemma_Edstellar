@@ -1,0 +1,84 @@
+{
+  "common": {
+    "appName": "Gemma_Edstellar"
+  },
+  "auth": {
+    "login": {
+      "title": "Content de vous revoir",
+      "subtitle": "Connectez-vous pour continuer votre pratique.",
+      "emailLabel": "E-mail",
+      "emailPlaceholder": "you@example.com",
+      "passwordLabel": "Mot de passe",
+      "passwordPlaceholder": "••••••••",
+      "submit": "Se connecter",
+      "submitting": "Connexion en cours…",
+      "errorInvalidCredentials": "E-mail ou mot de passe incorrect.",
+      "errorEmailNotVerified": "Veuillez vérifier votre e-mail avant de vous connecter — consultez votre boîte de réception pour le lien de vérification.",
+      "errorWrongPortal": "Ce compte n'a pas accès via cette page de connexion.",
+      "errorGeneric": "Une erreur s'est produite. Veuillez vérifier votre connexion et réessayer.",
+      "forgotPassword": "Mot de passe oublié ?",
+      "createAccount": "Créer un compte"
+    },
+    "signup": {
+      "title": "Créez votre compte",
+      "subtitle": "Commencez à pratiquer en quelques secondes.",
+      "firstNameLabel": "Prénom",
+      "firstNamePlaceholder": "Alex",
+      "emailLabel": "E-mail",
+      "emailPlaceholder": "you@example.com",
+      "passwordLabel": "Mot de passe",
+      "passwordPlaceholder": "Au moins 8 caractères",
+      "passwordTooShort": "Le mot de passe doit contenir au moins 8 caractères.",
+      "submit": "S'inscrire",
+      "submitting": "Création du compte…",
+      "errorEmailTaken": "Un compte avec cet e-mail existe déjà.",
+      "errorGeneric": "Une erreur s'est produite. Veuillez réessayer.",
+      "alreadyHaveAccount": "Vous avez déjà un compte ?",
+      "signIn": "Se connecter",
+      "checkEmailTitle": "Consultez votre e-mail",
+      "checkEmailBody": "Nous avons envoyé un lien de vérification à {{email}}. Une fois vérifié, connectez-vous pour continuer.",
+      "signInButton": "Se connecter"
+    },
+    "forgotPassword": {
+      "title": "Réinitialisez votre mot de passe",
+      "subtitle": "Nous vous enverrons un lien par e-mail pour en définir un nouveau.",
+      "submitted": "Si un compte existe pour cet e-mail, un lien de réinitialisation est en route.",
+      "emailLabel": "E-mail",
+      "emailPlaceholder": "you@example.com",
+      "submit": "Envoyer le lien de réinitialisation",
+      "submitting": "Envoi en cours…",
+      "backToSignIn": "Retour à la connexion"
+    },
+    "resetPassword": {
+      "title": "Choisissez un nouveau mot de passe",
+      "subtitle": "Au moins 8 caractères.",
+      "missingTokenTitle": "Réinitialisez votre mot de passe",
+      "missingTokenSubtitle": "Ce lien n'a pas de jeton.",
+      "requestNewLink": "Demander un nouveau lien de réinitialisation",
+      "passwordLabel": "Nouveau mot de passe",
+      "passwordPlaceholder": "Au moins 8 caractères",
+      "passwordTooShort": "Le mot de passe doit contenir au moins 8 caractères.",
+      "submit": "Réinitialiser le mot de passe",
+      "submitting": "Enregistrement…",
+      "error": "Ce lien de réinitialisation est invalide ou a expiré."
+    },
+    "verifyEmail": {
+      "title": "Vérification de l'e-mail",
+      "pending": "Vérification en cours…",
+      "success": "Votre e-mail est vérifié. Connectez-vous pour continuer.",
+      "signInButton": "Se connecter",
+      "error": "Ce lien de vérification est invalide ou a expiré."
+    }
+  },
+  "onboarding": {
+    "title": "Bienvenue dans l'intégration",
+    "logout": "Se déconnecter",
+    "placeholder": "Ceci est un espace réservé — le vrai questionnaire d'intégration (choix de l'examen, niveau CECR cible, date de l'examen, jours de préparation, minutes quotidiennes, tentatives précédentes) sera construit lors d'une phase ultérieure, puis mènera au test de positionnement."
+  },
+  "dashboard": {
+    "welcome": "Bienvenue, {{email}}",
+    "role": "Rôle : {{role}}",
+    "logout": "Se déconnecter",
+    "placeholder": "Ceci est un espace réservé — le vrai tableau de bord (niveau, progression du plan, série, badges) sera construit lors d'une phase ultérieure."
+  }
+}
