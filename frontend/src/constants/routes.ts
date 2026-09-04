@@ -10,6 +10,7 @@ export const ROUTES = {
   RESET_PASSWORD: "/reset-password",
   VERIFY_EMAIL: "/verify-email",
   ONBOARDING: "/onboarding",
+  PLACEMENT: "/placement",
   DASHBOARD: "/dashboard",
 } as const;
 
@@ -26,4 +27,15 @@ export const LOGIN_ROUTE_BY_ROLE: Record<Role, string> = {
   org_admin: ROUTES.ORG_ADMIN_LOGIN,
   admin: ROUTES.ADMIN_LOGIN,
   super_admin: ROUTES.ADMIN_LOGIN,
+};
+
+// Where each role lands after logging in. Only learner has a real destination
+// (the onboarding questionnaire) — Org Admin/Admin/Super Admin consoles are
+// reserved/Phase 2, not built yet, so they land on the existing generic
+// Dashboard placeholder instead of the learner-specific onboarding flow.
+export const LANDING_ROUTE_BY_ROLE: Record<Role, string> = {
+  learner: ROUTES.ONBOARDING,
+  org_admin: ROUTES.DASHBOARD,
+  admin: ROUTES.DASHBOARD,
+  super_admin: ROUTES.DASHBOARD,
 };

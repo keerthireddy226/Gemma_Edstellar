@@ -1,5 +1,9 @@
 import { randomBytes, createHash } from "node:crypto";
 
+// Shared between auth/routes.ts and auth/middleware.ts so both agree on the
+// same cookie name without either importing the other.
+export const SESSION_COOKIE = "session_token";
+
 /**
  * Session/reset/verification tokens are high-entropy random values, not
  * user-chosen secrets, so a fast SHA-256 lookup hash is appropriate here —

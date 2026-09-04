@@ -1,27 +1,499 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  submitOnboarding,
+  type AccessDuration,
+  type AttemptsStatus,
+  type ExamPreference,
+  type ExamReason,
+  type GoalLevel,
+  type OnboardingAnswers,
+} from "@/hooks/useOnboarding";
 import { Button } from "@/components/Button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ROUTES } from "@/constants/routes";
 
-export function Onboarding() {
+/* ------------------------------------------------------------------ */
+/* Shared step chrome + small controls, local to this page            */
+/* ------------------------------------------------------------------ */
+
+const TOTAL_STEPS = 6;
+
+function WizardShell({
+  stepIndex,
+  children,
+  onNext,
+  onBack,
+  nextDisabled,
+  nextLabel,
+}: {
+  stepIndex: number;
+  children: React.ReactNode;
+  onNext?: () => void;
+  onBack?: () => void;
+  nextDisabled?: boolean;
+  nextLabel?: string;
+}) {
   const { t } = useTranslation();
-  const { user, logout } = useAuth();
-
   return (
-    <div className="app-surface min-h-screen p-8">
-      <div className="max-w-2xl mx-auto bg-surface border border-rule rounded-card p-6 flex flex-col gap-4">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="font-display font-bold text-2xl text-ink">{t("onboarding.title")}</h1>
-            <p className="text-sm text-muted mt-1">{user?.email}</p>
+    <div className="app-surface min-h-screen flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-2xl flex flex-col gap-4">
+        <div className="flex items-center gap-2.5">
+          <div className="flex-1 flex gap-1.5">
+            {Array.from({ length: TOTAL_STEPS }, (_, i) => (
+              <div key={i} className={`h-1 flex-1 rounded-full ${i <= stepIndex ? "bg-navy" : "bg-rule"}`} />
+            ))}
           </div>
-          <Button variant="secondary" onClick={() => logout()}>
-            {t("onboarding.logout")}
-          </Button>
+          <span className="text-xs text-muted whitespace-nowrap">
+            {t("onboarding.wizard.stepLabel", { current: stepIndex + 1, total: TOTAL_STEPS })}
+          </span>
         </div>
-        <p className="text-sm text-muted">{t("onboarding.placeholder")}</p>
+        <div className="bg-surface border border-rule rounded-card p-8 flex flex-col gap-6">{children}</div>
+        <div className="flex items-center justify-between px-1">
+          {onBack ? (
+            <button type="button" onClick={onBack} className="text-sm font-medium text-muted hover:text-ink">
+              {t("onboarding.wizard.back")}
+            </button>
+          ) : (
+            <span />
+          )}
+          {onNext && (
+            <Button onClick={onNext} disabled={nextDisabled}>
+              {nextLabel ?? t("onboarding.wizard.next")}
+            </Button>
+          )}
+        </div>
         <LanguageSwitcher />
       </div>
     </div>
+  );
+}
+
+function OptionGrid<T extends string>({
+  options,
+  selected,
+  onSelect,
+}: {
+  options: { value: T; label: string; desc: string }[];
+  selected: T | null;
+  onSelect: (value: T) => void;
+}) {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onSelect(opt.value)}
+          className={`text-left rounded-input border p-3.5 transition-colors ${
+            selected === opt.value ? "border-navy bg-paper-warm" : "border-rule hover:border-rule-strong"
+          }`}
+        >
+          <div className="text-sm font-semibold text-ink">{opt.label}</div>
+          <div className="text-xs text-muted mt-0.5">{opt.desc}</div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function RadioGroup<T extends string>({
+  options,
+  selected,
+  onSelect,
+}: {
+  options: { value: T; label: string }[];
+  selected: T | null;
+  onSelect: (value: T) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      {options.map((opt) => (
+        <label
+          key={opt.value}
+          onClick={() => onSelect(opt.value)}
+          className={`flex items-center gap-2.5 rounded-input border px-3.5 py-2.5 text-sm cursor-pointer transition-colors ${
+            selected === opt.value ? "border-navy bg-paper-warm" : "border-rule hover:border-rule-strong"
+          }`}
+        >
+          <input type="radio" checked={selected === opt.value} readOnly className="accent-navy" />
+          <span className="text-ink">{opt.label}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function FieldLabel({ children }: { children: string }) {
+  return <label className="block text-sm font-medium text-ink mb-1.5">{children}</label>;
+}
+
+const textInputClass =
+  "w-full rounded-input border border-rule bg-paper px-3.5 py-2.5 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-navy/20 focus:border-navy";
+
+/* ------------------------------------------------------------------ */
+/* Wizard state                                                        */
+/* ------------------------------------------------------------------ */
+
+// Everything the learner has to actually choose starts unset (null), rather
+// than defaulting to some option — a preselected "versant" or "3 months"
+// looks like the learner already made a choice they never made.
+type FormState = Omit<
+  OnboardingAnswers,
+  | "consentGiven"
+  | "examPreference"
+  | "goalLevel"
+  | "examReason"
+  | "hasAppliedForExam"
+  | "targetPrepDays"
+  | "pastAttemptsStatus"
+  | "dailyMinutesPreference"
+  | "accessDuration"
+> & {
+  consentGiven: boolean;
+  examPreference: ExamPreference | null;
+  goalLevel: GoalLevel | null;
+  examReason: ExamReason | null;
+  hasAppliedForExam: boolean | null;
+  targetPrepDays: number | null;
+  pastAttemptsStatus: AttemptsStatus | null;
+  dailyMinutesPreference: number | null;
+  accessDuration: AccessDuration | null;
+};
+
+function emptyForm(): FormState {
+  return {
+    firstName: "",
+    lastName: "",
+    examPreference: null,
+    goalLevel: null,
+    scoreTarget: "",
+    examReason: null,
+    hasAppliedForExam: null,
+    examDate: null,
+    targetPrepDays: null,
+    pastAttemptsStatus: null,
+    prevScore: "",
+    prevDate: "",
+    dailyMinutesPreference: null,
+    accessDuration: null,
+    consentGiven: false,
+  };
+}
+
+export function Onboarding() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [step, setStep] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState<FormState>(emptyForm);
+
+  // `user` loads asynchronously (a /me fetch on mount), so it's usually still
+  // null on first render — this fills in the name once it arrives, without
+  // clobbering anything the learner has already typed.
+  useEffect(() => {
+    if (!user) return;
+    setForm((prev) => ({
+      ...prev,
+      firstName: prev.firstName || user.firstName || "",
+      lastName: prev.lastName || user.lastName || "",
+    }));
+  }, [user]);
+
+  function patch(fields: Partial<FormState>) {
+    setForm((prev) => ({ ...prev, ...fields }));
+  }
+
+  const next = () => setStep((s) => Math.min(s + 1, TOTAL_STEPS - 1));
+  const back = () => setStep((s) => Math.max(s - 1, 0));
+
+  async function handleFinish() {
+    // Unreachable via the UI — each step's "Next" stays disabled until its
+    // fields are chosen — but narrows the nullable draft fields to the
+    // non-null shape submitOnboarding expects.
+    if (
+      form.examPreference === null ||
+      form.goalLevel === null ||
+      form.examReason === null ||
+      form.hasAppliedForExam === null ||
+      form.targetPrepDays === null ||
+      form.pastAttemptsStatus === null ||
+      form.dailyMinutesPreference === null ||
+      form.accessDuration === null
+    ) {
+      return;
+    }
+    setError(null);
+    setSubmitting(true);
+    try {
+      await submitOnboarding({
+        ...form,
+        examPreference: form.examPreference,
+        goalLevel: form.goalLevel,
+        examReason: form.examReason,
+        hasAppliedForExam: form.hasAppliedForExam,
+        targetPrepDays: form.targetPrepDays,
+        pastAttemptsStatus: form.pastAttemptsStatus,
+        dailyMinutesPreference: form.dailyMinutesPreference,
+        accessDuration: form.accessDuration,
+        consentGiven: true,
+      });
+      navigate(ROUTES.PLACEMENT, { replace: true });
+    } catch {
+      setError(t("onboarding.wizard.consent.error"));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (step === 0) {
+    const invalid = !form.firstName.trim() || !form.lastName.trim();
+    return (
+      <WizardShell stepIndex={0} onNext={next} nextDisabled={invalid}>
+        <div>
+          <h2 className="font-display font-bold text-xl text-ink">{t("onboarding.wizard.basics.title")}</h2>
+          <p className="text-sm text-muted mt-1">{t("onboarding.wizard.basics.subtitle")}</p>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <FieldLabel>{t("onboarding.wizard.basics.firstNameLabel")}</FieldLabel>
+            <input
+              className={textInputClass}
+              value={form.firstName}
+              onChange={(e) => patch({ firstName: e.target.value })}
+              placeholder={t("onboarding.wizard.basics.firstNamePlaceholder")}
+            />
+          </div>
+          <div>
+            <FieldLabel>{t("onboarding.wizard.basics.lastNameLabel")}</FieldLabel>
+            <input
+              className={textInputClass}
+              value={form.lastName}
+              onChange={(e) => patch({ lastName: e.target.value })}
+              placeholder={t("onboarding.wizard.basics.lastNamePlaceholder")}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <FieldLabel>{t("onboarding.wizard.basics.emailLabel")}</FieldLabel>
+            <input className={`${textInputClass} opacity-60 cursor-not-allowed`} value={user?.email ?? ""} disabled />
+            <p className="text-xs text-muted mt-1">{t("onboarding.wizard.basics.emailNote")}</p>
+          </div>
+        </div>
+      </WizardShell>
+    );
+  }
+
+  if (step === 1) {
+    const examOptions = (
+      ["versant", "ielts", "toefl", "pte", "cambridge", "other"] as const
+    ).map((value) => ({
+      value,
+      label: t(`onboarding.wizard.examGoal.exam.${value}`),
+      desc: t(`onboarding.wizard.examGoal.exam.${value}Desc`),
+    }));
+    const goalOptions = (["A1", "A2", "B1", "B2", "C1", "C2", "unsure"] as const).map((value) => ({
+      value,
+      label: t(`onboarding.wizard.examGoal.goal.${value}`),
+      desc: t(`onboarding.wizard.examGoal.goal.${value}Desc`),
+    }));
+    const invalid = form.examPreference === null || form.goalLevel === null;
+    return (
+      <WizardShell stepIndex={1} onNext={next} onBack={back} nextDisabled={invalid}>
+        <div>
+          <h2 className="font-display font-bold text-xl text-ink">{t("onboarding.wizard.examGoal.examTitle")}</h2>
+          <p className="text-sm text-muted mt-1 mb-3">{t("onboarding.wizard.examGoal.examSubtitle")}</p>
+          <OptionGrid options={examOptions} selected={form.examPreference} onSelect={(v) => patch({ examPreference: v })} />
+        </div>
+        <div className="pt-2 border-t border-rule">
+          <h3 className="font-display font-bold text-lg text-ink mt-4">{t("onboarding.wizard.examGoal.goalTitle")}</h3>
+          <p className="text-sm text-muted mt-1 mb-3">{t("onboarding.wizard.examGoal.goalSubtitle")}</p>
+          <OptionGrid options={goalOptions} selected={form.goalLevel} onSelect={(v) => patch({ goalLevel: v })} />
+          <div className="mt-4">
+            <FieldLabel>{t("onboarding.wizard.examGoal.scoreTargetLabel")}</FieldLabel>
+            <input
+              className={textInputClass}
+              value={form.scoreTarget}
+              onChange={(e) => patch({ scoreTarget: e.target.value })}
+              placeholder={t("onboarding.wizard.examGoal.scoreTargetPlaceholder")}
+            />
+          </div>
+        </div>
+      </WizardShell>
+    );
+  }
+
+  if (step === 2) {
+    const reasonOptions = (["university", "job", "immigration", "promotion", "personal"] as const).map((value) => ({
+      value,
+      label: t(`onboarding.wizard.reasonTimeline.reason.${value}`),
+    }));
+    const invalid =
+      form.examReason === null ||
+      form.hasAppliedForExam === null ||
+      (form.hasAppliedForExam && !form.examDate) ||
+      form.targetPrepDays === null ||
+      form.targetPrepDays <= 0;
+    return (
+      <WizardShell stepIndex={2} onNext={next} onBack={back} nextDisabled={invalid}>
+        <div className="grid sm:grid-cols-2 gap-6">
+          <div>
+            <h2 className="font-display font-bold text-xl text-ink">{t("onboarding.wizard.reasonTimeline.reasonTitle")}</h2>
+            <p className="text-sm text-muted mt-1 mb-3">{t("onboarding.wizard.reasonTimeline.reasonSubtitle")}</p>
+            <RadioGroup options={reasonOptions} selected={form.examReason} onSelect={(v) => patch({ examReason: v })} />
+          </div>
+          <div>
+            <h2 className="font-display font-bold text-xl text-ink">{t("onboarding.wizard.reasonTimeline.appliedTitle")}</h2>
+            <p className="text-sm text-muted mt-1 mb-3">{t("onboarding.wizard.reasonTimeline.appliedSubtitle")}</p>
+            <RadioGroup
+              options={[
+                { value: "yes" as const, label: t("onboarding.wizard.reasonTimeline.appliedYes") },
+                { value: "no" as const, label: t("onboarding.wizard.reasonTimeline.appliedNo") },
+              ]}
+              selected={form.hasAppliedForExam === null ? null : form.hasAppliedForExam ? "yes" : "no"}
+              onSelect={(v) => patch({ hasAppliedForExam: v === "yes" })}
+            />
+            {form.hasAppliedForExam && (
+              <div className="mt-3">
+                <FieldLabel>{t("onboarding.wizard.reasonTimeline.examDateLabel")}</FieldLabel>
+                <input
+                  type="date"
+                  className={textInputClass}
+                  value={form.examDate ?? ""}
+                  onChange={(e) => patch({ examDate: e.target.value })}
+                />
+              </div>
+            )}
+            <div className="mt-3">
+              <FieldLabel>{t("onboarding.wizard.reasonTimeline.prepDaysLabel")}</FieldLabel>
+              <div className="flex items-center gap-2.5">
+                <input
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={form.targetPrepDays ?? ""}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    patch({ targetPrepDays: raw === "" ? null : Number(raw) });
+                  }}
+                  placeholder={t("onboarding.wizard.reasonTimeline.prepDaysPlaceholder")}
+                  className={`${textInputClass} w-28 text-center font-semibold`}
+                />
+                <span className="text-sm text-muted">{t("onboarding.wizard.reasonTimeline.days")}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </WizardShell>
+    );
+  }
+
+  if (step === 3) {
+    const attemptsOptions = (["first", "once", "multiple"] as const).map((value) => ({
+      value,
+      label: t(`onboarding.wizard.attemptsCommitment.attempts.${value}`),
+    }));
+    const timeOptions = (["min15", "min30", "min60", "min90"] as const).map((key) => ({
+      value: Number(key.replace("min", "")),
+      label: t(`onboarding.wizard.attemptsCommitment.time.${key}`),
+      desc: t(`onboarding.wizard.attemptsCommitment.time.${key}Desc`),
+    }));
+    const invalid = form.pastAttemptsStatus === null || form.dailyMinutesPreference === null;
+    return (
+      <WizardShell stepIndex={3} onNext={next} onBack={back} nextDisabled={invalid}>
+        <div className="grid sm:grid-cols-2 gap-6">
+          <div>
+            <h2 className="font-display font-bold text-xl text-ink">
+              {t("onboarding.wizard.attemptsCommitment.attemptsTitle")}
+            </h2>
+            <p className="text-sm text-muted mt-1 mb-3">{t("onboarding.wizard.attemptsCommitment.attemptsSubtitle")}</p>
+            <RadioGroup
+              options={attemptsOptions}
+              selected={form.pastAttemptsStatus}
+              onSelect={(v) => patch({ pastAttemptsStatus: v })}
+            />
+            {form.pastAttemptsStatus !== null && form.pastAttemptsStatus !== "first" && (
+              <div className="mt-3 flex flex-col gap-3">
+                <div>
+                  <FieldLabel>{t("onboarding.wizard.attemptsCommitment.prevScoreLabel")}</FieldLabel>
+                  <input
+                    className={textInputClass}
+                    value={form.prevScore}
+                    onChange={(e) => patch({ prevScore: e.target.value })}
+                    placeholder={t("onboarding.wizard.attemptsCommitment.prevScorePlaceholder")}
+                  />
+                </div>
+                <div>
+                  <FieldLabel>{t("onboarding.wizard.attemptsCommitment.prevDateLabel")}</FieldLabel>
+                  <input
+                    className={textInputClass}
+                    value={form.prevDate}
+                    onChange={(e) => patch({ prevDate: e.target.value })}
+                    placeholder={t("onboarding.wizard.attemptsCommitment.prevDatePlaceholder")}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+          <div>
+            <h2 className="font-display font-bold text-xl text-ink">{t("onboarding.wizard.attemptsCommitment.timeTitle")}</h2>
+            <p className="text-sm text-muted mt-1 mb-3">{t("onboarding.wizard.attemptsCommitment.timeSubtitle")}</p>
+            <OptionGrid
+              options={timeOptions.map((o) => ({ ...o, value: String(o.value) }))}
+              selected={form.dailyMinutesPreference === null ? null : String(form.dailyMinutesPreference)}
+              onSelect={(v) => patch({ dailyMinutesPreference: Number(v) })}
+            />
+          </div>
+        </div>
+      </WizardShell>
+    );
+  }
+
+  if (step === 4) {
+    const DURATION_VALUE: Record<string, AccessDuration> = {
+      oneMonth: "1month",
+      threeMonths: "3months",
+      sixMonths: "6months",
+      untilExam: "untilexam",
+    };
+    const durationOptions = (["oneMonth", "threeMonths", "sixMonths", "untilExam"] as const).map((key) => ({
+      value: DURATION_VALUE[key],
+      label: t(`onboarding.wizard.duration.${key}`),
+      desc: t(`onboarding.wizard.duration.${key}Desc`),
+    }));
+    const invalid = form.accessDuration === null;
+    return (
+      <WizardShell stepIndex={4} onNext={next} onBack={back} nextDisabled={invalid}>
+        <div>
+          <h2 className="font-display font-bold text-xl text-ink">{t("onboarding.wizard.duration.title")}</h2>
+          <p className="text-sm text-muted mt-1 mb-3">{t("onboarding.wizard.duration.subtitle")}</p>
+          <OptionGrid options={durationOptions} selected={form.accessDuration} onSelect={(v) => patch({ accessDuration: v })} />
+        </div>
+      </WizardShell>
+    );
+  }
+
+  // step === 5: consent
+  return (
+    <WizardShell stepIndex={5} onNext={handleFinish} onBack={back} nextDisabled={!form.consentGiven || submitting} nextLabel={submitting ? t("onboarding.wizard.consent.submitting") : t("onboarding.wizard.consent.submit")}>
+      <div>
+        <h2 className="font-display font-bold text-xl text-ink">{t("onboarding.wizard.consent.title")}</h2>
+        <p className="text-sm text-muted mt-1">{t("onboarding.wizard.consent.subtitle")}</p>
+      </div>
+      <p className="text-sm text-ink">{t("onboarding.wizard.consent.body")}</p>
+      <label className="flex items-start gap-2.5 rounded-input border border-rule p-3.5 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={form.consentGiven}
+          onChange={(e) => patch({ consentGiven: e.target.checked })}
+          className="mt-0.5 accent-navy"
+        />
+        <span className="text-sm text-ink">{t("onboarding.wizard.consent.checkboxLabel")}</span>
+      </label>
+      {error && <p className="text-sm text-error">{error}</p>}
+    </WizardShell>
   );
 }

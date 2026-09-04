@@ -2,7 +2,7 @@ import { Router } from "express";
 import bcrypt from "bcrypt";
 import rateLimit from "express-rate-limit";
 import { pool } from "../db.js";
-import { generateToken, hashToken } from "./tokens.js";
+import { generateToken, hashToken, SESSION_COOKIE } from "./tokens.js";
 import { sendPasswordResetEmail, sendVerificationEmail } from "./mailer.js";
 import {
   forgotPasswordSchema,
@@ -12,7 +12,6 @@ import {
   verifyEmailSchema,
 } from "./schemas.js";
 
-const SESSION_COOKIE = "session_token";
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1000; // 30 minutes
 const VERIFY_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -21,13 +20,20 @@ const BCRYPT_ROUNDS = 12;
 const PG_UNIQUE_VIOLATION = "23505";
 
 // Separate instances so each endpoint gets its own 10-per-15-min budget per IP,
-// instead of three routes silently sharing one pool of attempts.
+// instead of three routes silently sharing one pool of attempts. Skipped
+// outside production so local/manual testing never gets locked out — the
+// brute-force protection this exists for only matters once real traffic
+// (and real attackers) can reach the API.
 function makeAuthLimiter() {
   return rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 10,
     standardHeaders: true,
     legacyHeaders: false,
+    skip: () => process.env.NODE_ENV !== "production",
+    handler: (_req, res) => {
+      res.status(429).json({ error: "too_many_attempts" });
+    },
   });
 }
 const signupLimiter = makeAuthLimiter();
@@ -78,7 +84,7 @@ authRouter.post("/signup", signupLimiter, async (req, res, next) => {
     const user = await client.query(
       `INSERT INTO users (tenant_id, role, email, password_hash, first_name, last_name)
        VALUES ($1, 'learner', $2, $3, $4, $5) RETURNING id`,
-      [tenantId, body.email, passwordHash, body.firstName ?? null, body.lastName ?? null],
+      [tenantId, body.email, passwordHash, body.firstName, body.lastName],
     );
     const userId = user.rows[0].id;
 
@@ -113,7 +119,8 @@ authRouter.post("/login", loginLimiter, async (req, res, next) => {
   try {
     const body = loginSchema.parse(req.body);
     const result = await pool.query(
-      `SELECT id, password_hash, role, email_verified FROM users WHERE email = $1 AND deleted_at IS NULL`,
+      `SELECT id, password_hash, role, email_verified, first_name, last_name
+       FROM users WHERE email = $1 AND deleted_at IS NULL`,
       [body.email],
     );
     const user = result.rows[0];
@@ -134,7 +141,14 @@ authRouter.post("/login", loginLimiter, async (req, res, next) => {
 
     const { token } = await createSession(pool, user.id);
     setSessionCookie(res, token);
-    res.json({ id: user.id, email: body.email, role: user.role, emailVerified: user.email_verified });
+    res.json({
+      id: user.id,
+      email: body.email,
+      role: user.role,
+      emailVerified: user.email_verified,
+      firstName: user.first_name,
+      lastName: user.last_name,
+    });
   } catch (err) {
     next(err);
   }
@@ -162,7 +176,7 @@ authRouter.get("/me", async (req, res, next) => {
     if (!token) return res.status(401).json({ error: "not_authenticated" });
 
     const result = await pool.query(
-      `SELECT u.id, u.email, u.role, u.email_verified, u.tenant_id
+      `SELECT u.id, u.email, u.role, u.email_verified, u.tenant_id, u.first_name, u.last_name
        FROM auth_sessions s
        JOIN users u ON u.id = s.user_id
        WHERE s.session_token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > now() AND u.deleted_at IS NULL`,
@@ -177,6 +191,8 @@ authRouter.get("/me", async (req, res, next) => {
       role: user.role,
       emailVerified: user.email_verified,
       tenantId: user.tenant_id,
+      firstName: user.first_name,
+      lastName: user.last_name,
     });
   } catch (err) {
     next(err);
@@ -187,12 +203,26 @@ authRouter.post("/verify-email", async (req, res, next) => {
   try {
     const body = verifyEmailSchema.parse(req.body);
     const result = await pool.query(
-      `SELECT id, user_id FROM email_verification_tokens
-       WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()`,
+      `SELECT evt.id, evt.user_id, evt.expires_at, u.role, u.email_verified
+       FROM email_verification_tokens evt
+       JOIN users u ON u.id = evt.user_id
+       WHERE evt.token_hash = $1`,
       [hashToken(body.token)],
     );
     const row = result.rows[0];
     if (!row) return res.status(400).json({ error: "invalid_or_expired_token" });
+
+    // A token can get consumed by something other than the learner's real
+    // click (an email client prescanning the link, a double click) before
+    // they follow it themselves. Once the account is verified, treat any
+    // later use of the same link as success instead of a confusing "expired"
+    // error — the outcome the learner cares about already happened.
+    if (row.email_verified) {
+      return res.json({ role: row.role });
+    }
+    if (row.expires_at < new Date()) {
+      return res.status(400).json({ error: "invalid_or_expired_token" });
+    }
 
     await pool.query("UPDATE email_verification_tokens SET used_at = now() WHERE id = $1", [row.id]);
     const user = await pool.query("UPDATE users SET email_verified = true WHERE id = $1 RETURNING role", [

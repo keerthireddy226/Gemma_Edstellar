@@ -8,6 +8,8 @@ export type AuthUser = {
   role: Role;
   emailVerified: boolean;
   tenantId?: string;
+  firstName?: string;
+  lastName?: string;
 };
 
 type AuthState = {
@@ -49,21 +51,24 @@ export function useAuthState() {
   // `allowedRoles` names which role(s) the login portal accepts (e.g.
   // /admin/login accepts both admin and super_admin) — the backend rejects
   // the login if the account's actual role isn't in that list, so this is a
-  // real access boundary, not just a different-looking page.
+  // real access boundary, not just a different-looking page. Returns the
+  // logged-in user so the caller can redirect based on their actual role
+  // immediately, without waiting on a state update to propagate.
   const login = useCallback(async (email: string, password: string, allowedRoles: Role[]) => {
     const user = await api<AuthUser>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password, allowedRoles }),
     });
     setState({ user, loading: false, error: null });
+    return user;
   }, []);
 
   // Deliberately doesn't set auth state — signup ends with "check your email,"
   // not an automatic login (the backend doesn't create a session either).
-  const signup = useCallback(async (email: string, password: string, firstName?: string) => {
+  const signup = useCallback(async (email: string, password: string, firstName: string, lastName: string) => {
     await api<{ email: string }>("/auth/signup", {
       method: "POST",
-      body: JSON.stringify({ email, password, firstName }),
+      body: JSON.stringify({ email, password, firstName, lastName }),
     });
   }, []);
 

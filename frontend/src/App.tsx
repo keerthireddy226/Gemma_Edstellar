@@ -1,8 +1,9 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import { AuthContext, useAuthState } from "@/hooks/useAuth";
+import { AuthContext, useAuth, useAuthState } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import {
   ADMIN_LOGIN_ALLOWED_ROLES,
+  LANDING_ROUTE_BY_ROLE,
   LEARNER_LOGIN_ALLOWED_ROLES,
   ORG_ADMIN_LOGIN_ALLOWED_ROLES,
   ROUTES,
@@ -13,7 +14,18 @@ import { ForgotPassword } from "@/pages/ForgotPassword";
 import { ResetPassword } from "@/pages/ResetPassword";
 import { VerifyEmail } from "@/pages/VerifyEmail";
 import { Onboarding } from "@/pages/Onboarding";
+import { Placement } from "@/pages/Placement";
 import { Dashboard } from "@/pages/Dashboard";
+
+// Any unmatched path (or a stale bookmark) sends a logged-in visitor to
+// *their* actual landing page, not always the learner one, and sends a
+// logged-out visitor to the learner login as a reasonable default.
+function DefaultRedirect() {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to={ROUTES.LOGIN} replace />;
+  return <Navigate to={LANDING_ROUTE_BY_ROLE[user.role]} replace />;
+}
 
 function App() {
   const auth = useAuthState();
@@ -42,6 +54,14 @@ function App() {
           }
         />
         <Route
+          path={ROUTES.PLACEMENT}
+          element={
+            <ProtectedRoute>
+              <Placement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path={ROUTES.DASHBOARD}
           element={
             <ProtectedRoute>
@@ -49,7 +69,7 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="*" element={<Navigate to={ROUTES.ONBOARDING} replace />} />
+        <Route path="*" element={<DefaultRedirect />} />
       </Routes>
     </AuthContext.Provider>
   );

@@ -15,6 +15,7 @@
       "errorInvalidCredentials": "E-mail ou mot de passe incorrect.",
       "errorEmailNotVerified": "Veuillez vérifier votre e-mail avant de vous connecter — consultez votre boîte de réception pour le lien de vérification.",
       "errorWrongPortal": "Ce compte n'a pas accès via cette page de connexion.",
+      "errorTooManyAttempts": "Trop de tentatives de connexion. Veuillez patienter quelques minutes et réessayer.",
       "errorGeneric": "Une erreur s'est produite. Veuillez vérifier votre connexion et réessayer.",
       "forgotPassword": "Mot de passe oublié ?",
       "createAccount": "Créer un compte"
@@ -24,6 +25,8 @@
       "subtitle": "Commencez à pratiquer en quelques secondes.",
       "firstNameLabel": "Prénom",
       "firstNamePlaceholder": "Alex",
+      "lastNameLabel": "Nom",
+      "lastNamePlaceholder": "Taylor",
       "emailLabel": "E-mail",
       "emailPlaceholder": "you@example.com",
       "passwordLabel": "Mot de passe",
@@ -73,7 +76,128 @@
   "onboarding": {
     "title": "Bienvenue dans l'intégration",
     "logout": "Se déconnecter",
-    "placeholder": "Ceci est un espace réservé — le vrai questionnaire d'intégration (choix de l'examen, niveau CECR cible, date de l'examen, jours de préparation, minutes quotidiennes, tentatives précédentes) sera construit lors d'une phase ultérieure, puis mènera au test de positionnement."
+    "wizard": {
+      "stepLabel": "{{current}} sur {{total}}",
+      "back": "Retour",
+      "next": "Suivant",
+      "basics": {
+        "title": "Faisons connaissance",
+        "subtitle": "Votre e-mail est rempli automatiquement depuis la connexion",
+        "firstNameLabel": "Prénom",
+        "firstNamePlaceholder": "Entrez votre prénom",
+        "lastNameLabel": "Nom",
+        "lastNamePlaceholder": "Entrez votre nom",
+        "emailLabel": "E-mail",
+        "emailNote": "Rempli automatiquement depuis votre compte de connexion"
+      },
+      "examGoal": {
+        "examTitle": "Pour quel examen vous préparez-vous ?",
+        "examSubtitle": "Nous adapterons votre pratique au format de cet examen",
+        "goalTitle": "Quel est votre niveau ou score cible ?",
+        "goalSubtitle": "L'objectif que vous visez pour cet examen",
+        "scoreTargetLabel": "Score cible spécifique (facultatif)",
+        "scoreTargetPlaceholder": "ex. IELTS 7.0, Versant 69+, PTE 65",
+        "exam": {
+          "versant": "Versant",
+          "versantDesc": "Expression orale, écriture, positionnement, professionnel",
+          "ielts": "IELTS",
+          "ieltsDesc": "Academic ou General Training",
+          "toefl": "TOEFL iBT",
+          "toeflDesc": "Examen basé sur internet",
+          "pte": "PTE Academic",
+          "pteDesc": "Examen informatisé de Pearson",
+          "cambridge": "Cambridge",
+          "cambridgeDesc": "FCE, CAE, CPE",
+          "other": "Autre / Général",
+          "otherDesc": "Amélioration générale de l'anglais"
+        },
+        "goal": {
+          "A1": "A1 - Débutant",
+          "A1Desc": "Mots de base et phrases courantes",
+          "A2": "A2 - Élémentaire",
+          "A2Desc": "Phrases simples, interactions basiques",
+          "B1": "B1 - Intermédiaire",
+          "B1Desc": "Gérer la plupart des situations de voyage et de travail",
+          "B2": "B2 - Intermédiaire avancé",
+          "B2Desc": "Interaction fluide, textes détaillés",
+          "C1": "C1 - Avancé",
+          "C1Desc": "Sujets complexes, sens implicite",
+          "C2": "C2 - Maîtrise",
+          "C2Desc": "Précision et aisance quasi natives",
+          "unsure": "Pas encore sûr",
+          "unsureDesc": "L'évaluation aidera à décider"
+        }
+      },
+      "reasonTimeline": {
+        "reasonTitle": "Pourquoi passez-vous cet examen ?",
+        "reasonSubtitle": "Cela nous aide à adapter le contenu à vos besoins réels",
+        "reason": {
+          "university": "Admission universitaire",
+          "job": "Exigence professionnelle",
+          "immigration": "Immigration",
+          "promotion": "Promotion ou évolution de carrière",
+          "personal": "Objectif personnel"
+        },
+        "appliedTitle": "Avez-vous déjà postulé pour l'examen ?",
+        "appliedSubtitle": "Nous ajusterons votre plan selon votre échéance",
+        "appliedYes": "Oui, j'ai une date confirmée",
+        "appliedNo": "Non, pas encore",
+        "examDateLabel": "Quand est votre examen ?",
+        "prepDaysLabel": "Combien de jours souhaitez-vous vous préparer ?",
+        "prepDaysPlaceholder": "ex. 30",
+        "days": "jours"
+      },
+      "attemptsCommitment": {
+        "attemptsTitle": "Avez-vous déjà passé cet examen ?",
+        "attemptsSubtitle": "Cela nous aide à comprendre votre point de départ",
+        "attempts": {
+          "first": "Non, c'est ma première tentative",
+          "once": "Oui, une fois déjà",
+          "multiple": "Oui, plusieurs fois"
+        },
+        "prevScoreLabel": "Quel était votre score précédent ?",
+        "prevScorePlaceholder": "ex. B1, 5.5, 58",
+        "prevDateLabel": "Quand l'avez-vous passé pour la dernière fois ?",
+        "prevDatePlaceholder": "ex. mars 2026, il y a 6 mois",
+        "timeTitle": "Combien de temps pouvez-vous consacrer chaque jour ?",
+        "timeSubtitle": "Soyez réaliste — la régularité prime sur l'intensité",
+        "time": {
+          "min15": "15 minutes",
+          "min15Desc": "Pratique quotidienne rapide",
+          "min30": "30 minutes",
+          "min30Desc": "Progrès solide et régulier",
+          "min60": "1 heure",
+          "min60Desc": "Préparation intensive",
+          "min90": "90+ minutes",
+          "min90Desc": "Mode immersion totale"
+        }
+      },
+      "duration": {
+        "title": "Pendant combien de temps souhaitez-vous un accès ?",
+        "subtitle": "Choisissez un plan adapté à votre calendrier",
+        "oneMonth": "1 mois",
+        "oneMonthDesc": "Sprint intensif court",
+        "threeMonths": "3 mois",
+        "threeMonthsDesc": "Préparation équilibrée",
+        "sixMonths": "6 mois",
+        "sixMonthsDesc": "Construction solide et progressive",
+        "untilExam": "Jusqu'à la date de mon examen",
+        "untilExamDesc": "Calculé automatiquement à partir de votre date d'examen"
+      },
+      "consent": {
+        "title": "Avant de continuer",
+        "subtitle": "Votre voix sera enregistrée pendant la pratique et les tests",
+        "body": "Nous enregistrons vos réponses orales pour évaluer votre expression et vous donner des retours. Les enregistrements sont conservés pendant une durée limitée et ne sont jamais utilisés à d'autres fins que l'évaluation et l'amélioration de vos propres résultats. Vous pouvez supprimer vos données à tout moment depuis les Paramètres.",
+        "checkboxLabel": "Je comprends et consens à ce que ma voix soit enregistrée à des fins de pratique et d'évaluation.",
+        "submit": "Aller au test",
+        "submitting": "Enregistrement…",
+        "error": "Une erreur s'est produite lors de l'enregistrement de vos réponses. Veuillez réessayer."
+      }
+    }
+  },
+  "placement": {
+    "title": "Test de positionnement",
+    "placeholder": "Ceci est un espace réservé — le vrai test de positionnement (chronométré, noté, couvrant Répétitions/Construction de phrases/Dictée) sera construit lors d'une phase ultérieure."
   },
   "dashboard": {
     "welcome": "Bienvenue, {{email}}",

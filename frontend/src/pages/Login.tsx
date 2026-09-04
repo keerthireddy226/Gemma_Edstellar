@@ -5,7 +5,7 @@ import { useAuth, type Role } from "@/hooks/useAuth";
 import { Button } from "@/components/Button";
 import { AuthCard, FormField } from "@/components/AuthCard";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { ROUTES } from "@/constants/routes";
+import { LANDING_ROUTE_BY_ROLE, ROUTES } from "@/constants/routes";
 
 export function Login({ allowedRoles }: { allowedRoles: Role[] }) {
   const { t } = useTranslation();
@@ -16,15 +16,15 @@ export function Login({ allowedRoles }: { allowedRoles: Role[] }) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  if (user) return <Navigate to={ROUTES.ONBOARDING} replace />;
+  if (user) return <Navigate to={LANDING_ROUTE_BY_ROLE[user.role]} replace />;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
     try {
-      await login(email, password, allowedRoles);
-      navigate(ROUTES.ONBOARDING, { replace: true });
+      const loggedInUser = await login(email, password, allowedRoles);
+      navigate(LANDING_ROUTE_BY_ROLE[loggedInUser.role], { replace: true });
     } catch (err) {
       if (err instanceof Error && err.message === "invalid_credentials") {
         setError(t("auth.login.errorInvalidCredentials"));
@@ -32,6 +32,8 @@ export function Login({ allowedRoles }: { allowedRoles: Role[] }) {
         setError(t("auth.login.errorEmailNotVerified"));
       } else if (err instanceof Error && err.message === "wrong_login_portal") {
         setError(t("auth.login.errorWrongPortal"));
+      } else if (err instanceof Error && err.message === "too_many_attempts") {
+        setError(t("auth.login.errorTooManyAttempts"));
       } else {
         setError(t("auth.login.errorGeneric"));
       }

@@ -15,6 +15,7 @@
       "errorInvalidCredentials": "Incorrect email or password.",
       "errorEmailNotVerified": "Please verify your email before signing in — check your inbox for the verification link.",
       "errorWrongPortal": "This account doesn't have access through this login page.",
+      "errorTooManyAttempts": "Too many login attempts. Please wait a few minutes and try again.",
       "errorGeneric": "Something went wrong. Please check your connection and try again.",
       "forgotPassword": "Forgot password?",
       "createAccount": "Create an account"
@@ -24,6 +25,8 @@
       "subtitle": "Start practicing in a few seconds.",
       "firstNameLabel": "First name",
       "firstNamePlaceholder": "Alex",
+      "lastNameLabel": "Last name",
+      "lastNamePlaceholder": "Taylor",
       "emailLabel": "Email",
       "emailPlaceholder": "you@example.com",
       "passwordLabel": "Password",
@@ -73,7 +76,128 @@
   "onboarding": {
     "title": "Welcome to onboarding",
     "logout": "Log out",
-    "placeholder": "This is a placeholder — the real onboarding questionnaire (exam choice, target CEFR level, exam date, prep days, daily minutes, past attempts) is built in a later phase, then leads into the placement test."
+    "wizard": {
+      "stepLabel": "{{current}} of {{total}}",
+      "back": "Back",
+      "next": "Next",
+      "basics": {
+        "title": "Let's get to know you",
+        "subtitle": "Your email is auto-filled from sign-in",
+        "firstNameLabel": "First name",
+        "firstNamePlaceholder": "Enter your first name",
+        "lastNameLabel": "Last name",
+        "lastNamePlaceholder": "Enter your last name",
+        "emailLabel": "Email",
+        "emailNote": "Auto-filled from your sign-in account"
+      },
+      "examGoal": {
+        "examTitle": "Which exam are you preparing for?",
+        "examSubtitle": "We'll tailor your practice to match this exam's format",
+        "goalTitle": "What's your target level or score?",
+        "goalSubtitle": "The goal you're aiming for in this exam",
+        "scoreTargetLabel": "Specific score target (optional)",
+        "scoreTargetPlaceholder": "e.g. IELTS 7.0, Versant 69+, PTE 65",
+        "exam": {
+          "versant": "Versant",
+          "versantDesc": "Speaking, Writing, Placement, Professional",
+          "ielts": "IELTS",
+          "ieltsDesc": "Academic or General Training",
+          "toefl": "TOEFL iBT",
+          "toeflDesc": "Internet-based test",
+          "pte": "PTE Academic",
+          "pteDesc": "Pearson computer-based test",
+          "cambridge": "Cambridge",
+          "cambridgeDesc": "FCE, CAE, CPE",
+          "other": "Other / General",
+          "otherDesc": "General English improvement"
+        },
+        "goal": {
+          "A1": "A1 - Beginner",
+          "A1Desc": "Basic words and everyday phrases",
+          "A2": "A2 - Elementary",
+          "A2Desc": "Basic phrases, simple interactions",
+          "B1": "B1 - Intermediate",
+          "B1Desc": "Handle most travel, work situations",
+          "B2": "B2 - Upper-Intermediate",
+          "B2Desc": "Fluent interaction, detailed text",
+          "C1": "C1 - Advanced",
+          "C1Desc": "Complex topics, implicit meaning",
+          "C2": "C2 - Proficiency",
+          "C2Desc": "Near-native precision and fluency",
+          "unsure": "Not sure yet",
+          "unsureDesc": "The assessment will help decide"
+        }
+      },
+      "reasonTimeline": {
+        "reasonTitle": "Why are you taking this exam?",
+        "reasonSubtitle": "This helps us tailor the content to your real-world needs",
+        "reason": {
+          "university": "University admission",
+          "job": "Job requirement",
+          "immigration": "Immigration",
+          "promotion": "Promotion or career growth",
+          "personal": "Personal goal"
+        },
+        "appliedTitle": "Have you applied for the exam?",
+        "appliedSubtitle": "We'll pace your roadmap around your deadline",
+        "appliedYes": "Yes, I have a confirmed date",
+        "appliedNo": "No, not yet",
+        "examDateLabel": "When is your exam?",
+        "prepDaysLabel": "How many days do you want to prepare?",
+        "prepDaysPlaceholder": "e.g. 30",
+        "days": "days"
+      },
+      "attemptsCommitment": {
+        "attemptsTitle": "Have you taken this exam before?",
+        "attemptsSubtitle": "Helps us understand where you're starting from",
+        "attempts": {
+          "first": "No, this is my first attempt",
+          "once": "Yes, once before",
+          "multiple": "Yes, multiple times"
+        },
+        "prevScoreLabel": "What was your previous score?",
+        "prevScorePlaceholder": "e.g. B1, 5.5, 58",
+        "prevDateLabel": "When did you last take it?",
+        "prevDatePlaceholder": "e.g. March 2026, 6 months ago",
+        "timeTitle": "How much time can you commit daily?",
+        "timeSubtitle": "Be realistic — consistency beats intensity",
+        "time": {
+          "min15": "15 minutes",
+          "min15Desc": "Quick daily practice",
+          "min30": "30 minutes",
+          "min30Desc": "Solid steady progress",
+          "min60": "1 hour",
+          "min60Desc": "Intensive preparation",
+          "min90": "90+ minutes",
+          "min90Desc": "Full immersion mode"
+        }
+      },
+      "duration": {
+        "title": "How long do you want access?",
+        "subtitle": "Pick a plan that fits your timeline",
+        "oneMonth": "1 month",
+        "oneMonthDesc": "Short intensive sprint",
+        "threeMonths": "3 months",
+        "threeMonthsDesc": "Balanced preparation",
+        "sixMonths": "6 months",
+        "sixMonthsDesc": "Thorough, steady build",
+        "untilExam": "Until my exam date",
+        "untilExamDesc": "Auto-calculated from your exam date"
+      },
+      "consent": {
+        "title": "Before we continue",
+        "subtitle": "Your voice will be recorded during practice and tests",
+        "body": "We record your spoken responses to score your speaking and provide feedback. Recordings are kept for a limited time and are never used for anything other than scoring and improving your own results. You can delete your data at any time from Settings.",
+        "checkboxLabel": "I understand and consent to my voice being recorded for practice and testing.",
+        "submit": "Go to test",
+        "submitting": "Saving…",
+        "error": "Something went wrong saving your answers. Please try again."
+      }
+    }
+  },
+  "placement": {
+    "title": "Placement test",
+    "placeholder": "This is a placeholder — the real placement test (timed, graded, across Repeats/Sentence Builds/Dictation) is built in a later phase."
   },
   "dashboard": {
     "welcome": "Welcome, {{email}}",

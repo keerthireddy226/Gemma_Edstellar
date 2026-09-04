@@ -12,6 +12,7 @@ export function Signup() {
   const navigate = useNavigate();
   const { user, signup } = useAuth();
   const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +30,7 @@ export function Signup() {
     }
     setSubmitting(true);
     try {
-      await signup(email, password, firstName || undefined);
+      await signup(email, password, firstName, lastName);
       setSubmittedEmail(email);
     } catch (err) {
       setError(
@@ -67,6 +68,17 @@ export function Signup() {
           onChange={(e) => setFirstName(e.target.value)}
           placeholder={t("auth.signup.firstNamePlaceholder")}
           autoComplete="given-name"
+          required
+        />
+        <FormField
+          id="lastName"
+          label={t("auth.signup.lastNameLabel")}
+          type="text"
+          value={lastName}
+          onChange={(e) => setLastName(e.target.value)}
+          placeholder={t("auth.signup.lastNamePlaceholder")}
+          autoComplete="family-name"
+          required
         />
         <FormField
           id="email"

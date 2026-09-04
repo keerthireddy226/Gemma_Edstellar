@@ -15,6 +15,7 @@
       "errorInvalidCredentials": "Correo electrónico o contraseña incorrectos.",
       "errorEmailNotVerified": "Por favor verifica tu correo electrónico antes de iniciar sesión — revisa tu bandeja de entrada para el enlace de verificación.",
       "errorWrongPortal": "Esta cuenta no tiene acceso a través de esta página de inicio de sesión.",
+      "errorTooManyAttempts": "Demasiados intentos de inicio de sesión. Espera unos minutos e intenta de nuevo.",
       "errorGeneric": "Algo salió mal. Por favor verifica tu conexión e intenta de nuevo.",
       "forgotPassword": "¿Olvidaste tu contraseña?",
       "createAccount": "Crear una cuenta"
@@ -24,6 +25,8 @@
       "subtitle": "Empieza a practicar en unos segundos.",
       "firstNameLabel": "Nombre",
       "firstNamePlaceholder": "Alex",
+      "lastNameLabel": "Apellido",
+      "lastNamePlaceholder": "Taylor",
       "emailLabel": "Correo electrónico",
       "emailPlaceholder": "you@example.com",
       "passwordLabel": "Contraseña",
@@ -73,7 +76,128 @@
   "onboarding": {
     "title": "Bienvenido a la incorporación",
     "logout": "Cerrar sesión",
-    "placeholder": "Esto es un marcador de posición — el cuestionario real de incorporación (elección de examen, nivel CEFR objetivo, fecha de examen, días de preparación, minutos diarios, intentos anteriores) se construirá en una fase posterior, y luego conducirá a la prueba de nivelación."
+    "wizard": {
+      "stepLabel": "{{current}} de {{total}}",
+      "back": "Atrás",
+      "next": "Siguiente",
+      "basics": {
+        "title": "Conozcámonos",
+        "subtitle": "Tu correo electrónico se completa automáticamente desde el inicio de sesión",
+        "firstNameLabel": "Nombre",
+        "firstNamePlaceholder": "Ingresa tu nombre",
+        "lastNameLabel": "Apellido",
+        "lastNamePlaceholder": "Ingresa tu apellido",
+        "emailLabel": "Correo electrónico",
+        "emailNote": "Completado automáticamente desde tu cuenta de inicio de sesión"
+      },
+      "examGoal": {
+        "examTitle": "¿Para qué examen te estás preparando?",
+        "examSubtitle": "Adaptaremos tu práctica al formato de este examen",
+        "goalTitle": "¿Cuál es tu nivel o puntuación objetivo?",
+        "goalSubtitle": "La meta que buscas alcanzar en este examen",
+        "scoreTargetLabel": "Puntuación específica objetivo (opcional)",
+        "scoreTargetPlaceholder": "ej. IELTS 7.0, Versant 69+, PTE 65",
+        "exam": {
+          "versant": "Versant",
+          "versantDesc": "Expresión oral, escritura, nivelación, profesional",
+          "ielts": "IELTS",
+          "ieltsDesc": "Académico o Entrenamiento General",
+          "toefl": "TOEFL iBT",
+          "toeflDesc": "Examen basado en internet",
+          "pte": "PTE Academic",
+          "pteDesc": "Examen por computadora de Pearson",
+          "cambridge": "Cambridge",
+          "cambridgeDesc": "FCE, CAE, CPE",
+          "other": "Otro / General",
+          "otherDesc": "Mejora general del inglés"
+        },
+        "goal": {
+          "A1": "A1 - Principiante",
+          "A1Desc": "Palabras básicas y frases cotidianas",
+          "A2": "A2 - Elemental",
+          "A2Desc": "Frases básicas, interacciones simples",
+          "B1": "B1 - Intermedio",
+          "B1Desc": "Manejar la mayoría de situaciones de viaje y trabajo",
+          "B2": "B2 - Intermedio alto",
+          "B2Desc": "Interacción fluida, textos detallados",
+          "C1": "C1 - Avanzado",
+          "C1Desc": "Temas complejos, significado implícito",
+          "C2": "C2 - Dominio",
+          "C2Desc": "Precisión y fluidez casi nativas",
+          "unsure": "Aún no estoy seguro",
+          "unsureDesc": "La evaluación ayudará a decidir"
+        }
+      },
+      "reasonTimeline": {
+        "reasonTitle": "¿Por qué estás tomando este examen?",
+        "reasonSubtitle": "Esto nos ayuda a adaptar el contenido a tus necesidades reales",
+        "reason": {
+          "university": "Admisión universitaria",
+          "job": "Requisito laboral",
+          "immigration": "Inmigración",
+          "promotion": "Ascenso o crecimiento profesional",
+          "personal": "Meta personal"
+        },
+        "appliedTitle": "¿Ya te has inscrito para el examen?",
+        "appliedSubtitle": "Ajustaremos tu plan según tu fecha límite",
+        "appliedYes": "Sí, tengo una fecha confirmada",
+        "appliedNo": "No, todavía no",
+        "examDateLabel": "¿Cuándo es tu examen?",
+        "prepDaysLabel": "¿Cuántos días quieres prepararte?",
+        "prepDaysPlaceholder": "ej. 30",
+        "days": "días"
+      },
+      "attemptsCommitment": {
+        "attemptsTitle": "¿Has tomado este examen antes?",
+        "attemptsSubtitle": "Nos ayuda a entender tu punto de partida",
+        "attempts": {
+          "first": "No, este es mi primer intento",
+          "once": "Sí, una vez antes",
+          "multiple": "Sí, varias veces"
+        },
+        "prevScoreLabel": "¿Cuál fue tu puntuación anterior?",
+        "prevScorePlaceholder": "ej. B1, 5.5, 58",
+        "prevDateLabel": "¿Cuándo lo tomaste por última vez?",
+        "prevDatePlaceholder": "ej. marzo de 2026, hace 6 meses",
+        "timeTitle": "¿Cuánto tiempo puedes dedicar diariamente?",
+        "timeSubtitle": "Sé realista — la constancia vence a la intensidad",
+        "time": {
+          "min15": "15 minutos",
+          "min15Desc": "Práctica diaria rápida",
+          "min30": "30 minutos",
+          "min30Desc": "Progreso sólido y constante",
+          "min60": "1 hora",
+          "min60Desc": "Preparación intensiva",
+          "min90": "90+ minutos",
+          "min90Desc": "Modo de inmersión total"
+        }
+      },
+      "duration": {
+        "title": "¿Por cuánto tiempo quieres acceso?",
+        "subtitle": "Elige un plan que se ajuste a tu cronograma",
+        "oneMonth": "1 mes",
+        "oneMonthDesc": "Sprint intensivo corto",
+        "threeMonths": "3 meses",
+        "threeMonthsDesc": "Preparación equilibrada",
+        "sixMonths": "6 meses",
+        "sixMonthsDesc": "Construcción sólida y constante",
+        "untilExam": "Hasta la fecha de mi examen",
+        "untilExamDesc": "Calculado automáticamente según tu fecha de examen"
+      },
+      "consent": {
+        "title": "Antes de continuar",
+        "subtitle": "Tu voz será grabada durante la práctica y las pruebas",
+        "body": "Grabamos tus respuestas habladas para calificar tu expresión oral y darte retroalimentación. Las grabaciones se conservan por un tiempo limitado y nunca se usan para nada que no sea calificar y mejorar tus propios resultados. Puedes eliminar tus datos en cualquier momento desde Configuración.",
+        "checkboxLabel": "Entiendo y doy mi consentimiento para que se grabe mi voz con fines de práctica y evaluación.",
+        "submit": "Ir a la prueba",
+        "submitting": "Guardando…",
+        "error": "Algo salió mal al guardar tus respuestas. Por favor intenta de nuevo."
+      }
+    }
+  },
+  "placement": {
+    "title": "Prueba de nivelación",
+    "placeholder": "Esto es un marcador de posición — la prueba de nivelación real (cronometrada, calificada, con Repeticiones/Construcción de oraciones/Dictado) se construirá en una fase posterior."
   },
   "dashboard": {
     "welcome": "Bienvenido, {{email}}",
