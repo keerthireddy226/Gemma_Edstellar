@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/useAuth";
 import {
+  getOnboardingProfile,
   submitOnboarding,
   type AccessDuration,
   type AttemptsStatus,
@@ -191,6 +192,29 @@ export function Onboarding() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [checkingProfile, setCheckingProfile] = useState(true);
+
+  // A learner who already finished onboarding lands here again on every
+  // fresh login (LANDING_ROUTE_BY_ROLE always points here first) — bounce
+  // straight to the placement test instead of making them redo the wizard.
+  useEffect(() => {
+    let cancelled = false;
+    getOnboardingProfile()
+      .then((profile) => {
+        if (cancelled) return;
+        if (profile?.onboarding_complete) {
+          navigate(ROUTES.PLACEMENT, { replace: true });
+        } else {
+          setCheckingProfile(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setCheckingProfile(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate]);
 
   // `user` loads asynchronously (a /me fetch on mount), so it's usually still
   // null on first render — this fills in the name once it arrives, without
@@ -249,6 +273,8 @@ export function Onboarding() {
       setSubmitting(false);
     }
   }
+
+  if (checkingProfile) return null;
 
   if (step === 0) {
     const invalid = !form.firstName.trim() || !form.lastName.trim();

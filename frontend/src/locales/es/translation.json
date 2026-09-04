@@ -196,8 +196,23 @@
     }
   },
   "placement": {
-    "title": "Prueba de nivelación",
-    "placeholder": "Esto es un marcador de posición — la prueba de nivelación real (cronometrada, calificada, con Repeticiones/Construcción de oraciones/Dictado) se construirá en una fase posterior."
+    "title": "¡Todo listo!",
+    "subtitle": "La incorporación está completa — ahora sigue tu prueba de nivelación.",
+    "scheduleLater": "Programar para más tarde",
+    "scheduling": "Enviando…",
+    "scheduleSent": "Te hemos enviado un enlace de recordatorio por correo.",
+    "startTestNote": "La prueba de nivelación real (cronometrada, calificada, con Repeticiones/Construcción de oraciones/Dictado) se construirá en una fase posterior.",
+    "scheduleLaterError": "Algo salió mal al enviar tu recordatorio por correo. Por favor intenta de nuevo.",
+    "info": {
+      "timing": "Cronometrada — calcula unos 15–20 minutos",
+      "covers": "Incluye Repeticiones, Construcción de oraciones y Dictado",
+      "graded": "Esta prueba es calificada y tu voz se graba para la calificación — responde con honestidad, por tu cuenta, sin ayuda externa.",
+      "equipment": "Asegúrate de tener auriculares y un micrófono listos"
+    },
+    "instructions": {
+      "checkboxLabel": "He leído las instrucciones y estoy listo/a para comenzar.",
+      "begin": "Comenzar la prueba"
+    }
   },
   "dashboard": {
     "welcome": "Bienvenido, {{email}}",

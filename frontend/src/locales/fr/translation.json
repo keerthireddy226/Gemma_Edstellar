@@ -196,8 +196,23 @@
     }
   },
   "placement": {
-    "title": "Test de positionnement",
-    "placeholder": "Ceci est un espace réservé — le vrai test de positionnement (chronométré, noté, couvrant Répétitions/Construction de phrases/Dictée) sera construit lors d'une phase ultérieure."
+    "title": "Tout est prêt !",
+    "subtitle": "L'intégration est terminée — votre test de positionnement suit maintenant.",
+    "scheduleLater": "Planifier pour plus tard",
+    "scheduling": "Envoi en cours…",
+    "scheduleSent": "Nous vous avons envoyé un lien de rappel par e-mail.",
+    "startTestNote": "Le vrai test de positionnement (chronométré, noté, couvrant Répétitions/Construction de phrases/Dictée) sera construit lors d'une phase ultérieure.",
+    "scheduleLaterError": "Une erreur s'est produite lors de l'envoi de votre rappel par e-mail. Veuillez réessayer.",
+    "info": {
+      "timing": "Chronométré — prévoyez environ 15 à 20 minutes",
+      "covers": "Couvre Répétitions, Construction de phrases et Dictée",
+      "graded": "Ce test est noté et votre voix est enregistrée pour la notation — répondez honnêtement, seul, sans aide extérieure.",
+      "equipment": "Assurez-vous d'avoir un casque et un microphone prêts"
+    },
+    "instructions": {
+      "checkboxLabel": "J'ai lu les instructions et je suis prêt(e) à commencer.",
+      "begin": "Commencer le test"
+    }
   },
   "dashboard": {
     "welcome": "Bienvenue, {{email}}",

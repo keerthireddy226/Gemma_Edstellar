@@ -196,8 +196,23 @@
     }
   },
   "placement": {
-    "title": "Placement test",
-    "placeholder": "This is a placeholder — the real placement test (timed, graded, across Repeats/Sentence Builds/Dictation) is built in a later phase."
+    "title": "You're all set!",
+    "subtitle": "Onboarding is complete — your placement test is next.",
+    "scheduleLater": "Schedule for later",
+    "scheduling": "Sending…",
+    "scheduleSent": "We've emailed you a reminder link.",
+    "startTestNote": "The real placement test (timed, graded, across Repeats/Sentence Builds/Dictation) is built in a later phase.",
+    "scheduleLaterError": "Something went wrong sending your reminder email. Please try again.",
+    "info": {
+      "timing": "Timed — plan for about 15–20 minutes",
+      "covers": "Covers Repeats, Sentence Builds and Dictation",
+      "graded": "This is graded and your voice is recorded for scoring — answer honestly, on your own, without outside help.",
+      "equipment": "Make sure you have headphones and a microphone ready"
+    },
+    "instructions": {
+      "checkboxLabel": "I've read the instructions and I'm ready to begin.",
+      "begin": "Begin the test"
+    }
   },
   "dashboard": {
     "welcome": "Welcome, {{email}}",

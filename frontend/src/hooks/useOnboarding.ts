@@ -1,3 +1,5 @@
+import { api } from "@/lib/api";
+
 export type ExamPreference = "versant" | "ielts" | "toefl" | "pte" | "cambridge" | "other";
 export type GoalLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | "unsure";
 export type ExamReason = "university" | "job" | "immigration" | "promotion" | "personal";
@@ -22,15 +24,10 @@ export interface OnboardingAnswers {
   consentGiven: boolean;
 }
 
-export async function submitOnboarding(answers: OnboardingAnswers): Promise<void> {
-  const res = await fetch("/api/onboarding/complete", {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(answers),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: "unknown_error" }));
-    throw new Error(body.error ?? "request_failed");
-  }
+export function getOnboardingProfile(): Promise<{ onboarding_complete: boolean } | null> {
+  return api("/onboarding/profile");
+}
+
+export function submitOnboarding(answers: OnboardingAnswers): Promise<void> {
+  return api("/onboarding/complete", { method: "POST", body: JSON.stringify(answers) });
 }

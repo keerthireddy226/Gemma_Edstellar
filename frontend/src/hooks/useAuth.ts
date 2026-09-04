@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { api } from "@/lib/api";
 
 export type Role = "learner" | "org_admin" | "admin" | "super_admin";
 
@@ -17,20 +18,6 @@ type AuthState = {
   loading: boolean;
   error: string | null;
 };
-
-async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`/api${path}`, {
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    ...init,
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: "unknown_error" }));
-    throw new Error(body.error ?? "request_failed");
-  }
-  if (res.status === 204) return undefined as T;
-  return res.json();
-}
 
 export function useAuthState() {
   const [state, setState] = useState<AuthState>({ user: null, loading: true, error: null });

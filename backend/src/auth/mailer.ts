@@ -30,3 +30,12 @@ export async function sendPasswordResetEmail(email: string, token: string) {
   const link = `${FRONTEND_URL}/reset-password?token=${token}`;
   await sendMail(email, "Reset your password — Gemma_Edstellar", `Reset your password by opening this link (expires in 30 minutes):\n\n${link}\n\nIf you didn't request this, ignore this message.`);
 }
+
+export async function sendPlacementReminderEmail(email: string, token: string) {
+  const link = `${FRONTEND_URL}/placement?reminder=${token}`;
+  await sendMail(
+    email,
+    "Your placement test is waiting — Gemma_Edstellar",
+    `Whenever you're ready, come back and take your placement test:\n\n${link}\n\nThis reminder is valid for 1 week — after that, log in and you can send yourself a new one.`,
+  );
+}

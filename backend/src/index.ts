@@ -8,6 +8,7 @@ import { ZodError } from "zod";
 import { pool } from "./db.js";
 import { authRouter } from "./auth/routes.js";
 import { onboardingRouter } from "./onboarding/routes.js";
+import { placementRouter } from "./placement/routes.js";
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.get("/api/health", async (_req, res, next) => {
 
 app.use("/api/auth", authRouter);
 app.use("/api/onboarding", onboardingRouter);
+app.use("/api/placement", placementRouter);
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof ZodError) {
