@@ -2,6 +2,12 @@
   "common": {
     "appName": "Gemma_Edstellar"
   },
+  "skills": {
+    "listening": "Compréhension orale",
+    "speaking": "Expression orale",
+    "reading": "Lecture",
+    "writing": "Écriture"
+  },
   "auth": {
     "login": {
       "title": "Content de vous revoir",
@@ -201,11 +207,10 @@
     "scheduleLater": "Planifier pour plus tard",
     "scheduling": "Envoi en cours…",
     "scheduleSent": "Nous vous avons envoyé un lien de rappel par e-mail.",
-    "startTestNote": "Le vrai test de positionnement (chronométré, noté, couvrant Répétitions/Construction de phrases/Dictée) sera construit lors d'une phase ultérieure.",
     "scheduleLaterError": "Une erreur s'est produite lors de l'envoi de votre rappel par e-mail. Veuillez réessayer.",
     "info": {
       "timing": "Chronométré — prévoyez environ 15 à 20 minutes",
-      "covers": "Couvre Répétitions, Construction de phrases et Dictée",
+      "covers": "Couvre l'expression orale, la compréhension orale, la lecture et l'écriture",
       "graded": "Ce test est noté et votre voix est enregistrée pour la notation — répondez honnêtement, seul, sans aide extérieure.",
       "equipment": "Assurez-vous d'avoir un casque et un microphone prêts"
     },
@@ -214,10 +219,169 @@
       "begin": "Commencer le test"
     }
   },
+  "placementTest": {
+    "loading": "Chargement de votre test…",
+    "loadError": "Une erreur s'est produite lors du chargement de votre test. Veuillez réessayer.",
+    "micError": "Nous n'avons pas pu accéder à votre microphone. Veuillez autoriser l'accès au microphone et réessayer.",
+    "progress": "{{current}} sur {{total}}",
+    "play": "Écouter l'audio",
+    "playAgain": "Réécouter",
+    "playing": "Lecture en cours…",
+    "record": "Enregistrez votre réponse",
+    "recordAgain": "Réenregistrer",
+    "audioSaved": "Audio enregistré",
+    "stopRecording": "Arrêter l'enregistrement",
+    "skip": "Passer",
+    "transcript": "Ce que nous avons entendu",
+    "answerPlaceholder": "Tapez votre réponse ici…",
+    "submitting": "Envoi en cours…",
+    "next": "Suivant",
+    "finish": "Terminer",
+    "submitError": "Une erreur s'est produite lors de l'envoi de votre réponse. Veuillez réessayer.",
+    "resultsTitle": "Test terminé",
+    "resultsSummary": "{{correct}} réponses correctes sur {{graded}} notées automatiquement. {{pending}} réponses sont encore en attente de révision.",
+    "done": "Terminé",
+    "yourLevel": "Votre niveau estimé : {{level}}",
+    "levelDisclaimer": "Il s'agit de notre propre estimation alignée sur le CECR à partir de votre évaluation, pas d'un score officiel.",
+    "pendingNote": "{{pending}} de vos réponses doivent encore être révisées avant de compter pour votre niveau.",
+    "goToRoadmap": "Aller à votre feuille de route"
+  },
+  "roadmap": {
+    "loading": "Chargement de votre feuille de route…",
+    "loadError": "Une erreur s'est produite lors du chargement de votre feuille de route. Veuillez réessayer.",
+    "notReadyTitle": "Votre feuille de route n'est pas encore prête",
+    "notReadyBody": "Passez votre test de positionnement pour obtenir un plan personnalisé.",
+    "notReadyBodyScheduled": "Vous avez planifié votre test de positionnement pour le {{date}}. Passez-le quand vous serez prêt(e) — votre feuille de route se créera juste après.",
+    "takeTestNow": "Passer le test de positionnement",
+    "greeting": "Bonjour {{name}}",
+    "currentLevel": "Niveau actuel",
+    "goalLevel": "Objectif",
+    "daysLeftLabel": "Jours restants",
+    "skillBreakdownTitle": "Répartition par compétence",
+    "timelineTitle": "Votre feuille de route",
+    "milestoneReach": "Atteindre {{level}}",
+    "milestoneMaintain": "Maintenir votre niveau",
+    "dayOffset": "Jour {{day}}",
+    "focusOn": "Focus : {{skill}}",
+    "welcomeBack": "Bon retour",
+    "goalProgress": "Progression de l'objectif",
+    "ofYourRoadmap": "de votre feuille de route",
+    "streak": "Série",
+    "streakDays_one": "{{count}} jour",
+    "streakDays_other": "{{count}} jours",
+    "startStreakToday": "Commencez votre série aujourd'hui.",
+    "today": "Aujourd'hui",
+    "practicedSoFar": "pratiqué jusqu'à présent",
+    "accuracy": "Précision",
+    "practiceToUnlock": "Pratiquez pour débloquer",
+    "strongest": "le plus fort"
+  },
   "dashboard": {
     "welcome": "Bienvenue, {{email}}",
     "role": "Rôle : {{role}}",
-    "logout": "Se déconnecter",
     "placeholder": "Ceci est un espace réservé — le vrai tableau de bord (niveau, progression du plan, série, badges) sera construit lors d'une phase ultérieure."
+  },
+  "nav": {
+    "roadmap": "Feuille de route",
+    "overview": "Aperçu",
+    "modules": "Modules",
+    "practiceTests": "Tests d'entraînement",
+    "tutor": "Tuteur",
+    "profile": "Profil"
+  },
+  "shell": {
+    "openMenu": "Ouvrir le menu",
+    "toggleTheme": "Changer de thème"
+  },
+  "comingSoon": {
+    "practiceTestsBody": "Les tests d'entraînement complets seront construits lors d'une phase ultérieure.",
+    "tutorBody": "Coach Mode — un chat d'entraînement sans pression — sera construit lors d'une phase ultérieure.",
+    "profileBody": "Les paramètres du profil seront construits lors d'une phase ultérieure."
+  },
+  "heroTagline": {
+    "low": "Chaque plan commence à 0 %. Vous avez déjà dépassé ce stade.",
+    "mid": "Vous n'êtes plus où vous étiez. Continuez d'avancer.",
+    "high": "Vous pouvez presque voir la ligne d'arrivée d'ici."
+  },
+  "motivational": {
+    "line1": "15 minutes de pratique quotidienne valent mieux que 2 heures une fois par semaine.",
+    "line2": "Parler à voix haute — même seul(e) — est le raccourci le plus rapide vers la fluidité.",
+    "line3": "Chaque erreur à l'entraînement est une de moins à l'examen."
+  },
+  "achievement": {
+    "goalSetterTitle": "Objectif défini",
+    "goalSetterBody": "Vous avez défini votre niveau cible et votre feuille de route."
+  },
+  "recommendedPractice": {
+    "title": "Pratique recommandée",
+    "startPractice": "Commencer la pratique",
+    "estimatedMinutes": "~{{minutes}} min"
+  },
+  "dailyChallenge": {
+    "title": "Défi quotidien",
+    "subtitle": "Un petit plus pour aujourd'hui",
+    "wordTab": "Mot du jour",
+    "idiomTab": "Expression",
+    "wordOfDay": "Mot du jour — touchez pour {{action}}",
+    "reveal": "révéler",
+    "hide": "masquer",
+    "idiomOfDay": "Expression du jour",
+    "meaningTab": "Choisir le sens",
+    "pickClosestMeaning": "Choisissez le sens le plus proche",
+    "correctFeedback": "Bien joué ! C'est exactement ça. 🎉",
+    "incorrectFeedback": "Pas tout à fait — cela signifie « {{answer}} »."
+  },
+  "dailyContent": {
+    "words": {
+      "resilient": "Capable de se remettre rapidement des difficultés.",
+      "articulate": "Exprimer une idée ou un sentiment de manière claire et efficace.",
+      "candid": "Sincère et direct(e) ; franc/franche.",
+      "diligent": "Qui fait preuve d'un effort constant et soigné dans son travail."
+    },
+    "idioms": {
+      "hitTheBooks": "Commencer à étudier, généralement sérieusement ou pour un examen important.",
+      "breakTheIce": "Dire ou faire quelque chose qui détend l'atmosphère au début d'une conversation.",
+      "sameSage": "Être d'accord, ou comprendre quelque chose de la même manière que les autres.",
+      "underWeather": "Se sentir légèrement malade."
+    }
+  },
+  "coachPromo": {
+    "badge": "Non noté · sans pression",
+    "title": "Vous ne savez pas par où commencer ? Parlons-en.",
+    "body": "Coach Mode est un chat d'échauffement convivial — sans chronomètre, sans notation.",
+    "cta": "Ouvrir Coach Mode"
+  },
+  "dashboardHome": {
+    "welcomeBack": "Bon retour, {{name}}",
+    "subtitle": "Continuez votre pratique de l'anglais et développez votre confiance dans les quatre compétences.",
+    "viewRoadmap": "Feuille de route",
+    "startPractice": "Commencer la pratique",
+    "overallProgressTitle": "Progression globale de la pratique",
+    "todaysTasksTitle": "Tâches du jour",
+    "taskProgress": "{{done}}/{{target}} éléments aujourd'hui",
+    "practiceAction": "Pratiquer",
+    "statusNotStarted": "Non commencé",
+    "statusInProgress": "En cours",
+    "statusCompleted": "Terminé",
+    "statsSessions": "Sessions de pratique",
+    "statsQuestions": "Questions terminées",
+    "statsTime": "Temps de pratique",
+    "statsTimeValue": "{{minutes}} min",
+    "statsStreak": "Série actuelle",
+    "statsStreakValue_one": "{{count}} jour",
+    "statsStreakValue_other": "{{count}} jours"
+  },
+  "modules": {
+    "title": "Modules de pratique",
+    "subtitle": "Choisissez une compétence à pratiquer — le contenu s'adapte au fur et à mesure, vous ne verrez donc pas les mêmes éléments deux fois avant de les avoir tous faits.",
+    "loadingAvailability": "Chargement de vos modules de pratique…",
+    "remainingItems": "{{count}} sur {{total}} éléments restants à essayer",
+    "allDone": "Vous avez terminé tout ce qui est disponible dans cette banque pour le moment — revenez après l'ajout de nouveau contenu.",
+    "start": "Commencer",
+    "starting": "Démarrage de votre session de pratique…",
+    "startError": "Une erreur s'est produite lors du démarrage de cette session de pratique. Veuillez réessayer.",
+    "sessionComplete": "Beau travail !",
+    "practiceAgain": "Pratiquer à nouveau",
+    "backToDashboard": "Retour au tableau de bord"
   }
 }

@@ -1,0 +1,507 @@
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import {
+  ClipboardCheck,
+  Flag,
+  Check,
+  Target,
+  Compass,
+  Headphones,
+  Mic,
+  BookOpen,
+  PenLine,
+  Clock,
+  ListChecks,
+} from "lucide-react";
+import { ROUTES } from "@/constants/routes";
+import { Button } from "@/components/Button";
+import { Mascot } from "@/components/Mascot";
+import { MotivationalBar } from "@/components/MotivationalBar";
+import { getRoadmap, type RoadmapData, type RoadmapMilestone } from "@/hooks/useRoadmap";
+import { meetsGoal, percentToCefr } from "@/lib/cefr";
+import { ApiError } from "@/lib/api";
+import { ProgressRing } from "@/components/ProgressRing";
+import { SKILL_RING_COLOR, SKILL_TINT_CLASSES } from "@/lib/skillTints";
+import { WORD_BANK, IDIOM_BANK, WORD_CHALLENGES } from "@/data/dailyContent";
+import type { SkillTag } from "@/hooks/useTestSession";
+
+const SKILL_ICONS: Record<SkillTag, typeof Headphones> = {
+  listening: Headphones,
+  speaking: Mic,
+  reading: BookOpen,
+  writing: PenLine,
+};
+
+function daysUntil(isoDate: string): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(isoDate);
+  target.setHours(0, 0, 0, 0);
+  return Math.round((target.getTime() - today.getTime()) / 86_400_000);
+}
+
+function Hero({
+  firstName,
+  currentLevel,
+  goalLevel,
+  daysAccessLeft,
+  progressPercent,
+  goalMet,
+}: {
+  firstName: string;
+  currentLevel: string;
+  goalLevel: string;
+  daysAccessLeft: number | null;
+  progressPercent: number;
+  goalMet: boolean;
+}) {
+  const { t } = useTranslation();
+  const taglineKey = progressPercent >= 70 ? "heroTagline.high" : progressPercent >= 30 ? "heroTagline.mid" : "heroTagline.low";
+
+  return (
+    <div className="rounded-card p-8 relative overflow-hidden bg-gradient-to-br from-navy-soft/35 to-warning/25">
+      <div className="hidden md:block absolute right-8 top-1/2 -translate-y-1/2 w-40 h-40 mascot-breathe">
+        <Mascot variant="hero" size={160} />
+      </div>
+      <div className="relative z-10 max-w-lg">
+        <p className="font-mono text-[11px] uppercase tracking-widest text-navy-deep font-medium">{t("roadmap.welcomeBack")}</p>
+        <h2 className="font-display font-bold text-3xl text-ink mt-1">{t("roadmap.greeting", { name: firstName || "" })}</h2>
+        <p className="text-sm text-ink/70 mt-1">{t(taglineKey)}</p>
+
+        <div className="flex items-center gap-3 mt-5 flex-wrap">
+          <div className="bg-surface/70 rounded-2xl px-4 py-2.5 text-center min-w-[70px]">
+            <div className="text-[9px] font-mono uppercase text-muted">{t("roadmap.currentLevel")}</div>
+            <div className="font-display font-bold text-ink">{currentLevel}</div>
+          </div>
+          {!goalMet && (
+            <div className="bg-accent rounded-2xl px-4 py-2.5 text-center min-w-[70px] text-white">
+              <div className="text-[9px] font-mono uppercase opacity-80">{t("roadmap.goalLevel")}</div>
+              <div className="font-display font-bold">{goalLevel}</div>
+            </div>
+          )}
+          {daysAccessLeft !== null && (
+            <div className="bg-surface/70 rounded-2xl px-4 py-2.5 text-center min-w-[70px]">
+              <div className="text-[9px] font-mono uppercase text-muted">{t("roadmap.daysLeftLabel")}</div>
+              <div className="font-display font-bold text-ink">{daysAccessLeft}</div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// "Goal Setter" is always true by the time a learner reaches this page —
+// onboarding requires a goal level before placement can even start — so this
+// is an honest static banner, not a stand-in for the full achievement
+// system (streaks, module-completion badges, etc.) that would need real
+// practice-session tracking to mean anything.
+function AchievementBanner() {
+  const { t } = useTranslation();
+  return (
+    <div className="flex items-center gap-3 bg-gradient-to-r from-warning/10 via-surface to-surface border border-warning/20 rounded-card px-4 py-3">
+      <span className="h-9 w-9 rounded-input bg-warning text-white flex items-center justify-center shrink-0 shadow-sm">
+        <Target size={18} strokeWidth={1.8} />
+      </span>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-bold text-ink">{t("achievement.goalSetterTitle")}</div>
+        <div className="text-xs text-muted truncate">{t("achievement.goalSetterBody")}</div>
+      </div>
+    </div>
+  );
+}
+
+function StatsRow({ progressPercent }: { progressPercent: number }) {
+  const { t } = useTranslation();
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="bg-surface border border-rule rounded-card p-4">
+        <div className="flex items-center justify-between mb-2.5">
+          <span className="font-mono text-[10px] uppercase tracking-wider text-muted">{t("roadmap.goalProgress")}</span>
+          <ProgressRing percent={progressPercent} size={26} strokeWidth={2.5} colorClass="text-accent" />
+        </div>
+        <div className="font-display font-bold text-2xl text-accent">{progressPercent}%</div>
+        <div className="text-xs text-muted mt-0.5">{t("roadmap.ofYourRoadmap")}</div>
+      </div>
+
+      <div className="bg-surface border border-rule rounded-card p-4 flex items-center gap-3">
+        <svg viewBox="0 0 60 90" className="w-8 h-11 shrink-0">
+          <line x1="30" y1="88" x2="30" y2="62" stroke="var(--color-navy)" strokeWidth={3} strokeLinecap="round" />
+          <path d="M30 62 C16 54 14 34 30 24 C46 34 44 54 30 62 Z" fill="var(--color-navy)" />
+        </svg>
+        <div>
+          <div className="font-mono text-[10px] uppercase tracking-wider text-muted mb-1">{t("roadmap.streak")}</div>
+          <div className="font-display font-bold text-2xl text-navy-deep">{t("roadmap.streakDays", { count: 0 })}</div>
+          <div className="text-xs text-muted mt-0.5 italic truncate">{t("roadmap.startStreakToday")}</div>
+        </div>
+      </div>
+
+      <div className="bg-surface border border-rule rounded-card p-4">
+        <div className="flex items-center justify-between mb-2.5">
+          <span className="font-mono text-[10px] uppercase tracking-wider text-muted">{t("roadmap.today")}</span>
+          <Clock size={16} strokeWidth={1.8} className="text-navy-deep" />
+        </div>
+        <div className="font-display font-bold text-2xl text-ink">0m</div>
+        <div className="text-xs text-muted mt-0.5">{t("roadmap.practicedSoFar")}</div>
+      </div>
+
+      <div className="bg-surface border border-rule rounded-card p-4">
+        <div className="flex items-center justify-between mb-2.5">
+          <span className="font-mono text-[10px] uppercase tracking-wider text-muted">{t("roadmap.accuracy")}</span>
+          <span className="text-sm leading-none">🔒</span>
+        </div>
+        <div className="font-display font-bold text-2xl text-muted">—</div>
+        <div className="text-xs text-muted mt-0.5">{t("roadmap.practiceToUnlock")}</div>
+      </div>
+    </div>
+  );
+}
+
+function SkillBreakdown({ skillPercents }: { skillPercents: Record<SkillTag, number> }) {
+  const { t } = useTranslation();
+  const entries = Object.entries(skillPercents) as [SkillTag, number][];
+  const strongest = entries.reduce((best, cur) => (cur[1] > best[1] ? cur : best))[0];
+
+  return (
+    <div className="bg-surface border border-rule rounded-card p-5 flex flex-col gap-4">
+      <h3 className="flex items-center gap-1.5 font-mono text-[11px] font-medium tracking-[.2em] uppercase text-muted">
+        <Target size={13} className="text-accent" /> {t("roadmap.skillBreakdownTitle")}
+      </h3>
+      <div className="grid grid-cols-2 gap-4">
+        {entries.map(([skill, pct]) => {
+          const Icon = SKILL_ICONS[skill];
+          const color = SKILL_RING_COLOR[skill];
+          return (
+            <div key={skill} className="flex flex-col items-center text-center">
+              <ProgressRing percent={pct} size={56} strokeWidth={5} colorClass={color}>
+                <Icon size={16} strokeWidth={2} className={color} />
+              </ProgressRing>
+              <div className="text-xs font-semibold text-ink mt-2">{t(`skills.${skill}`)}</div>
+              <div className="text-[10px] text-muted">
+                {percentToCefr(pct)}
+                {skill === strongest ? ` · ${t("roadmap.strongest")}` : ""}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function buildJourneyPath(steps: number): { d: string; viewBoxHeight: number } {
+  const LEFT_X = 16;
+  const RIGHT_X = 52;
+  const RUN = 60;
+  const BEND = 20;
+  let x = LEFT_X;
+  let y = 0;
+  let d = `M${x} ${y}`;
+  for (let i = 0; i < steps; i++) {
+    const downTo = y + RUN;
+    d += ` L${x} ${downTo}`;
+    const nextX = x === LEFT_X ? RIGHT_X : LEFT_X;
+    const bendEndY = downTo + BEND;
+    d += ` Q${x} ${downTo + BEND / 2} ${nextX} ${bendEndY}`;
+    x = nextX;
+    y = bendEndY;
+  }
+  d += ` L${x} ${y + RUN * 0.6}`;
+  return { d, viewBoxHeight: y + RUN * 0.6 };
+}
+
+function RoadmapTimeline({ milestones, daysSinceStart }: { milestones: RoadmapMilestone[]; daysSinceStart: number }) {
+  const { t } = useTranslation();
+  const currentIndex = Math.max(0, milestones.findIndex((m) => m.targetDayOffset >= daysSinceStart));
+  const { d: pathD, viewBoxHeight } = useMemo(() => buildJourneyPath(Math.max(0, milestones.length - 1)), [milestones.length]);
+
+  return (
+    <div className="relative">
+      {milestones.length > 1 && (
+        <svg
+          className="absolute left-1 top-4 w-16"
+          style={{ height: "calc(100% - 2rem)" }}
+          viewBox={`0 0 64 ${viewBoxHeight}`}
+          preserveAspectRatio="none"
+          fill="none"
+        >
+          <path d={pathD} stroke="var(--color-rule-strong)" strokeWidth={3} strokeDasharray="1 9" strokeLinecap="round" />
+        </svg>
+      )}
+      <div className="flex flex-col gap-8 relative z-10">
+        {milestones.map((m, i) => {
+          const isDone = i < currentIndex;
+          const isCurrent = i === currentIndex;
+          const isOffset = i % 2 === 1;
+          return (
+            <div key={i} className={`flex gap-3.5 items-start transition-all ${isOffset ? "ml-9" : ""}`}>
+              <span
+                className={`relative h-9 w-9 rounded-full border-2 flex items-center justify-center shrink-0 font-display font-bold text-xs ${
+                  isDone
+                    ? "bg-success border-success text-white"
+                    : isCurrent
+                      ? "bg-accent border-accent text-white shadow-[0_0_0_5px_var(--color-accent-soft)]"
+                      : "bg-surface border-rule text-muted-soft"
+                }`}
+              >
+                {isDone ? <Check size={16} strokeWidth={3} /> : isCurrent ? <Flag size={15} strokeWidth={2.2} /> : <span className="text-xs leading-none">🔒</span>}
+              </span>
+              <div className="flex-1 pt-1">
+                <div className="text-sm font-bold text-ink">
+                  {m.labelType === "reach" ? t("roadmap.milestoneReach", { level: m.level }) : t("roadmap.milestoneMaintain")}
+                </div>
+                <div className="text-xs text-muted">{t("roadmap.dayOffset", { day: m.targetDayOffset })} &middot; {t("roadmap.focusOn", { skill: t(`skills.${m.focusSkill}`) })}</div>
+                <span className={`inline-block mt-1 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${SKILL_TINT_CLASSES[m.focusSkill]}`}>
+                  {t(`skills.${m.focusSkill}`)}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function RecommendedPractice({ practice }: { practice: RoadmapData["recommendedPractice"] }) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+
+  return (
+    <div className="bg-surface border border-rule rounded-card p-5 flex flex-col gap-1">
+      <h3 className="flex items-center gap-1.5 font-mono text-[11px] font-medium tracking-[.2em] uppercase text-muted mb-1.5">
+        <ListChecks size={13} className="text-success" /> {t("recommendedPractice.title")}
+      </h3>
+      {practice.items.map((item) => (
+        <div key={item.itemTypeId} className="flex items-center gap-2.5 px-2.5 py-2 rounded-input">
+          <span className="h-5 w-5 rounded-full border-2 border-rule-strong shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold text-ink truncate">{item.name}</div>
+            <div className="text-xs text-muted truncate">
+              {t("recommendedPractice.estimatedMinutes", { minutes: Math.max(1, Math.round(item.estimatedSeconds / 60)) })} &middot; {item.questionInstruction}
+            </div>
+          </div>
+        </div>
+      ))}
+      <Button onClick={() => navigate(ROUTES.MODULES)} className="mt-2 w-full">
+        {t("recommendedPractice.startPractice")}
+      </Button>
+    </div>
+  );
+}
+
+function WordOfDayTab() {
+  const { t } = useTranslation();
+  const [entry] = useState(() => WORD_BANK[Math.floor(Math.random() * WORD_BANK.length)]);
+  const [revealed, setRevealed] = useState(false);
+
+  return (
+    <button onClick={() => setRevealed((v) => !v)} className="text-left w-full cursor-pointer">
+      <p className="text-xs text-muted mb-3">{t("dailyChallenge.wordOfDay", { action: t(revealed ? "dailyChallenge.hide" : "dailyChallenge.reveal") })}</p>
+      <div className="font-display font-bold text-2xl text-ink mb-1">{entry.word}</div>
+      {!revealed ? (
+        <div className="text-xs text-muted italic">
+          {entry.partOfSpeech} &middot; {entry.phonetic}
+        </div>
+      ) : (
+        <>
+          <p className="text-sm text-ink leading-relaxed">{t(entry.definitionKey)}</p>
+          <p className="text-xs italic px-4 py-3 rounded-xl bg-paper text-muted mt-2">&ldquo;{entry.example}&rdquo;</p>
+        </>
+      )}
+    </button>
+  );
+}
+
+function IdiomTab() {
+  const { t } = useTranslation();
+  const [entry] = useState(() => IDIOM_BANK[Math.floor(Math.random() * IDIOM_BANK.length)]);
+  return (
+    <div>
+      <p className="text-xs text-muted mb-3">{t("dailyChallenge.idiomOfDay")}</p>
+      <div className="font-display font-bold text-lg text-ink mb-1">{entry.phrase}</div>
+      <p className="text-sm text-muted">{t(entry.meaningKey)}</p>
+    </div>
+  );
+}
+
+function MeaningChallengeTab() {
+  const { t } = useTranslation();
+  const [challenge] = useState(() => WORD_CHALLENGES[Math.floor(Math.random() * WORD_CHALLENGES.length)]);
+  const [picked, setPicked] = useState<number | null>(null);
+  const isCorrectPick = picked !== null && picked === challenge.correctIndex;
+
+  return (
+    <div>
+      <p className="text-xs text-muted mb-3">{t("dailyChallenge.pickClosestMeaning")}</p>
+      <div className="font-display font-bold text-xl text-ink mb-3">{challenge.word}</div>
+      <div className="grid grid-cols-2 gap-2">
+        {challenge.options.map((option, i) => {
+          const isPicked = picked === i;
+          const showResult = picked !== null;
+          const isCorrect = i === challenge.correctIndex;
+          return (
+            <button
+              key={i}
+              disabled={showResult}
+              onClick={() => setPicked(i)}
+              className={`text-center rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors ${
+                showResult && isCorrect
+                  ? "border-success bg-success/10 text-ink"
+                  : showResult && isPicked
+                    ? "border-error bg-error/10 text-ink"
+                    : "border-rule hover:border-rule-strong cursor-pointer"
+              } ${showResult ? "cursor-default" : ""}`}
+            >
+              {option}
+            </button>
+          );
+        })}
+      </div>
+      {picked !== null && (
+        <p className={`text-xs font-semibold mt-3 ${isCorrectPick ? "text-success" : "text-error"}`}>
+          {isCorrectPick ? t("dailyChallenge.correctFeedback") : t("dailyChallenge.incorrectFeedback", { answer: challenge.options[challenge.correctIndex] })}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function DailyChallenge() {
+  const { t } = useTranslation();
+  const [tab, setTab] = useState<"word" | "idiom" | "meaning">("word");
+  return (
+    <div className="bg-surface border border-rule rounded-card p-6 flex flex-col gap-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <div className="font-mono text-[10px] uppercase tracking-wider text-warning mb-1">{t("dailyChallenge.title")}</div>
+          <h3 className="font-display font-bold text-lg text-ink">{t("dailyChallenge.subtitle")}</h3>
+        </div>
+        <div className="flex gap-1 p-1 rounded-pill bg-paper">
+          {(["word", "idiom", "meaning"] as const).map((id) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={`px-3 py-1.5 rounded-pill text-xs font-semibold transition-colors cursor-pointer ${
+                tab === id ? "bg-surface text-ink shadow-sm" : "text-muted hover:text-ink"
+              }`}
+            >
+              {t(id === "word" ? "dailyChallenge.wordTab" : id === "idiom" ? "dailyChallenge.idiomTab" : "dailyChallenge.meaningTab")}
+            </button>
+          ))}
+        </div>
+      </div>
+      {tab === "word" ? <WordOfDayTab /> : tab === "idiom" ? <IdiomTab /> : <MeaningChallengeTab />}
+    </div>
+  );
+}
+
+function CoachModePromo() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  return (
+    <div className="rounded-card p-7 flex flex-col sm:flex-row items-center gap-6 bg-writing/12">
+      <div className="w-16 h-16 shrink-0 mascot-breathe">
+        <Mascot variant="coach" size={64} />
+      </div>
+      <div className="flex-1 text-center sm:text-left">
+        <span className="inline-block font-mono text-[10px] uppercase tracking-widest bg-surface text-navy px-2.5 py-1 rounded-pill mb-2">
+          {t("coachPromo.badge")}
+        </span>
+        <h3 className="font-display font-bold text-lg text-ink mb-1">{t("coachPromo.title")}</h3>
+        <p className="text-sm text-ink/70">{t("coachPromo.body")}</p>
+      </div>
+      <Button onClick={() => navigate(ROUTES.TUTOR)} className="shrink-0">
+        {t("coachPromo.cta")}
+      </Button>
+    </div>
+  );
+}
+
+export function Roadmap() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const [data, setData] = useState<RoadmapData | null>(null);
+  const [notReady, setNotReady] = useState<{ scheduledFor: string | null } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getRoadmap()
+      .then(setData)
+      .catch((err: unknown) => {
+        if (err instanceof ApiError && (err.message === "no_placement_yet" || err.message === "no_roadmap_yet")) {
+          const body = err.body as { assessmentScheduledFor?: string | null };
+          setNotReady({ scheduledFor: body.assessmentScheduledFor ?? null });
+        } else {
+          setError(t("roadmap.loadError"));
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [t]);
+
+  if (loading) return <p className="text-sm text-muted">{t("roadmap.loading")}</p>;
+  if (error) return <p className="text-sm text-error">{error}</p>;
+
+  if (notReady || !data) {
+    return (
+      <div className="flex flex-col items-center text-center gap-4 bg-surface border border-rule rounded-card p-10 max-w-lg mx-auto mt-10">
+        <span className="h-14 w-14 rounded-full bg-paper-warm border-2 border-navy flex items-center justify-center">
+          <ClipboardCheck size={26} strokeWidth={1.8} className="text-navy" />
+        </span>
+        <h2 className="font-display font-bold text-xl text-ink">{t("roadmap.notReadyTitle")}</h2>
+        <p className="text-sm text-muted max-w-sm">
+          {notReady?.scheduledFor
+            ? t("roadmap.notReadyBodyScheduled", { date: new Date(notReady.scheduledFor).toLocaleDateString() })
+            : t("roadmap.notReadyBody")}
+        </p>
+        <Button onClick={() => navigate(ROUTES.PLACEMENT)}>{t("roadmap.takeTestNow")}</Button>
+      </div>
+    );
+  }
+
+  const { placement, roadmap, goalLevel, accessWindow, firstName, recommendedPractice } = data;
+  const goalMet = meetsGoal(placement.cefrLevel, goalLevel);
+  const daysAccessLeft = accessWindow ? Math.max(0, accessWindow.durationDays + daysUntil(accessWindow.startDate)) : null;
+  const daysSinceStart = accessWindow ? -daysUntil(accessWindow.startDate) : 0;
+  // No practice-session tracking yet — always reflects a fresh start rather
+  // than a fabricated number.
+  const progressPercent = 0;
+
+  return (
+    <div className="flex flex-col gap-4 w-full">
+      <Hero
+        firstName={firstName ?? ""}
+        currentLevel={placement.cefrLevel}
+        goalLevel={goalLevel}
+        daysAccessLeft={daysAccessLeft}
+        progressPercent={progressPercent}
+        goalMet={goalMet}
+      />
+
+      <AchievementBanner />
+
+      <StatsRow progressPercent={progressPercent} />
+
+      <MotivationalBar />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <SkillBreakdown skillPercents={placement.skillPercents} />
+
+        <div className="bg-surface border border-rule rounded-card p-5 flex flex-col gap-3.5">
+          <h3 className="flex items-center gap-1.5 font-mono text-[11px] font-medium tracking-[.24em] uppercase text-muted">
+            <Compass size={13} className="text-warning" /> {t("roadmap.timelineTitle")}
+          </h3>
+          <RoadmapTimeline milestones={roadmap.milestones} daysSinceStart={daysSinceStart} />
+        </div>
+
+        <RecommendedPractice practice={recommendedPractice} />
+      </div>
+
+      <DailyChallenge />
+
+      <CoachModePromo />
+    </div>
+  );
+}

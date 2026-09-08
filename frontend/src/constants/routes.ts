@@ -11,7 +11,13 @@ export const ROUTES = {
   VERIFY_EMAIL: "/verify-email",
   ONBOARDING: "/onboarding",
   PLACEMENT: "/placement",
+  PLACEMENT_TEST: "/placement/test",
+  ROADMAP: "/roadmap",
   DASHBOARD: "/dashboard",
+  MODULES: "/modules",
+  PRACTICE_TESTS: "/practice-tests",
+  TUTOR: "/tutor",
+  PROFILE: "/profile",
 } as const;
 
 // Which role(s) each login portal accepts.

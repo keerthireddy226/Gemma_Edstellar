@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/Button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ROUTES } from "@/constants/routes";
+import { getRoadmap } from "@/hooks/useRoadmap";
 
 /* ------------------------------------------------------------------ */
 /* Shared step chrome + small controls, local to this page            */
@@ -196,14 +197,23 @@ export function Onboarding() {
 
   // A learner who already finished onboarding lands here again on every
   // fresh login (LANDING_ROUTE_BY_ROLE always points here first) — bounce
-  // straight to the placement test instead of making them redo the wizard.
+  // them onward instead of making them redo the wizard. If they've also
+  // already completed the placement test, skip straight to the roadmap
+  // instead of the placement instructions screen, so logging back in never
+  // means retaking the test.
   useEffect(() => {
     let cancelled = false;
     getOnboardingProfile()
       .then((profile) => {
         if (cancelled) return;
         if (profile?.onboarding_complete) {
-          navigate(ROUTES.PLACEMENT, { replace: true });
+          getRoadmap()
+            .then(() => {
+              if (!cancelled) navigate(ROUTES.ROADMAP, { replace: true });
+            })
+            .catch(() => {
+              if (!cancelled) navigate(ROUTES.PLACEMENT, { replace: true });
+            });
         } else {
           setCheckingProfile(false);
         }

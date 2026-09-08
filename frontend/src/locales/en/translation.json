@@ -2,6 +2,12 @@
   "common": {
     "appName": "Gemma_Edstellar"
   },
+  "skills": {
+    "listening": "Listening",
+    "speaking": "Speaking",
+    "reading": "Reading",
+    "writing": "Writing"
+  },
   "auth": {
     "login": {
       "title": "Welcome back",
@@ -201,11 +207,10 @@
     "scheduleLater": "Schedule for later",
     "scheduling": "Sending…",
     "scheduleSent": "We've emailed you a reminder link.",
-    "startTestNote": "The real placement test (timed, graded, across Repeats/Sentence Builds/Dictation) is built in a later phase.",
     "scheduleLaterError": "Something went wrong sending your reminder email. Please try again.",
     "info": {
       "timing": "Timed — plan for about 15–20 minutes",
-      "covers": "Covers Repeats, Sentence Builds and Dictation",
+      "covers": "Covers speaking, listening, reading and writing",
       "graded": "This is graded and your voice is recorded for scoring — answer honestly, on your own, without outside help.",
       "equipment": "Make sure you have headphones and a microphone ready"
     },
@@ -214,10 +219,169 @@
       "begin": "Begin the test"
     }
   },
+  "placementTest": {
+    "loading": "Loading your test…",
+    "loadError": "Something went wrong loading your test. Please try again.",
+    "micError": "We couldn't access your microphone. Please allow microphone access and try again.",
+    "progress": "{{current}} of {{total}}",
+    "play": "Play audio",
+    "playAgain": "Play again",
+    "playing": "Playing…",
+    "record": "Record your answer",
+    "recordAgain": "Record again",
+    "audioSaved": "Audio saved",
+    "stopRecording": "Stop recording",
+    "skip": "Skip",
+    "transcript": "What we heard",
+    "answerPlaceholder": "Type your answer here…",
+    "submitting": "Submitting…",
+    "next": "Next",
+    "finish": "Finish",
+    "submitError": "Something went wrong submitting your answer. Please try again.",
+    "resultsTitle": "Test complete",
+    "resultsSummary": "{{correct}} of {{graded}} auto-graded answers correct. {{pending}} responses are still awaiting review.",
+    "done": "Done",
+    "yourLevel": "Your estimated level: {{level}}",
+    "levelDisclaimer": "This is our own CEFR-aligned estimate from your assessment, not an official score.",
+    "pendingNote": "{{pending}} of your answers still need review before they count toward your level.",
+    "goToRoadmap": "Go to your Roadmap"
+  },
+  "roadmap": {
+    "loading": "Loading your roadmap…",
+    "loadError": "Something went wrong loading your roadmap. Please try again.",
+    "notReadyTitle": "Your roadmap isn't ready yet",
+    "notReadyBody": "Take your placement test to get a personalized plan.",
+    "notReadyBodyScheduled": "You scheduled your placement test for {{date}}. Take it whenever you're ready — your roadmap will build itself right after.",
+    "takeTestNow": "Take the placement test",
+    "greeting": "Hi {{name}}",
+    "currentLevel": "Current level",
+    "goalLevel": "Goal",
+    "daysLeftLabel": "Days left",
+    "skillBreakdownTitle": "Skill breakdown",
+    "timelineTitle": "Your roadmap",
+    "milestoneReach": "Reach {{level}}",
+    "milestoneMaintain": "Maintain your level",
+    "dayOffset": "Day {{day}}",
+    "focusOn": "Focus: {{skill}}",
+    "welcomeBack": "Welcome back",
+    "goalProgress": "Goal progress",
+    "ofYourRoadmap": "of your roadmap",
+    "streak": "Streak",
+    "streakDays_one": "{{count}} day",
+    "streakDays_other": "{{count}} days",
+    "startStreakToday": "Start your streak today.",
+    "today": "Today",
+    "practicedSoFar": "practiced so far",
+    "accuracy": "Accuracy",
+    "practiceToUnlock": "Practice to unlock",
+    "strongest": "strongest"
+  },
   "dashboard": {
     "welcome": "Welcome, {{email}}",
     "role": "Role: {{role}}",
-    "logout": "Log out",
     "placeholder": "This is a placeholder — the real dashboard (level, plan progress, streak, badges) is built in a later phase."
+  },
+  "nav": {
+    "roadmap": "Roadmap",
+    "overview": "Overview",
+    "modules": "Modules",
+    "practiceTests": "Practice Tests",
+    "tutor": "Tutor",
+    "profile": "Profile"
+  },
+  "shell": {
+    "openMenu": "Open menu",
+    "toggleTheme": "Toggle theme"
+  },
+  "comingSoon": {
+    "practiceTestsBody": "Full practice tests are built in a later phase.",
+    "tutorBody": "Coach Mode — a low-pressure practice chat — is built in a later phase.",
+    "profileBody": "Profile settings are built in a later phase."
+  },
+  "heroTagline": {
+    "low": "Every plan starts at 0%. You're already past that.",
+    "mid": "You're not where you were. Keep moving.",
+    "high": "You can practically see the finish line from here."
+  },
+  "motivational": {
+    "line1": "15 minutes of daily practice beats 2 hours once a week.",
+    "line2": "Speaking out loud — even to yourself — is the fastest shortcut to fluency.",
+    "line3": "Every mistake in practice is one fewer in the exam."
+  },
+  "achievement": {
+    "goalSetterTitle": "Goal Setter",
+    "goalSetterBody": "Set your target level and roadmap."
+  },
+  "recommendedPractice": {
+    "title": "Recommended Practice",
+    "startPractice": "Start practice",
+    "estimatedMinutes": "~{{minutes}} min"
+  },
+  "dailyChallenge": {
+    "title": "Daily Challenge",
+    "subtitle": "A little something extra today",
+    "wordTab": "Word of the Day",
+    "idiomTab": "Idiom",
+    "wordOfDay": "Word of the day — tap to {{action}}",
+    "reveal": "reveal",
+    "hide": "hide",
+    "idiomOfDay": "Idiom of the day",
+    "meaningTab": "Pick the Meaning",
+    "pickClosestMeaning": "Pick the closest meaning",
+    "correctFeedback": "Nice! That's exactly it. 🎉",
+    "incorrectFeedback": "Not quite — it means \"{{answer}}\"."
+  },
+  "dailyContent": {
+    "words": {
+      "resilient": "Able to recover quickly from difficulties.",
+      "articulate": "To express an idea or feeling clearly and effectively.",
+      "candid": "Truthful and straightforward; frank.",
+      "diligent": "Showing steady, careful effort in work or duties."
+    },
+    "idioms": {
+      "hitTheBooks": "To start studying, usually seriously or for an important test.",
+      "breakTheIce": "To say or do something that relieves tension at the start of a conversation.",
+      "sameSage": "In agreement, or understanding something the same way as others.",
+      "underWeather": "Feeling slightly unwell."
+    }
+  },
+  "coachPromo": {
+    "badge": "Unscored · low pressure",
+    "title": "Not sure where to start? Talk it out.",
+    "body": "Coach Mode is a friendly warm-up chat — no timers, no scoring.",
+    "cta": "Open Coach Mode"
+  },
+  "dashboardHome": {
+    "welcomeBack": "Welcome back, {{name}}",
+    "subtitle": "Continue your English practice and build confidence across all four skills.",
+    "viewRoadmap": "Roadmap",
+    "startPractice": "Start Practice",
+    "overallProgressTitle": "Overall Practice Progress",
+    "todaysTasksTitle": "Today's Tasks",
+    "taskProgress": "{{done}}/{{target}} items today",
+    "practiceAction": "Practice",
+    "statusNotStarted": "Not started",
+    "statusInProgress": "In progress",
+    "statusCompleted": "Completed",
+    "statsSessions": "Practice Sessions",
+    "statsQuestions": "Questions Completed",
+    "statsTime": "Practice Time",
+    "statsTimeValue": "{{minutes}} min",
+    "statsStreak": "Current Streak",
+    "statsStreakValue_one": "{{count}} day",
+    "statsStreakValue_other": "{{count}} days"
+  },
+  "modules": {
+    "title": "Practice Modules",
+    "subtitle": "Pick a skill to practice — content adapts as you go, so you won't see the same items twice until you've done them all.",
+    "loadingAvailability": "Loading your practice modules…",
+    "remainingItems": "{{count}} of {{total}} items left to try",
+    "allDone": "You've completed everything in this bank for now — check back after more content is added.",
+    "start": "Start",
+    "starting": "Starting your practice session…",
+    "startError": "Something went wrong starting this practice session. Please try again.",
+    "sessionComplete": "Nice work!",
+    "practiceAgain": "Practice again",
+    "backToDashboard": "Back to Dashboard"
   }
 }

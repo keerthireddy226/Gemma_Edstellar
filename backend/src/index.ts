@@ -9,6 +9,9 @@ import { pool } from "./db.js";
 import { authRouter } from "./auth/routes.js";
 import { onboardingRouter } from "./onboarding/routes.js";
 import { placementRouter } from "./placement/routes.js";
+import { roadmapRouter } from "./roadmap/routes.js";
+import { dashboardRouter } from "./dashboard/routes.js";
+import { practiceRouter } from "./practice/routes.js";
 
 const app = express();
 
@@ -16,9 +19,13 @@ app.use(helmet());
 // Restricted to the actual frontend origin, not reflected for any caller —
 // origin:true + credentials:true would let any site make credentialed requests.
 app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
-app.use(express.json());
+// Raised from the 100kb default — placement attempts can carry a base64
+// audio recording (a mic response is only a few seconds long, but base64
+// adds ~33% overhead on top of that).
+app.use(express.json({ limit: "5mb" }));
 app.use(cookieParser());
 app.use(morgan("dev"));
+app.use("/uploads", express.static("uploads"));
 
 app.get("/api/health", async (_req, res, next) => {
   try {
@@ -32,6 +39,9 @@ app.get("/api/health", async (_req, res, next) => {
 app.use("/api/auth", authRouter);
 app.use("/api/onboarding", onboardingRouter);
 app.use("/api/placement", placementRouter);
+app.use("/api/roadmap", roadmapRouter);
+app.use("/api/dashboard", dashboardRouter);
+app.use("/api/practice", practiceRouter);
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof ZodError) {

@@ -15,7 +15,14 @@ import { ResetPassword } from "@/pages/ResetPassword";
 import { VerifyEmail } from "@/pages/VerifyEmail";
 import { Onboarding } from "@/pages/Onboarding";
 import { Placement } from "@/pages/Placement";
+import { PlacementTest } from "@/pages/PlacementTest";
+import { Roadmap } from "@/pages/Roadmap";
 import { Dashboard } from "@/pages/Dashboard";
+import { Modules } from "@/pages/Modules";
+import { PracticeTests } from "@/pages/PracticeTests";
+import { Tutor } from "@/pages/Tutor";
+import { Profile } from "@/pages/Profile";
+import { AppLayout } from "@/components/AppShell/AppLayout";
 
 // Any unmatched path (or a stale bookmark) sends a logged-in visitor to
 // *their* actual landing page, not always the learner one, and sends a
@@ -62,13 +69,27 @@ function App() {
           }
         />
         <Route
-          path={ROUTES.DASHBOARD}
+          path={ROUTES.PLACEMENT_TEST}
           element={
             <ProtectedRoute>
-              <Dashboard />
+              <PlacementTest />
             </ProtectedRoute>
           }
         />
+        <Route
+          element={
+            <ProtectedRoute>
+              <AppLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path={ROUTES.ROADMAP} element={<Roadmap />} />
+          <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
+          <Route path={ROUTES.MODULES} element={<Modules />} />
+          <Route path={ROUTES.PRACTICE_TESTS} element={<PracticeTests />} />
+          <Route path={ROUTES.TUTOR} element={<Tutor />} />
+          <Route path={ROUTES.PROFILE} element={<Profile />} />
+        </Route>
         <Route path="*" element={<DefaultRedirect />} />
       </Routes>
     </AuthContext.Provider>

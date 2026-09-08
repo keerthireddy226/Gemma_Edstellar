@@ -1,19 +1,40 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Clock, BookOpen, ShieldCheck, Headphones } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { scheduleLater } from "@/hooks/usePlacement";
+import { getRoadmap } from "@/hooks/useRoadmap";
 import { Button } from "@/components/Button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ROUTES } from "@/constants/routes";
 
 export function Placement() {
   const { t } = useTranslation();
   const { logout } = useAuth();
+  const navigate = useNavigate();
   const [instructionsAcknowledged, setInstructionsAcknowledged] = useState(false);
-  const [beginClicked, setBeginClicked] = useState(false);
   const [scheduleSent, setScheduleSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [checkingPlacement, setCheckingPlacement] = useState(true);
+
+  // Landing here after already completing the test (e.g. via browser back,
+  // or a direct link) should skip straight to the roadmap rather than offer
+  // to retake it.
+  useEffect(() => {
+    let cancelled = false;
+    getRoadmap()
+      .then(() => {
+        if (!cancelled) navigate(ROUTES.ROADMAP, { replace: true });
+      })
+      .catch(() => {
+        if (!cancelled) setCheckingPlacement(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate]);
 
   async function handleScheduleLater() {
     setError(null);
@@ -34,6 +55,8 @@ export function Placement() {
     { key: "graded", Icon: ShieldCheck, text: t("placement.info.graded") },
     { key: "equipment", Icon: Headphones, text: t("placement.info.equipment") },
   ];
+
+  if (checkingPlacement) return null;
 
   return (
     <div className="app-surface min-h-screen flex items-center justify-center px-4 py-10">
@@ -69,7 +92,7 @@ export function Placement() {
           </label>
 
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <Button onClick={() => setBeginClicked(true)} disabled={!instructionsAcknowledged}>
+            <Button onClick={() => navigate(ROUTES.PLACEMENT_TEST)} disabled={!instructionsAcknowledged}>
               {t("placement.instructions.begin")}
             </Button>
             <Button variant="secondary" onClick={handleScheduleLater}>
@@ -77,7 +100,6 @@ export function Placement() {
             </Button>
           </div>
 
-          {beginClicked && <p className="text-sm text-muted">{t("placement.startTestNote")}</p>}
           {error && <p className="text-sm text-error">{error}</p>}
         </div>
         <div className="flex items-center justify-between px-1">
