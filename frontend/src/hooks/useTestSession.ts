@@ -10,6 +10,8 @@ export interface TestItem {
   instructionText: string;
   questionInstruction: string;
   timerSeconds: number | null;
+  twoPhaseReadSeconds?: number | null;
+  twoPhaseWriteSeconds?: number | null;
   attempted?: boolean;
 }
 

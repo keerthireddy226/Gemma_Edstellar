@@ -3,7 +3,16 @@ import type { TestItem } from "@/hooks/useTestSession";
 // These are heard, not read — showing the source text on screen would let a
 // learner just read it back instead of actually listening. Dictation is
 // typed but still needs the audio played first, same reasoning.
-export const AUDIO_FIRST_TYPES = new Set(["repeats", "short_answer", "sentence_builds", "story_retelling", "dictation"]);
+export const AUDIO_FIRST_TYPES = new Set([
+  "repeats",
+  "short_answer",
+  "sentence_builds",
+  "story_retelling",
+  "dictation",
+  "conversations",
+  "passage_comprehension",
+  "response_selection",
+]);
 
 // Tailwind can't resolve a dynamic `text-${skill}` class at build time — it
 // only picks up classes that appear as literal strings somewhere in source,
@@ -16,21 +25,33 @@ export const SKILL_TEXT_CLASS: Record<string, string> = {
 };
 
 export const ITEM_TYPE_META: Record<string, { name: string; skills: ("listening" | "speaking" | "reading" | "writing")[] }> = {
-  reading: { name: "Reading", skills: ["speaking"] },
-  repeats: { name: "Repeats", skills: ["listening", "speaking"] },
-  short_answer: { name: "Short Answer", skills: ["listening", "speaking"] },
+  reading: { name: "Read Aloud", skills: ["speaking", "reading"] },
+  repeats: { name: "Repeat", skills: ["listening", "speaking"] },
   sentence_builds: { name: "Sentence Builds", skills: ["listening", "speaking"] },
-  story_retelling: { name: "Story Retelling", skills: ["listening", "speaking"] },
-  open_questions: { name: "Open Questions", skills: ["speaking"] },
+  conversations: { name: "Conversations", skills: ["listening", "speaking"] },
+  reading_selective: { name: "Reading (Selective)", skills: ["listening", "speaking", "reading"] },
+  short_answer: { name: "Questions (Simple)", skills: ["listening", "speaking"] },
+  passage_comprehension: { name: "Passage Comprehension", skills: ["listening", "speaking"] },
+  speaking_situations: { name: "Speaking Situations", skills: ["speaking", "reading"] },
+  story_retelling: { name: "Story Retellings", skills: ["listening", "speaking"] },
+  open_questions: { name: "Open Questions", skills: ["listening", "speaking"] },
   dictation: { name: "Dictation", skills: ["listening", "writing"] },
-  sentence_completion: { name: "Sentence Completion", skills: ["writing"] },
+  response_selection: { name: "Response Selection", skills: ["listening"] },
   passage_reconstruction: { name: "Passage Reconstruction", skills: ["reading", "writing"] },
-  free_writing: { name: "Free Writing", skills: ["writing"] },
+  summary_and_opinion: { name: "Summary and Opinion", skills: ["reading", "writing"] },
+  reading_comprehension: { name: "Reading Comprehension", skills: ["reading"] },
+  sentence_completion: { name: "Sentence Completion", skills: ["writing"] },
+  typing: { name: "Typing", skills: ["writing"] },
+  email_writing: { name: "E-Mail Writing", skills: ["writing"] },
 };
 
 export function getSpokenSegments(item: TestItem): string[] {
   const c = item.content as Record<string, unknown>;
   if (item.itemTypeId === "sentence_builds" && Array.isArray(c.groups)) return c.groups as string[];
+  // Types with a heard passage/dialogue AND a follow-up question — both get
+  // spoken, in order, not just whichever field a generic fallback finds first.
+  if (typeof c.dialogue === "string" && typeof c.question === "string") return [c.dialogue, c.question];
+  if (typeof c.story === "string" && typeof c.question === "string") return [c.story, c.question];
   if (typeof c.text === "string") return [c.text];
   if (typeof c.question === "string") return [c.question];
   if (typeof c.story === "string") return [c.story];
@@ -39,5 +60,26 @@ export function getSpokenSegments(item: TestItem): string[] {
 
 export function getVisibleText(item: TestItem): string {
   const c = item.content as Record<string, unknown>;
-  return (c.text ?? c.question ?? c.sentence ?? c.passage ?? c.prompt ?? "") as string;
+  return (c.text ?? c.question ?? c.sentence ?? c.passage ?? c.prompt ?? c.situation ?? "") as string;
+}
+
+// Types that show two distinct pieces of text together (a passage/notice
+// plus a separate question) rather than one single field — reading_selective
+// and reading_comprehension both read silently, then answer about it.
+export function getPassageAndQuestion(item: TestItem): { passage: string; question: string } | null {
+  const c = item.content as Record<string, unknown>;
+  if (item.itemTypeId === "reading_selective" && typeof c.text === "string" && typeof c.question === "string") {
+    return { passage: c.text, question: c.question };
+  }
+  if (item.itemTypeId === "reading_comprehension" && typeof c.passage === "string" && typeof c.question === "string") {
+    return { passage: c.passage, question: c.question };
+  }
+  return null;
+}
+
+// Multiple-choice option labels for "radio" input-method items
+// (response_selection, reading_comprehension) — empty for every other type.
+export function getOptions(item: TestItem): string[] {
+  const c = item.content as Record<string, unknown>;
+  return Array.isArray(c.options) ? (c.options as string[]) : [];
 }

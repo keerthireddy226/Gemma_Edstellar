@@ -382,6 +382,8 @@
     "startError": "Une erreur s'est produite lors du démarrage de cette session de pratique. Veuillez réessayer.",
     "sessionComplete": "Beau travail !",
     "practiceAgain": "Pratiquer à nouveau",
-    "backToDashboard": "Retour au tableau de bord"
+    "backToDashboard": "Retour au tableau de bord",
+    "startReading": "Commencer la lecture",
+    "passageHidden": "Le passage est maintenant masqué — réécrivez-le avec vos propres mots."
   }
 }

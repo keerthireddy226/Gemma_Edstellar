@@ -382,6 +382,8 @@
     "startError": "Something went wrong starting this practice session. Please try again.",
     "sessionComplete": "Nice work!",
     "practiceAgain": "Practice again",
-    "backToDashboard": "Back to Dashboard"
+    "backToDashboard": "Back to Dashboard",
+    "startReading": "Start Reading",
+    "passageHidden": "The passage is now hidden — rewrite it in your own words."
   }
 }

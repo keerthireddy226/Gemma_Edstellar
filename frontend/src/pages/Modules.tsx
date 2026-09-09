@@ -14,7 +14,15 @@ import {
 } from "@/hooks/usePracticeSession";
 import type { TestItem, SkillTag } from "@/hooks/useTestSession";
 import { useVoiceRecorder, blobToBase64, speak } from "@/hooks/useVoiceRecorder";
-import { AUDIO_FIRST_TYPES, SKILL_TEXT_CLASS, ITEM_TYPE_META, getSpokenSegments, getVisibleText } from "@/lib/testItemDisplay";
+import {
+  AUDIO_FIRST_TYPES,
+  SKILL_TEXT_CLASS,
+  ITEM_TYPE_META,
+  getSpokenSegments,
+  getVisibleText,
+  getOptions,
+  getPassageAndQuestion,
+} from "@/lib/testItemDisplay";
 
 const SKILL_ICONS: Record<SkillTag, typeof Headphones> = {
   listening: Headphones,
@@ -107,6 +115,9 @@ export function Modules() {
   const [pendingAudio, setPendingAudio] = useState<{ base64: string; mimeType: string } | null>(null);
   const [audioBlobUrl, setAudioBlobUrl] = useState<string | null>(null);
   const [summary, setSummary] = useState<PracticeSummary | null>(null);
+  // "two-phase" items (Passage Reconstruction): show the passage, then hide
+  // it and switch to a blank textarea — testing recall, not copying.
+  const [twoPhaseStage, setTwoPhaseStage] = useState<"idle" | "reading" | "writing">("idle");
 
   useEffect(() => {
     getAvailability()
@@ -166,8 +177,16 @@ export function Modules() {
     setPendingAudio(cached?.audioBase64 ? { base64: cached.audioBase64, mimeType: cached.audioMimeType ?? "" } : null);
     setAudioBlobUrl(cached?.audioBlobUrl ?? null);
     setHasPlayed(!!cached);
+    setTwoPhaseStage(cached ? "writing" : "idle");
     setError(null);
   }, [index]);
+
+  function handleStartReading() {
+    if (!current) return;
+    setTwoPhaseStage("reading");
+    const readSeconds = current.twoPhaseReadSeconds ?? 30;
+    setTimeout(() => setTwoPhaseStage("writing"), readSeconds * 1000);
+  }
 
   async function handlePlay() {
     if (!current) return;
@@ -337,18 +356,59 @@ export function Modules() {
 
       <p className="text-sm text-ink">{current.questionInstruction}</p>
 
-      {needsAudioFirst ? (
+      {current.inputMethod === "two-phase" ? (
+        twoPhaseStage === "idle" ? (
+          <Button variant="secondary" onClick={handleStartReading}>
+            {t("modules.startReading")}
+          </Button>
+        ) : twoPhaseStage === "reading" ? (
+          <p className="text-base text-ink bg-paper-warm rounded-input p-4">{getVisibleText(current)}</p>
+        ) : (
+          <p className="text-sm text-muted italic">{t("modules.passageHidden")}</p>
+        )
+      ) : needsAudioFirst ? (
         <Button variant="secondary" onClick={handlePlay} disabled={playing || recording}>
           <span className="flex items-center justify-center gap-2">
             <Volume2 size={16} />
             {playing ? t("placementTest.playing") : hasPlayed ? t("placementTest.playAgain") : t("placementTest.play")}
           </span>
         </Button>
+      ) : getPassageAndQuestion(current) ? (
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-ink bg-paper-warm rounded-input p-4 whitespace-pre-wrap">
+            {getPassageAndQuestion(current)!.passage}
+          </p>
+          <p className="text-sm font-semibold text-ink">{getPassageAndQuestion(current)!.question}</p>
+        </div>
       ) : (
         <p className="text-base text-ink bg-paper-warm rounded-input p-4">{visibleText}</p>
       )}
 
-      {current.inputMethod === "mic" ? (
+      {current.inputMethod === "radio" ? (
+        <div className="flex flex-col gap-2">
+          {getOptions(current).map((option, i) => (
+            <button
+              key={i}
+              onClick={() => setAnswerText(String(i))}
+              className={`text-left rounded-input border px-3.5 py-2.5 text-sm font-medium transition-colors cursor-pointer ${
+                answerText === String(i) ? "border-accent bg-accent/10 text-ink" : "border-rule hover:border-rule-strong"
+              }`}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+      ) : current.inputMethod === "two-phase" ? (
+        twoPhaseStage === "writing" && (
+          <textarea
+            value={answerText}
+            onChange={(e) => setAnswerText(e.target.value)}
+            placeholder={t("placementTest.answerPlaceholder")}
+            className="w-full rounded-input border border-rule bg-paper px-3.5 py-2.5 text-sm text-ink"
+            rows={4}
+          />
+        )
+      ) : current.inputMethod === "mic" ? (
         <div className="flex flex-col gap-3">
           <Button
             variant={recording ? "primary" : "secondary"}
@@ -383,7 +443,7 @@ export function Modules() {
             </div>
           )}
         </div>
-      ) : current.itemTypeId === "passage_reconstruction" || current.itemTypeId === "free_writing" ? (
+      ) : current.inputMethod === "textarea" ? (
         <textarea
           value={answerText}
           onChange={(e) => setAnswerText(e.target.value)}

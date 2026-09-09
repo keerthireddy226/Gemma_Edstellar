@@ -44,6 +44,8 @@ function toItemPayload(row: {
   instruction_text: string;
   question_instruction: string;
   timer_seconds: number | null;
+  two_phase_read_seconds: number | null;
+  two_phase_write_seconds: number | null;
 }) {
   return {
     id: row.id,
@@ -53,6 +55,8 @@ function toItemPayload(row: {
     instructionText: row.instruction_text,
     questionInstruction: row.question_instruction,
     timerSeconds: row.timer_seconds,
+    twoPhaseReadSeconds: row.two_phase_read_seconds,
+    twoPhaseWriteSeconds: row.two_phase_write_seconds,
   };
 }
 
@@ -64,7 +68,7 @@ function toItemPayload(row: {
 // doesn't interact with placement-test history at all.
 async function selectPracticeItems(userId: string, skill: SkillTag, count: number, itemTypeId?: string) {
   const result = await pool.query(
-    `SELECT i.id, i.item_type_id, i.content, i.difficulty, it.input_method, it.instruction_text, it.question_instruction, it.timer_seconds,
+    `SELECT i.id, i.item_type_id, i.content, i.difficulty, it.input_method, it.instruction_text, it.question_instruction, it.timer_seconds, it.two_phase_read_seconds, it.two_phase_write_seconds,
        EXISTS (
          SELECT 1 FROM attempts a JOIN sessions s ON s.id = a.session_id
          WHERE s.user_id = $1 AND a.item_id = i.id AND s.session_type = 'practice'
@@ -173,7 +177,7 @@ practiceRouter.post("/session", requireAuth, async (req: AuthedRequest, res, nex
     if (existing.rows[0]) {
       const itemIds: string[] = existing.rows[0].composition?.itemIds ?? [];
       const itemsResult = await pool.query(
-        `SELECT i.id, i.item_type_id, i.content, it.input_method, it.instruction_text, it.question_instruction, it.timer_seconds
+        `SELECT i.id, i.item_type_id, i.content, it.input_method, it.instruction_text, it.question_instruction, it.timer_seconds, it.two_phase_read_seconds, it.two_phase_write_seconds
          FROM items i JOIN item_types it ON it.id = i.item_type_id
          WHERE i.id = ANY($1::uuid[])`,
         [itemIds],
@@ -214,7 +218,7 @@ practiceRouter.get("/session/:sessionId", requireAuth, async (req: AuthedRequest
 
     const itemIds: string[] = session.composition?.itemIds ?? [];
     const itemsResult = await pool.query(
-      `SELECT i.id, i.item_type_id, i.content, it.input_method, it.instruction_text, it.question_instruction, it.timer_seconds
+      `SELECT i.id, i.item_type_id, i.content, it.input_method, it.instruction_text, it.question_instruction, it.timer_seconds, it.two_phase_read_seconds, it.two_phase_write_seconds
        FROM items i JOIN item_types it ON it.id = i.item_type_id
        WHERE i.id = ANY($1::uuid[])`,
       [itemIds],

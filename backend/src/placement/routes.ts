@@ -9,7 +9,7 @@ import { generateToken, hashToken } from "../auth/tokens.js";
 import { sendPlacementReminderEmail } from "../auth/mailer.js";
 import { submitAttemptSchema } from "./schemas.js";
 import { gradeAttempt } from "./grading.js";
-import { CEFR_LEVELS, cefrRank, percentToCefr, type CefrLevel } from "./cefr.js";
+import { CEFR_LEVELS, cefrRank, percentToCefr, assessSkillLevel, type CefrLevel } from "./cefr.js";
 import { buildRoadmap, type AccessDuration, type SkillTag } from "./roadmap.js";
 
 const ALL_SKILLS: SkillTag[] = ["listening", "speaking", "reading", "writing"];
@@ -19,20 +19,28 @@ export const placementRouter = Router();
 const REMINDER_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 // 20 questions total, weighted toward the types that actually get auto-
-// graded (6 types x 3 = 18) plus one spontaneous-speech and one free-writing
-// item (the two most valuable open-ended Versant rounds, kept even though
-// they don't score yet). Reading and Story Retelling are retired from
-// selection for now — not deleted, just not chosen — since they overlap
-// with Repeats/Open Questions for signal we can't yet grade either way.
+// graded (6 types x 3 = 18) plus one spontaneous-speech and one open-ended-
+// writing item (the two most valuable open-ended Versant rounds, kept even
+// though they don't score yet). Reading (Read Aloud), Story Retelling,
+// Speaking Situations, Typing, and Summary and Opinion are available in the
+// bank but not chosen for placement — all ungraded, and Read Aloud/Story
+// Retelling overlap with Repeats/Open Questions for signal we can't yet
+// grade either way.
+//
+// Passage Reconstruction was swapped out for Reading Comprehension: its
+// real Versant mechanic (read-then-recall-from-memory) has no single
+// correct rewording, so it can no longer fill a "graded" slot — Reading
+// Comprehension (MCQ) is the new stand-in, and also keeps the Reading skill
+// represented in placement at all (nothing else here carries it).
 const ITEMS_PER_TYPE: Record<string, number> = {
   repeats: 3,
   short_answer: 3,
   sentence_builds: 3,
   dictation: 3,
   sentence_completion: 3,
-  passage_reconstruction: 3,
+  reading_comprehension: 3,
   open_questions: 1,
-  free_writing: 1,
+  email_writing: 1,
 };
 
 // Speaking/Listening types first (mirrors the Versant English Test), then
@@ -44,8 +52,8 @@ const TYPE_ORDER = [
   "open_questions",
   "dictation",
   "sentence_completion",
-  "passage_reconstruction",
-  "free_writing",
+  "reading_comprehension",
+  "email_writing",
 ];
 
 const UPLOADS_DIR = path.join(process.cwd(), "uploads", "attempts");
@@ -80,7 +88,7 @@ export function pickDifficultySpread<T extends { id: string; difficulty: string 
 
 async function selectSessionItems(userId: string) {
   const result = await pool.query(
-    `SELECT i.id, i.item_type_id, i.content, i.difficulty, it.input_method, it.instruction_text, it.question_instruction, it.timer_seconds,
+    `SELECT i.id, i.item_type_id, i.content, i.difficulty, it.input_method, it.instruction_text, it.question_instruction, it.timer_seconds, it.two_phase_read_seconds, it.two_phase_write_seconds,
        EXISTS (
          SELECT 1 FROM attempts a JOIN sessions s ON s.id = a.session_id
          WHERE s.user_id = $1 AND a.item_id = i.id
@@ -119,6 +127,8 @@ function toItemPayload(row: {
   instruction_text: string;
   question_instruction: string;
   timer_seconds: number | null;
+  two_phase_read_seconds: number | null;
+  two_phase_write_seconds: number | null;
 }) {
   return {
     id: row.id,
@@ -128,6 +138,8 @@ function toItemPayload(row: {
     instructionText: row.instruction_text,
     questionInstruction: row.question_instruction,
     timerSeconds: row.timer_seconds,
+    twoPhaseReadSeconds: row.two_phase_read_seconds,
+    twoPhaseWriteSeconds: row.two_phase_write_seconds,
   };
 }
 
@@ -200,7 +212,7 @@ placementRouter.post("/session", requireAuth, async (req: AuthedRequest, res, ne
     if (existing.rows[0]) {
       const itemIds: string[] = existing.rows[0].composition?.itemIds ?? [];
       const itemsResult = await pool.query(
-        `SELECT i.id, i.item_type_id, i.content, it.input_method, it.instruction_text, it.question_instruction, it.timer_seconds
+        `SELECT i.id, i.item_type_id, i.content, it.input_method, it.instruction_text, it.question_instruction, it.timer_seconds, it.two_phase_read_seconds, it.two_phase_write_seconds
          FROM items i JOIN item_types it ON it.id = i.item_type_id
          WHERE i.id = ANY($1::uuid[])`,
         [itemIds],
@@ -236,7 +248,7 @@ placementRouter.get("/session/:sessionId", requireAuth, async (req: AuthedReques
 
     const itemIds: string[] = session.composition?.itemIds ?? [];
     const itemsResult = await pool.query(
-      `SELECT i.id, i.item_type_id, i.content, it.input_method, it.instruction_text, it.question_instruction, it.timer_seconds
+      `SELECT i.id, i.item_type_id, i.content, it.input_method, it.instruction_text, it.question_instruction, it.timer_seconds, it.two_phase_read_seconds, it.two_phase_write_seconds
        FROM items i JOIN item_types it ON it.id = i.item_type_id
        WHERE i.id = ANY($1::uuid[])`,
       [itemIds],
@@ -336,7 +348,7 @@ placementRouter.post("/session/:sessionId/complete", requireAuth, async (req: Au
     if (!sessionResult.rows[0]) return res.status(404).json({ error: "session_not_found_or_already_completed" });
 
     const summaryResult = await pool.query(
-      `SELECT sc.status, sc.content_score, it.skills
+      `SELECT sc.status, sc.content_score, it.skills, i.cefr_level
        FROM attempts a
        JOIN scores sc ON sc.attempt_id = a.id
        JOIN items i ON i.id = a.item_id
@@ -361,17 +373,26 @@ placementRouter.post("/session/:sessionId/complete", requireAuth, async (req: Au
     const cefrLevel = percentToCefr(overallPercent);
 
     const skillPercents = {} as Record<SkillTag, number>;
+    // The real assessment — per skill, the highest CEFR level the learner
+    // actually sustained, from which difficulty of items they got right,
+    // not just a flat percentage. Falls back to the percent-based estimate
+    // for a skill if none of its graded items carry a cefr_level tag yet.
+    const skillLevels = {} as Record<SkillTag, CefrLevel>;
     for (const skill of ALL_SKILLS) {
       const relevant = graded.filter((r) => (r.skills as string[]).includes(skill));
       skillPercents[skill] =
         relevant.length > 0
           ? Math.round((relevant.filter((r) => Number(r.content_score) === 1).length / relevant.length) * 100)
           : overallPercent;
+      const assessed = assessSkillLevel(
+        relevant.map((r) => ({ cefrLevel: r.cefr_level, correct: Number(r.content_score) === 1 })),
+      );
+      skillLevels[skill] = assessed ?? percentToCefr(skillPercents[skill]);
     }
 
     await pool.query(
-      `INSERT INTO placements (user_id, overall_percent, cefr_level, skill_percents) VALUES ($1, $2, $3, $4)`,
-      [req.user!.id, overallPercent, cefrLevel, JSON.stringify(skillPercents)],
+      `INSERT INTO placements (user_id, overall_percent, cefr_level, skill_percents, skill_levels) VALUES ($1, $2, $3, $4, $5)`,
+      [req.user!.id, overallPercent, cefrLevel, JSON.stringify(skillPercents), JSON.stringify(skillLevels)],
     );
 
     const profileResult = await pool.query(
@@ -413,6 +434,7 @@ placementRouter.post("/session/:sessionId/complete", requireAuth, async (req: Au
       overallPercent,
       cefrLevel,
       skillPercents,
+      skillLevels,
       goalLevel,
     });
   } catch (err) {

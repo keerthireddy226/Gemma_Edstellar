@@ -12,7 +12,15 @@ import {
   type SessionSummary,
 } from "@/hooks/useTestSession";
 import { useVoiceRecorder, blobToBase64, speak } from "@/hooks/useVoiceRecorder";
-import { AUDIO_FIRST_TYPES, SKILL_TEXT_CLASS, ITEM_TYPE_META, getSpokenSegments, getVisibleText } from "@/lib/testItemDisplay";
+import {
+  AUDIO_FIRST_TYPES,
+  SKILL_TEXT_CLASS,
+  ITEM_TYPE_META,
+  getSpokenSegments,
+  getVisibleText,
+  getOptions,
+  getPassageAndQuestion,
+} from "@/lib/testItemDisplay";
 
 interface CachedAnswer {
   responseText: string;
@@ -275,11 +283,32 @@ export function PlacementTest() {
               {playing ? t("placementTest.playing") : hasPlayed ? t("placementTest.playAgain") : t("placementTest.play")}
             </span>
           </Button>
+        ) : getPassageAndQuestion(current) ? (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-ink bg-paper-warm rounded-input p-4 whitespace-pre-wrap">
+              {getPassageAndQuestion(current)!.passage}
+            </p>
+            <p className="text-sm font-semibold text-ink">{getPassageAndQuestion(current)!.question}</p>
+          </div>
         ) : (
           <p className="text-base text-ink bg-paper-warm rounded-input p-4">{visibleText}</p>
         )}
 
-        {current.inputMethod === "mic" ? (
+        {current.inputMethod === "radio" ? (
+          <div className="flex flex-col gap-2">
+            {getOptions(current).map((option, i) => (
+              <button
+                key={i}
+                onClick={() => setAnswerText(String(i))}
+                className={`text-left rounded-input border px-3.5 py-2.5 text-sm font-medium transition-colors cursor-pointer ${
+                  answerText === String(i) ? "border-accent bg-accent/10 text-ink" : "border-rule hover:border-rule-strong"
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        ) : current.inputMethod === "mic" ? (
           <div className="flex flex-col gap-3">
             <Button
               variant={recording ? "primary" : "secondary"}
@@ -314,7 +343,7 @@ export function PlacementTest() {
               </div>
             )}
           </div>
-        ) : current.itemTypeId === "passage_reconstruction" || current.itemTypeId === "free_writing" ? (
+        ) : current.inputMethod === "textarea" ? (
           <textarea
             value={answerText}
             onChange={(e) => setAnswerText(e.target.value)}

@@ -44,7 +44,10 @@ export function gradeAttempt(itemTypeId: string, answerSet: unknown, responseTex
       return { status: "scored", correct: given === normalize(exact) };
     }
     case "short_answer":
-    case "sentence_completion": {
+    case "sentence_completion":
+    case "conversations":
+    case "reading_selective":
+    case "passage_comprehension": {
       const accepted = set.acceptable_answers;
       if (!Array.isArray(accepted) || accepted.length === 0) return { status: "pending", correct: null };
       return { status: "scored", correct: accepted.some((a) => typeof a === "string" && normalize(a) === given) };
@@ -56,16 +59,32 @@ export function gradeAttempt(itemTypeId: string, answerSet: unknown, responseTex
       if (candidates.length === 0) return { status: "pending", correct: null };
       return { status: "scored", correct: candidates.some((c) => normalize(c) === given) };
     }
+    // Passage Reconstruction's real mechanic (read-then-recall-from-memory)
+    // has no single correct rewording — this case only fires for legacy
+    // content that carried a `corrected` answer key; new content has none
+    // and falls straight to "pending" via the guard below.
     case "passage_reconstruction": {
       const corrected = set.corrected;
       if (typeof corrected !== "string") return { status: "pending", correct: null };
       if (normalizeLoose(corrected) === normalizeLoose(responseText)) return { status: "scored", correct: true };
       return { status: "pending", correct: null };
     }
+    // Multiple-choice types — the client submits the selected option's
+    // index (as a string, e.g. "1"), exact/unambiguous to grade unlike
+    // free-text matching.
+    case "response_selection":
+    case "reading_comprehension": {
+      const correctIndex = set.correctIndex;
+      if (typeof correctIndex !== "number") return { status: "pending", correct: null };
+      const givenIndex = Number(responseText);
+      if (!Number.isInteger(givenIndex)) return { status: "pending", correct: null };
+      return { status: "scored", correct: givenIndex === correctIndex };
+    }
     default:
-      // reading, story_retelling, open_questions, free_writing: no single
-      // correct text — needs a human reviewer or a future rubric/
-      // pronunciation-scoring model.
+      // reading (Read Aloud), story_retelling, open_questions,
+      // speaking_situations, typing, email_writing, summary_and_opinion:
+      // no single correct text — needs a human reviewer or a future
+      // rubric/pronunciation-scoring model.
       return { status: "pending", correct: null };
   }
 }

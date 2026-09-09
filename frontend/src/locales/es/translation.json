@@ -382,6 +382,8 @@
     "startError": "Algo salió mal al iniciar esta sesión de práctica. Inténtalo de nuevo.",
     "sessionComplete": "¡Buen trabajo!",
     "practiceAgain": "Practicar de nuevo",
-    "backToDashboard": "Volver al panel"
+    "backToDashboard": "Volver al panel",
+    "startReading": "Comenzar a leer",
+    "passageHidden": "El pasaje ahora está oculto — reescríbelo con tus propias palabras."
   }
 }
