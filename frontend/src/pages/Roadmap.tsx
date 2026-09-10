@@ -24,7 +24,7 @@ import { ApiError } from "@/lib/api";
 import { ProgressRing } from "@/components/ProgressRing";
 import { SKILL_RING_COLOR, SKILL_TINT_CLASSES } from "@/lib/skillTints";
 import { WORD_BANK, IDIOM_BANK, WORD_CHALLENGES } from "@/data/dailyContent";
-import type { SkillTag } from "@/hooks/useTestSession";
+import type { SkillTag, CefrLevel } from "@/hooks/useTestSession";
 
 const SKILL_ICONS: Record<SkillTag, typeof Headphones> = {
   listening: Headphones,
@@ -158,10 +158,19 @@ function StatsRow({ progressPercent }: { progressPercent: number }) {
   );
 }
 
-function SkillBreakdown({ skillPercents }: { skillPercents: Record<SkillTag, number> }) {
+function SkillBreakdown({
+  skillPercents,
+  skillLevels,
+}: {
+  skillPercents: Record<SkillTag, number | null>;
+  skillLevels: Record<SkillTag, { level: CefrLevel; cappedByGap: boolean } | null> | null;
+}) {
   const { t } = useTranslation();
-  const entries = Object.entries(skillPercents) as [SkillTag, number][];
-  const strongest = entries.reduce((best, cur) => (cur[1] > best[1] ? cur : best))[0];
+  const entries = Object.entries(skillPercents) as [SkillTag, number | null][];
+  // Only rank actually-tested skills against each other — an untested one
+  // (null) has no score to compare and should never be labeled "strongest."
+  const tested = entries.filter((e): e is [SkillTag, number] => e[1] !== null);
+  const strongest = tested.length > 0 ? tested.reduce((best, cur) => (cur[1] > best[1] ? cur : best))[0] : null;
 
   return (
     <div className="bg-surface border border-rule rounded-card p-5 flex flex-col gap-4">
@@ -172,16 +181,26 @@ function SkillBreakdown({ skillPercents }: { skillPercents: Record<SkillTag, num
         {entries.map(([skill, pct]) => {
           const Icon = SKILL_ICONS[skill];
           const color = SKILL_RING_COLOR[skill];
+          const entry = skillLevels?.[skill];
           return (
             <div key={skill} className="flex flex-col items-center text-center">
-              <ProgressRing percent={pct} size={56} strokeWidth={5} colorClass={color}>
-                <Icon size={16} strokeWidth={2} className={color} />
+              <ProgressRing percent={pct ?? 0} size={56} strokeWidth={5} colorClass={pct === null ? "text-muted" : color}>
+                <Icon size={16} strokeWidth={2} className={pct === null ? "text-muted" : color} />
               </ProgressRing>
               <div className="text-xs font-semibold text-ink mt-2">{t(`skills.${skill}`)}</div>
               <div className="text-[10px] text-muted">
-                {percentToCefr(pct)}
-                {skill === strongest ? ` · ${t("roadmap.strongest")}` : ""}
+                {pct === null ? (
+                  <span className="italic">{t("roadmap.notTested")}</span>
+                ) : (
+                  <>
+                    {entry?.level ?? percentToCefr(pct)}
+                    {skill === strongest ? ` · ${t("roadmap.strongest")}` : ""}
+                  </>
+                )}
               </div>
+              {pct !== null && entry?.cappedByGap && (
+                <div className="text-[9px] text-muted italic leading-snug mt-0.5">{t("roadmap.gapCappedNote")}</div>
+              )}
             </div>
           );
         })}
@@ -487,7 +506,7 @@ export function Roadmap() {
       <MotivationalBar />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <SkillBreakdown skillPercents={placement.skillPercents} />
+        <SkillBreakdown skillPercents={placement.skillPercents} skillLevels={placement.skillLevels} />
 
         <div className="bg-surface border border-rule rounded-card p-5 flex flex-col gap-3.5">
           <h3 className="flex items-center gap-1.5 font-mono text-[11px] font-medium tracking-[.24em] uppercase text-muted">

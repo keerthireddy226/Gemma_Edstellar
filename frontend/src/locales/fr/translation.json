@@ -244,7 +244,14 @@
     "yourLevel": "Votre niveau estimé : {{level}}",
     "levelDisclaimer": "Il s'agit de notre propre estimation alignée sur le CECR à partir de votre évaluation, pas d'un score officiel.",
     "pendingNote": "{{pending}} de vos réponses doivent encore être révisées avant de compter pour votre niveau.",
-    "goToRoadmap": "Aller à votre feuille de route"
+    "goToRoadmap": "Aller à votre feuille de route",
+    "notEnoughAnswered": "Pas assez de réponses",
+    "skipWarningTitle": "Attendez, êtes-vous sûr ?",
+    "skipWarningBody": "Vous avez passé {{count}} questions sur {{total}}. Votre résultat pourrait ne pas être précis pour les compétences auxquelles vous n'avez pas répondu.",
+    "finishAnyway": "Terminer quand même",
+    "goBackAndAnswer": "Revenir et répondre davantage",
+    "gapCappedNote": "Certains niveaux n'ont pas été testés — votre niveau réel pourrait être plus élevé.",
+    "failedNote": "{{failed}} de vos réponses n'ont pas pu être notées en raison d'un problème temporaire avec notre service de notation — cela ne concerne pas vos réponses, veuillez réessayer plus tard."
   },
   "roadmap": {
     "loading": "Chargement de votre feuille de route…",
@@ -274,7 +281,9 @@
     "practicedSoFar": "pratiqué jusqu'à présent",
     "accuracy": "Précision",
     "practiceToUnlock": "Pratiquez pour débloquer",
-    "strongest": "le plus fort"
+    "strongest": "le plus fort",
+    "notTested": "Pas encore évalué",
+    "gapCappedNote": "Certains niveaux n'ont pas été testés — votre niveau réel pourrait être plus élevé."
   },
   "dashboard": {
     "welcome": "Bienvenue, {{email}}",

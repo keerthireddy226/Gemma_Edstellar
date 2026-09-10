@@ -9,7 +9,7 @@ import { generateToken, hashToken } from "../auth/tokens.js";
 import { sendPlacementReminderEmail } from "../auth/mailer.js";
 import { submitAttemptSchema } from "./schemas.js";
 import { gradeAttempt } from "./grading.js";
-import { CEFR_LEVELS, cefrRank, percentToCefr, assessSkillLevel, type CefrLevel } from "./cefr.js";
+import { CEFR_LEVELS, cefrRank, percentToCefr, assessSkillLevel, passThresholdForLevel, type CefrLevel } from "./cefr.js";
 import { buildRoadmap, type AccessDuration, type SkillTag } from "./roadmap.js";
 
 const ALL_SKILLS: SkillTag[] = ["listening", "speaking", "reading", "writing"];
@@ -18,24 +18,24 @@ export const placementRouter = Router();
 
 const REMINDER_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-// 20 questions total, weighted toward the types that actually get auto-
-// graded (6 types x 3 = 18) plus one spontaneous-speech and one open-ended-
-// writing item (the two most valuable open-ended Versant rounds, kept even
-// though they don't score yet). Reading (Read Aloud), Story Retelling,
-// Speaking Situations, Typing, and Summary and Opinion are available in the
-// bank but not chosen for placement — all ungraded, and Read Aloud/Story
-// Retelling overlap with Repeats/Open Questions for signal we can't yet
-// grade either way.
+// 20 questions total. Reading (Read Aloud) is included now that AI grading
+// covers it — before that, Reading was carried by Reading Comprehension
+// alone (3 items, thinner than every other skill's coverage). Repeats,
+// Short Answer, and Sentence Builds each gave up one slot to make room for
+// it without growing the test. Story Retelling, Speaking Situations,
+// Typing, and Summary and Opinion are still not used here — Read Aloud
+// already overlaps them for listening/speaking signal, and every skill now
+// has reasonable coverage without adding more types.
 //
 // Passage Reconstruction was swapped out for Reading Comprehension: its
 // real Versant mechanic (read-then-recall-from-memory) has no single
 // correct rewording, so it can no longer fill a "graded" slot — Reading
-// Comprehension (MCQ) is the new stand-in, and also keeps the Reading skill
-// represented in placement at all (nothing else here carries it).
+// Comprehension (MCQ) is the new stand-in.
 const ITEMS_PER_TYPE: Record<string, number> = {
-  repeats: 3,
-  short_answer: 3,
-  sentence_builds: 3,
+  reading: 3,
+  repeats: 2,
+  short_answer: 2,
+  sentence_builds: 2,
   dictation: 3,
   sentence_completion: 3,
   reading_comprehension: 3,
@@ -43,9 +43,10 @@ const ITEMS_PER_TYPE: Record<string, number> = {
   email_writing: 1,
 };
 
-// Speaking/Listening types first (mirrors the Versant English Test), then
-// the Writing-test types — same grouping as the content review doc.
+// Read Aloud opens the test, same as the real Versant English Test, then
+// the rest of the Speaking/Listening types, then the Writing-test types.
 const TYPE_ORDER = [
+  "reading",
   "repeats",
   "short_answer",
   "sentence_builds",
@@ -59,10 +60,19 @@ const TYPE_ORDER = [
 const UPLOADS_DIR = path.join(process.cwd(), "uploads", "attempts");
 
 // Picks `count` rows spread evenly across the sorted difficulty range,
-// rather than an arbitrary subset — with count=2 this always lands on the
+// rather than an arbitrary subset — with count=2 this always lands near the
 // easiest and the hardest available item. A pair of similar-difficulty
 // items can't tell a true beginner from a true advanced speaker; a
 // deliberate easy+hard spread can.
+//
+// Each target position is picked from a small window of similarly-difficult
+// candidates around it, not the single closest item — otherwise every
+// first-time learner gets the exact same 20 questions, which makes the test
+// memorizable if people compare notes instead of a real measure of ability.
+// The spread itself (still easy/medium/hard) stays intentional; only which
+// specific item fills each slot varies.
+const SPREAD_WINDOW = 3;
+
 export function pickDifficultySpread<T extends { id: string; difficulty: string | null }>(rows: T[], count: number): T[] {
   if (rows.length <= count) return rows;
   const sorted = [...rows].sort((a, b) => Number(a.difficulty ?? 0.5) - Number(b.difficulty ?? 0.5));
@@ -70,7 +80,11 @@ export function pickDifficultySpread<T extends { id: string; difficulty: string 
   const seen = new Set<string>();
   const step = (sorted.length - 1) / Math.max(count - 1, 1);
   for (let i = 0; i < count; i++) {
-    const row = sorted[Math.round(i * step)];
+    const target = Math.round(i * step);
+    const lo = Math.max(0, target - Math.floor(SPREAD_WINDOW / 2));
+    const hi = Math.min(sorted.length - 1, lo + SPREAD_WINDOW - 1);
+    const candidates = sorted.slice(lo, hi + 1).filter((r) => !seen.has(r.id));
+    const row = candidates.length > 0 ? candidates[Math.floor(Math.random() * candidates.length)] : sorted[target];
     if (!seen.has(row.id)) {
       seen.add(row.id);
       picks.push(row);
@@ -289,7 +303,12 @@ placementRouter.post("/session/:sessionId/attempts", requireAuth, async (req: Au
     if (!session) return res.status(404).json({ error: "session_not_found" });
     if (session.completed_at) return res.status(409).json({ error: "session_already_completed" });
 
-    const itemResult = await pool.query(`SELECT item_type_id, answer_set FROM items WHERE id = $1`, [body.itemId]);
+    const itemResult = await pool.query(
+      `SELECT i.item_type_id, i.answer_set, i.content, i.cefr_level, it.min_words
+       FROM items i JOIN item_types it ON it.id = i.item_type_id
+       WHERE i.id = $1`,
+      [body.itemId],
+    );
     const item = itemResult.rows[0];
     if (!item) return res.status(404).json({ error: "item_not_found" });
 
@@ -320,17 +339,40 @@ placementRouter.post("/session/:sessionId/attempts", requireAuth, async (req: Au
       responseUri = `/uploads/attempts/${fileName}`;
     }
 
+    // Spoken item types are graded straight from the recording (see
+    // grading.ts) — that call already has to listen to the audio, so it
+    // returns its own transcript too, which is the authoritative one to
+    // store (more reliable than the browser's own live-guess transcript).
+    const grade = await gradeAttempt(
+      item.item_type_id,
+      item.answer_set,
+      item.content,
+      item.cefr_level,
+      item.min_words,
+      body.responseText,
+      body.audioBase64,
+      body.audioMimeType,
+    );
+    const responseText = grade.transcript ?? body.responseText ?? null;
+
     const attemptResult = await pool.query(
       `INSERT INTO attempts (session_id, item_id, window_start_at, submitted_at, response_uri, response_text)
        VALUES ($1, $2, now(), now(), $3, $4) RETURNING id`,
-      [session.id, body.itemId, responseUri, body.responseText ?? null],
+      [session.id, body.itemId, responseUri, responseText],
     );
     const attemptId = attemptResult.rows[0].id;
 
-    const grade = gradeAttempt(item.item_type_id, item.answer_set, body.responseText);
+    const modelVersion =
+      grade.method === "audio-rubric"
+        ? "gemini-3.6-flash-audio-v1"
+        : grade.method === "ai-rubric"
+          ? "gemini-3.6-flash-v1"
+          : grade.method === "text-diff"
+            ? "text-diff-v1"
+            : "exact-match-v1";
     await pool.query(
-      `INSERT INTO scores (attempt_id, content_score, status, model_version) VALUES ($1, $2, $3, 'exact-match-v1')`,
-      [attemptId, grade.correct === null ? null : grade.correct ? 1 : 0, grade.status],
+      `INSERT INTO scores (attempt_id, content_score, status, model_version) VALUES ($1, $2, $3, $4)`,
+      [attemptId, grade.score, grade.status, modelVersion],
     );
 
     res.status(201).json({ attemptId, status: grade.status, correct: grade.correct });
@@ -357,37 +399,79 @@ placementRouter.post("/session/:sessionId/complete", requireAuth, async (req: Au
       [req.params.sessionId],
     );
     const graded = summaryResult.rows.filter((r) => r.status === "scored");
-    // pg returns `numeric` columns as strings, not JS numbers.
-    const correctCount = graded.filter((r) => Number(r.content_score) === 1).length;
+    // pg returns `numeric` columns as strings, not JS numbers. Each row's own
+    // level sets its own bar — C2 content demands far more than A1 does.
+    const correctCount = graded.filter((r) => Number(r.content_score) >= passThresholdForLevel(r.cefr_level)).length;
     const pendingCount = summaryResult.rows.filter((r) => r.status === "pending").length;
+    // Distinct from pending: an answer WAS given and grading was actually
+    // attempted, but the AI call itself broke (rate limit, network error) —
+    // a temporary service problem, not "you didn't answer enough."
+    const failedCount = summaryResult.rows.filter((r) => r.status === "failed").length;
 
     // Not enough evidence yet to estimate a level — every item is still
     // awaiting review (e.g. the item bank changed to be all open-ended).
     // The raw tally is still useful on its own, so return it without a
     // placement/roadmap rather than fail the request.
     if (graded.length === 0) {
-      return res.json({ gradedCount: 0, correctCount: 0, pendingCount });
+      return res.json({ gradedCount: 0, correctCount: 0, pendingCount, failedCount });
     }
 
     const overallPercent = Math.round((correctCount / graded.length) * 100);
-    const cefrLevel = percentToCefr(overallPercent);
 
-    const skillPercents = {} as Record<SkillTag, number>;
-    // The real assessment — per skill, the highest CEFR level the learner
-    // actually sustained, from which difficulty of items they got right,
-    // not just a flat percentage. Falls back to the percent-based estimate
-    // for a skill if none of its graded items carry a cefr_level tag yet.
-    const skillLevels = {} as Record<SkillTag, CefrLevel>;
+    // null means exactly what it says — this skill had zero graded questions
+    // (skipped, or all still pending), so there is no evidence to report.
+    // This used to silently fall back to the overall percentage, which
+    // fabricated a plausible-looking score for a skill that was never
+    // actually tested at all.
+    const skillPercents = {} as Record<SkillTag, number | null>;
+    // Each entry carries `cappedByGap` alongside the level itself — when
+    // true, the percent above looks deceptively high next to a low level
+    // only because there's a real testing gap behind it (see cefr.ts), and
+    // the frontend needs to know that to explain it instead of just
+    // displaying what looks like a contradiction.
+    const skillLevels = {} as Record<SkillTag, { level: CefrLevel; cappedByGap: boolean } | null>;
     for (const skill of ALL_SKILLS) {
       const relevant = graded.filter((r) => (r.skills as string[]).includes(skill));
-      skillPercents[skill] =
-        relevant.length > 0
-          ? Math.round((relevant.filter((r) => Number(r.content_score) === 1).length / relevant.length) * 100)
-          : overallPercent;
-      const assessed = assessSkillLevel(
-        relevant.map((r) => ({ cefrLevel: r.cefr_level, correct: Number(r.content_score) === 1 })),
+      if (relevant.length === 0) {
+        skillPercents[skill] = null;
+        skillLevels[skill] = null;
+        continue;
+      }
+      const percent = Math.round(
+        (relevant.filter((r) => Number(r.content_score) >= passThresholdForLevel(r.cefr_level)).length /
+          relevant.length) *
+          100,
       );
-      skillLevels[skill] = assessed ?? percentToCefr(skillPercents[skill]);
+      skillPercents[skill] = percent;
+      // The real assessment — per skill, the highest CEFR level the learner
+      // actually sustained, from which difficulty of items they got right,
+      // not just a flat percentage. Falls back to the percent-based estimate
+      // only when items were answered but none carry a cefr_level tag yet.
+      const assessed = assessSkillLevel(
+        relevant.map((r) => ({ cefrLevel: r.cefr_level, correct: Number(r.content_score) >= passThresholdForLevel(r.cefr_level) })),
+      );
+      skillLevels[skill] = { level: assessed.level ?? percentToCefr(percent), cappedByGap: assessed.cappedByGap };
+    }
+
+    // The headline level is bounded by the weakest *tested* skill, not a
+    // flat overall percentage — a handful of easy questions answered
+    // correctly elsewhere shouldn't produce a confident-looking "C1" when
+    // every actual skill breakdown shows A1/A2. Only falls back to the flat
+    // percentage when literally no skill had enough evidence to assess at
+    // all (e.g. almost everything was skipped or is still pending).
+    const testedLevels = ALL_SKILLS.map((skill) => skillLevels[skill]?.level).filter((l): l is CefrLevel => l != null);
+    const cefrLevel: CefrLevel =
+      testedLevels.length > 0
+        ? testedLevels.reduce((worst, level) => (cefrRank(level) < cefrRank(worst) ? level : worst))
+        : percentToCefr(overallPercent);
+
+    // buildRoadmap still needs a real number per skill to rank "weakest
+    // first" for milestone ordering — an untested skill falls back to the
+    // overall percent here (an internal ranking input only, never surfaced
+    // to the learner as if it were a real per-skill score).
+    const roadmapSkillPercents = {} as Record<SkillTag, number>;
+    for (const skill of ALL_SKILLS) {
+      roadmapSkillPercents[skill] = skillPercents[skill] ?? overallPercent;
     }
 
     await pool.query(
@@ -411,7 +495,7 @@ placementRouter.post("/session/:sessionId/complete", requireAuth, async (req: Au
       examDate: profile.exam_date ? new Date(profile.exam_date).toISOString().slice(0, 10) : null,
       accessDuration: (profile.access_duration as AccessDuration) ?? "3months",
       dailyMinutesPreference: profile.daily_minutes_preference ?? 30,
-      skillPercents,
+      skillPercents: roadmapSkillPercents,
     });
 
     const roadmapResult = await pool.query(
@@ -431,6 +515,7 @@ placementRouter.post("/session/:sessionId/complete", requireAuth, async (req: Au
       gradedCount: graded.length,
       correctCount,
       pendingCount,
+      failedCount,
       overallPercent,
       cefrLevel,
       skillPercents,

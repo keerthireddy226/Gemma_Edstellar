@@ -4,7 +4,12 @@ import type { SkillTag, TestItem } from "@/hooks/useTestSession";
 export interface PracticeSummary {
   gradedCount: number;
   correctCount: number;
+  // Genuinely unanswered, or nothing to grade yet.
   pendingCount: number;
+  // An answer was given and grading was attempted, but the AI call itself
+  // failed (rate limit, network error) — a temporary service issue, not the
+  // learner's fault, shown separately from pendingCount.
+  failedCount: number;
 }
 
 export interface SkillAvailability {

@@ -7,6 +7,7 @@ import { pool } from "../db.js";
 import { requireAuth, type AuthedRequest } from "../auth/middleware.js";
 import { submitAttemptSchema } from "../placement/schemas.js";
 import { gradeAttempt } from "../placement/grading.js";
+import { passThresholdForLevel } from "../placement/cefr.js";
 import { pickDifficultySpread } from "../placement/routes.js";
 import type { SkillTag } from "../placement/roadmap.js";
 
@@ -260,7 +261,12 @@ practiceRouter.post("/session/:sessionId/attempts", requireAuth, async (req: Aut
     if (!session) return res.status(404).json({ error: "session_not_found" });
     if (session.completed_at) return res.status(409).json({ error: "session_already_completed" });
 
-    const itemResult = await pool.query(`SELECT item_type_id, answer_set FROM items WHERE id = $1`, [body.itemId]);
+    const itemResult = await pool.query(
+      `SELECT i.item_type_id, i.answer_set, i.content, i.cefr_level, it.min_words
+       FROM items i JOIN item_types it ON it.id = i.item_type_id
+       WHERE i.id = $1`,
+      [body.itemId],
+    );
     const item = itemResult.rows[0];
     if (!item) return res.status(404).json({ error: "item_not_found" });
 
@@ -290,17 +296,40 @@ practiceRouter.post("/session/:sessionId/attempts", requireAuth, async (req: Aut
       responseUri = `/uploads/attempts/${fileName}`;
     }
 
+    // Spoken item types are graded straight from the recording (see
+    // grading.ts) — that call already has to listen to the audio, so it
+    // returns its own transcript too, which is the authoritative one to
+    // store (more reliable than the browser's own live-guess transcript).
+    const grade = await gradeAttempt(
+      item.item_type_id,
+      item.answer_set,
+      item.content,
+      item.cefr_level,
+      item.min_words,
+      body.responseText,
+      body.audioBase64,
+      body.audioMimeType,
+    );
+    const responseText = grade.transcript ?? body.responseText ?? null;
+
     const attemptResult = await pool.query(
       `INSERT INTO attempts (session_id, item_id, window_start_at, submitted_at, response_uri, response_text)
        VALUES ($1, $2, now(), now(), $3, $4) RETURNING id`,
-      [session.id, body.itemId, responseUri, body.responseText ?? null],
+      [session.id, body.itemId, responseUri, responseText],
     );
     const attemptId = attemptResult.rows[0].id;
 
-    const grade = gradeAttempt(item.item_type_id, item.answer_set, body.responseText);
+    const modelVersion =
+      grade.method === "audio-rubric"
+        ? "gemini-3.6-flash-audio-v1"
+        : grade.method === "ai-rubric"
+          ? "gemini-3.6-flash-v1"
+          : grade.method === "text-diff"
+            ? "text-diff-v1"
+            : "exact-match-v1";
     await pool.query(
-      `INSERT INTO scores (attempt_id, content_score, status, model_version) VALUES ($1, $2, $3, 'exact-match-v1')`,
-      [attemptId, grade.correct === null ? null : grade.correct ? 1 : 0, grade.status],
+      `INSERT INTO scores (attempt_id, content_score, status, model_version) VALUES ($1, $2, $3, $4)`,
+      [attemptId, grade.score, grade.status, modelVersion],
     );
 
     res.status(201).json({ attemptId, status: grade.status, correct: grade.correct });
@@ -322,17 +351,22 @@ practiceRouter.post("/session/:sessionId/complete", requireAuth, async (req: Aut
     if (!sessionResult.rows[0]) return res.status(404).json({ error: "session_not_found_or_already_completed" });
 
     const summaryResult = await pool.query(
-      `SELECT sc.status, sc.content_score
+      `SELECT sc.status, sc.content_score, i.cefr_level
        FROM attempts a
        JOIN scores sc ON sc.attempt_id = a.id
+       JOIN items i ON i.id = a.item_id
        WHERE a.session_id = $1`,
       [req.params.sessionId],
     );
     const graded = summaryResult.rows.filter((r) => r.status === "scored");
-    const correctCount = graded.filter((r) => Number(r.content_score) === 1).length;
+    const correctCount = graded.filter((r) => Number(r.content_score) >= passThresholdForLevel(r.cefr_level)).length;
     const pendingCount = summaryResult.rows.filter((r) => r.status === "pending").length;
+    // Distinct from pending: an answer was given and grading was attempted,
+    // but the AI call itself failed (rate limit, network error) — a
+    // temporary service problem, not "you didn't answer enough."
+    const failedCount = summaryResult.rows.filter((r) => r.status === "failed").length;
 
-    res.json({ gradedCount: graded.length, correctCount, pendingCount });
+    res.json({ gradedCount: graded.length, correctCount, pendingCount, failedCount });
   } catch (err) {
     next(err);
   }

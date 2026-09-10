@@ -315,6 +315,9 @@ export function Modules() {
             pending: summary.pendingCount,
           })}
         </p>
+        {summary.failedCount > 0 && (
+          <p className="text-sm text-error">{t("placementTest.failedNote", { failed: summary.failedCount })}</p>
+        )}
         <div className="flex items-center gap-3 w-full">
           <Button variant="secondary" onClick={resetToPicker} className="flex-1">
             {t("modules.practiceAgain")}

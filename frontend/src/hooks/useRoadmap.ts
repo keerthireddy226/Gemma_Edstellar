@@ -13,7 +13,10 @@ export interface RoadmapData {
   placement: {
     overallPercent: number;
     cefrLevel: CefrLevel;
-    skillPercents: Record<SkillTag, number>;
+    // null per skill means that skill had zero graded questions in the
+    // placement test — not a real score, so it shouldn't be displayed as one.
+    skillPercents: Record<SkillTag, number | null>;
+    skillLevels: Record<SkillTag, { level: CefrLevel; cappedByGap: boolean } | null> | null;
     takenAt: string;
   };
   goalLevel: CefrLevel;

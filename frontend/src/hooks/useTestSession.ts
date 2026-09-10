@@ -27,12 +27,25 @@ export type SkillTag = "listening" | "speaking" | "reading" | "writing";
 export interface SessionSummary {
   gradedCount: number;
   correctCount: number;
+  // Genuinely unanswered, or awaiting a grading path with nothing to check
+  // yet — not the learner's fault, but not a service problem either.
   pendingCount: number;
+  // An answer WAS given and grading was attempted, but the AI call itself
+  // failed (rate limit, network error) — a temporary service issue, shown
+  // separately so it isn't confused with "you didn't answer enough."
+  failedCount: number;
   // Only present once at least one item could be scored — see the
   // graded.length === 0 guard on the backend.
   overallPercent?: number;
   cefrLevel?: CefrLevel;
-  skillPercents?: Record<SkillTag, number>;
+  // null per skill means that skill had zero graded questions this run
+  // (skipped, or still pending) — not a real score.
+  skillPercents?: Record<SkillTag, number | null>;
+  // cappedByGap: the percent above can look deceptively high next to this
+  // level — it's correct, but there's an untested gap between what was
+  // proven and a higher level that was also (partly) answered. Worth
+  // explaining in the UI rather than just showing the two side by side.
+  skillLevels?: Record<SkillTag, { level: CefrLevel; cappedByGap: boolean } | null>;
   goalLevel?: CefrLevel;
 }
 

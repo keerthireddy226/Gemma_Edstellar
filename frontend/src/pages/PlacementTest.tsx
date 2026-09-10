@@ -22,6 +22,10 @@ import {
   getPassageAndQuestion,
 } from "@/lib/testItemDisplay";
 
+// More than this fraction of the test skipped and the result is more
+// "guess" than "estimate" — worth a pause before locking it in.
+const SKIP_WARNING_RATIO = 0.3;
+
 interface CachedAnswer {
   responseText: string;
   audioBase64?: string;
@@ -54,6 +58,11 @@ export function PlacementTest() {
   const [pendingAudio, setPendingAudio] = useState<{ base64: string; mimeType: string } | null>(null);
   const [audioBlobUrl, setAudioBlobUrl] = useState<string | null>(null);
   const [summary, setSummary] = useState<SessionSummary | null>(null);
+  // Tracked separately from `answers` so we know, right before finishing,
+  // how much of the test was actually skipped rather than answered — a
+  // result built from mostly-skipped questions isn't a reliable estimate.
+  const [skippedIndices, setSkippedIndices] = useState<Set<number>>(new Set());
+  const [showFinishWarning, setShowFinishWarning] = useState(false);
 
   useEffect(() => {
     startSession()
@@ -120,6 +129,22 @@ export function PlacementTest() {
     }));
   }
 
+  // Shared by both Submit and Skip once an item's attempt has been recorded:
+  // either move to the next question, or — if this was the last one — either
+  // finish for real or pause on a warning if too much of the test was skipped.
+  async function advanceOrFinish(finalSkippedIndices: Set<number>) {
+    if (index + 1 < items.length) {
+      setIndex(index + 1);
+      return;
+    }
+    if (finalSkippedIndices.size / items.length > SKIP_WARNING_RATIO) {
+      setShowFinishWarning(true);
+      return;
+    }
+    const result = await completeSession(sessionId!);
+    setSummary(result);
+  }
+
   async function handleSubmit() {
     if (!current || !sessionId) return;
     setSubmitting(true);
@@ -132,12 +157,10 @@ export function PlacementTest() {
         audioMimeType: pendingAudio?.mimeType,
       });
       cacheCurrentAnswer();
-      if (index + 1 < items.length) {
-        setIndex(index + 1);
-      } else {
-        const result = await completeSession(sessionId);
-        setSummary(result);
-      }
+      const nextSkipped = new Set(skippedIndices);
+      nextSkipped.delete(index);
+      setSkippedIndices(nextSkipped);
+      await advanceOrFinish(nextSkipped);
     } catch {
       setError(t("placementTest.submitError"));
     } finally {
@@ -156,16 +179,38 @@ export function PlacementTest() {
         delete next[index];
         return next;
       });
-      if (index + 1 < items.length) {
-        setIndex(index + 1);
-      } else {
-        const result = await completeSession(sessionId);
-        setSummary(result);
-      }
+      const nextSkipped = new Set(skippedIndices).add(index);
+      setSkippedIndices(nextSkipped);
+      await advanceOrFinish(nextSkipped);
     } catch {
       setError(t("placementTest.submitError"));
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleFinishAnyway() {
+    if (!sessionId) return;
+    setShowFinishWarning(false);
+    setSubmitting(true);
+    try {
+      const result = await completeSession(sessionId);
+      setSummary(result);
+    } catch {
+      setError(t("placementTest.submitError"));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function handleGoBackAndAnswer() {
+    setShowFinishWarning(false);
+    // Land on the earliest skipped question rather than just closing the
+    // dialog and leaving them stuck on the last one with nothing to change.
+    const earliestSkipped = Math.min(...skippedIndices);
+    if (Number.isFinite(earliestSkipped)) {
+      cacheCurrentAnswer();
+      setIndex(earliestSkipped);
     }
   }
 
@@ -198,6 +243,9 @@ export function PlacementTest() {
                 pending: summary.pendingCount,
               })}
             </p>
+            {summary.failedCount > 0 && (
+              <p className="text-sm text-error">{t("placementTest.failedNote", { failed: summary.failedCount })}</p>
+            )}
             <Button onClick={() => navigate(ROUTES.DASHBOARD)}>{t("placementTest.done")}</Button>
           </div>
         </div>
@@ -218,16 +266,38 @@ export function PlacementTest() {
           </div>
 
           <div className="grid grid-cols-4 gap-2.5 w-full">
-            {(Object.entries(summary.skillPercents) as [string, number][]).map(([skill, pct]) => (
-              <div key={skill} className="bg-paper-warm rounded-input p-3">
-                <div className="font-display font-bold text-lg text-ink">{pct}%</div>
-                <div className="text-xs text-muted mt-0.5">{t(`skills.${skill}`)}</div>
-              </div>
-            ))}
+            {(Object.entries(summary.skillPercents) as [string, number | null][]).map(([skill, pct]) => {
+              const entry = summary.skillLevels?.[skill as keyof typeof summary.skillLevels];
+              return (
+                <div key={skill} className="bg-paper-warm rounded-input p-3">
+                  {pct === null ? (
+                    <>
+                      <div className="text-xs text-muted italic">{t("placementTest.notEnoughAnswered")}</div>
+                      <div className="text-xs text-muted mt-0.5">{t(`skills.${skill}`)}</div>
+                    </>
+                  ) : (
+                    <>
+                      {entry?.level && <div className="font-display font-bold text-lg text-ink">{entry.level}</div>}
+                      <div className="text-xs text-muted mt-0.5">{t(`skills.${skill}`)}</div>
+                      {entry?.cappedByGap ? (
+                        <div className="text-[10px] text-muted mt-0.5 italic leading-snug">
+                          {t("placementTest.gapCappedNote")}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-muted mt-0.5">{pct}%</div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {summary.pendingCount > 0 && (
             <p className="text-xs text-muted">{t("placementTest.pendingNote", { pending: summary.pendingCount })}</p>
+          )}
+          {summary.failedCount > 0 && (
+            <p className="text-xs text-error">{t("placementTest.failedNote", { failed: summary.failedCount })}</p>
           )}
 
           <Button onClick={() => navigate(ROUTES.ROADMAP)} className="w-full">
@@ -378,6 +448,25 @@ export function PlacementTest() {
           </Button>
         </div>
       </div>
+
+      {showFinishWarning && (
+        <div className="fixed inset-0 bg-ink/40 flex items-center justify-center px-4 z-50">
+          <div className="w-full max-w-sm bg-surface border border-rule rounded-card p-6 flex flex-col gap-4">
+            <h2 className="font-display font-bold text-lg text-ink">{t("placementTest.skipWarningTitle")}</h2>
+            <p className="text-sm text-muted">
+              {t("placementTest.skipWarningBody", { count: skippedIndices.size, total: items.length })}
+            </p>
+            <div className="flex flex-col gap-2">
+              <Button onClick={handleGoBackAndAnswer} className="w-full">
+                {t("placementTest.goBackAndAnswer")}
+              </Button>
+              <Button variant="secondary" onClick={handleFinishAnyway} disabled={submitting} className="w-full">
+                {submitting ? t("placementTest.submitting") : t("placementTest.finishAnyway")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
