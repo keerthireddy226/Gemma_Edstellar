@@ -24,6 +24,16 @@ export const SKILL_TEXT_CLASS: Record<string, string> = {
   writing: "text-writing",
 };
 
+// Same four colors as SKILL_TEXT_CLASS, as a filled pill badge instead of
+// plain text — used where the skill(s) a question tests need to be
+// unmistakable at a glance, not just a small label.
+export const SKILL_BADGE_CLASS: Record<string, string> = {
+  listening: "bg-listening/15 border-listening/40 text-listening",
+  speaking: "bg-speaking/15 border-speaking/40 text-speaking",
+  reading: "bg-reading/15 border-reading/40 text-reading",
+  writing: "bg-writing/15 border-writing/40 text-writing",
+};
+
 export const ITEM_TYPE_META: Record<string, { name: string; skills: ("listening" | "speaking" | "reading" | "writing")[] }> = {
   reading: { name: "Read Aloud", skills: ["speaking", "reading"] },
   repeats: { name: "Repeat", skills: ["listening", "speaking"] },

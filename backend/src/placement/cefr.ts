@@ -40,6 +40,24 @@ export function passThresholdForLevel(level: string | null): number {
   return LEVEL_PASS_THRESHOLD.B1;
 }
 
+// Where the adaptive placement engine starts every learner, on every
+// question type — the middle of the scale, so the first question is
+// equally uninformative about whether they'll turn out to be a true
+// beginner or advanced (see placement/routes.ts).
+export const START_LEVEL: CefrLevel = "B1";
+
+// One step of the adaptive walk: right -> one level harder, wrong (or
+// skipped) -> one level easier. Clamped at the ends of the scale. Because
+// this only ever asks about the level right next to the last answer, the
+// resulting test can never have an untested gap in the middle of what it
+// covers — the "capped by gap" situation in assessSkillLevel below simply
+// can't arise from an adaptively-built session.
+export function stepLevel(level: CefrLevel, correct: boolean): CefrLevel {
+  const rank = cefrRank(level);
+  const nextRank = correct ? Math.min(rank + 1, CEFR_LEVELS.length - 1) : Math.max(rank - 1, 0);
+  return CEFR_LEVELS[nextRank];
+}
+
 /**
  * Assesses a level from *which* difficulty of items a learner actually got
  * right, instead of one flat percent-correct — two learners who score 50%
@@ -83,6 +101,13 @@ export interface SkillLevelAssessment {
   cappedByGap: boolean;
 }
 
+// A single question at a level isn't enough to trust either way — one lucky
+// guess shouldn't certify a level, and one unlucky slip shouldn't cap one.
+// A level needs at least this many graded items before its accuracy counts
+// as real evidence; below that, it's treated exactly like an untested level
+// (see the gap handling below), not as a pass or a fail.
+const MIN_LEVEL_SAMPLE = 2;
+
 export function assessSkillLevel(gradedItems: { cefrLevel: string | null; correct: boolean }[]): SkillLevelAssessment {
   const byLevel = new Map<CefrLevel, { correct: number; total: number }>();
   for (const item of gradedItems) {
@@ -95,23 +120,27 @@ export function assessSkillLevel(gradedItems: { cefrLevel: string | null; correc
   }
   if (byLevel.size === 0) return { level: null, cappedByGap: false };
 
+  const hasEnoughEvidence = (level: CefrLevel) => (byLevel.get(level)?.total ?? 0) >= MIN_LEVEL_SAMPLE;
+
   let highestPassed: CefrLevel | null = null;
   let consecutiveDips = 0;
   let sawFirstTestedLevel = false;
   for (const level of CEFR_LEVELS) {
-    const entry = byLevel.get(level);
-    if (!entry) {
+    if (!hasEnoughEvidence(level)) {
       if (sawFirstTestedLevel) {
-        // Stopped on a gap — but only worth flagging if there's graded
-        // evidence at a *higher* level than where we stopped, since that's
-        // exactly the "100% next to a low level" situation that needs an
-        // explanation. A gap with nothing tested beyond it isn't confusing.
-        const higherLevelTested = CEFR_LEVELS.slice(cefrRank(level) + 1).some((l) => byLevel.has(l));
+        // Stopped on a gap (including "only one question at this level,
+        // which isn't enough to count") — but only worth flagging if
+        // there's real evidence at a *higher* level than where we stopped,
+        // since that's exactly the "100% next to a low level" situation
+        // that needs an explanation. A gap with nothing tested beyond it
+        // isn't confusing.
+        const higherLevelTested = CEFR_LEVELS.slice(cefrRank(level) + 1).some(hasEnoughEvidence);
         return { level: highestPassed, cappedByGap: higherLevelTested };
       }
       continue;
     }
     sawFirstTestedLevel = true;
+    const entry = byLevel.get(level)!;
     const accuracy = entry.correct / entry.total;
     if (accuracy === 0) break;
     if (accuracy >= passThresholdForLevel(level)) {

@@ -296,10 +296,10 @@ practiceRouter.post("/session/:sessionId/attempts", requireAuth, async (req: Aut
       responseUri = `/uploads/attempts/${fileName}`;
     }
 
-    // Spoken item types are graded straight from the recording (see
-    // grading.ts) — that call already has to listen to the audio, so it
-    // returns its own transcript too, which is the authoritative one to
-    // store (more reliable than the browser's own live-guess transcript).
+    // The recording (if any) is still saved above for playback/human
+    // review, but grading itself runs on the transcript only — Claude's API
+    // has no audio input, so unlike before, it can't listen to the actual
+    // recording (see aiGrading.ts).
     const grade = await gradeAttempt(
       item.item_type_id,
       item.answer_set,
@@ -307,10 +307,8 @@ practiceRouter.post("/session/:sessionId/attempts", requireAuth, async (req: Aut
       item.cefr_level,
       item.min_words,
       body.responseText,
-      body.audioBase64,
-      body.audioMimeType,
     );
-    const responseText = grade.transcript ?? body.responseText ?? null;
+    const responseText = body.responseText ?? null;
 
     const attemptResult = await pool.query(
       `INSERT INTO attempts (session_id, item_id, window_start_at, submitted_at, response_uri, response_text)
@@ -320,13 +318,7 @@ practiceRouter.post("/session/:sessionId/attempts", requireAuth, async (req: Aut
     const attemptId = attemptResult.rows[0].id;
 
     const modelVersion =
-      grade.method === "audio-rubric"
-        ? "gemini-3.6-flash-audio-v1"
-        : grade.method === "ai-rubric"
-          ? "gemini-3.6-flash-v1"
-          : grade.method === "text-diff"
-            ? "text-diff-v1"
-            : "exact-match-v1";
+      grade.method === "ai-text" ? "claude-sonnet-5-v1" : grade.method === "text-diff" ? "text-diff-v1" : "exact-match-v1";
     await pool.query(
       `INSERT INTO scores (attempt_id, content_score, status, model_version) VALUES ($1, $2, $3, $4)`,
       [attemptId, grade.score, grade.status, modelVersion],

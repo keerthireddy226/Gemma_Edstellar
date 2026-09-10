@@ -246,10 +246,6 @@
     "pendingNote": "{{pending}} de tus respuestas todavía necesitan revisión antes de contar para tu nivel.",
     "goToRoadmap": "Ir a tu Plan de Estudio",
     "notEnoughAnswered": "No hay suficientes respuestas",
-    "skipWarningTitle": "Espera, ¿estás seguro?",
-    "skipWarningBody": "Has omitido {{count}} de {{total}} preguntas. Tu resultado puede no ser preciso para las habilidades que no respondiste.",
-    "finishAnyway": "Finalizar de todos modos",
-    "goBackAndAnswer": "Volver y responder más",
     "gapCappedNote": "Algunos niveles no se evaluaron; tu nivel real podría ser más alto.",
     "failedNote": "{{failed}} de tus respuestas no se pudieron calificar debido a un problema temporal con nuestro servicio de calificación — esto no tiene que ver con tus respuestas, inténtalo de nuevo más tarde."
   },

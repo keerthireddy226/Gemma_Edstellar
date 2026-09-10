@@ -246,10 +246,6 @@
     "pendingNote": "{{pending}} of your answers still need review before they count toward your level.",
     "goToRoadmap": "Go to your Roadmap",
     "notEnoughAnswered": "Not enough answered",
-    "skipWarningTitle": "Wait — are you sure?",
-    "skipWarningBody": "You've skipped {{count}} of {{total}} questions. Your result may not be accurate for the skills you didn't answer.",
-    "finishAnyway": "Finish anyway",
-    "goBackAndAnswer": "Go back and answer more",
     "gapCappedNote": "Some levels weren't tested — your real level may be higher.",
     "failedNote": "{{failed}} of your answers couldn't be graded due to a temporary issue with our grading service — this isn't about your answers, please try again later."
   },

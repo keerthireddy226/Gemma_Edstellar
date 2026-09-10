@@ -9,7 +9,16 @@ import { generateToken, hashToken } from "../auth/tokens.js";
 import { sendPlacementReminderEmail } from "../auth/mailer.js";
 import { submitAttemptSchema } from "./schemas.js";
 import { gradeAttempt } from "./grading.js";
-import { CEFR_LEVELS, cefrRank, percentToCefr, assessSkillLevel, passThresholdForLevel, type CefrLevel } from "./cefr.js";
+import {
+  CEFR_LEVELS,
+  cefrRank,
+  percentToCefr,
+  assessSkillLevel,
+  passThresholdForLevel,
+  START_LEVEL,
+  stepLevel,
+  type CefrLevel,
+} from "./cefr.js";
 import { buildRoadmap, type AccessDuration, type SkillTag } from "./roadmap.js";
 
 const ALL_SKILLS: SkillTag[] = ["listening", "speaking", "reading", "writing"];
@@ -18,14 +27,18 @@ export const placementRouter = Router();
 
 const REMINDER_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-// 20 questions total. Reading (Read Aloud) is included now that AI grading
-// covers it — before that, Reading was carried by Reading Comprehension
-// alone (3 items, thinner than every other skill's coverage). Repeats,
-// Short Answer, and Sentence Builds each gave up one slot to make room for
-// it without growing the test. Story Retelling, Speaking Situations,
-// Typing, and Summary and Opinion are still not used here — Read Aloud
-// already overlaps them for listening/speaking signal, and every skill now
-// has reasonable coverage without adding more types.
+// 20 questions total, same mix as before — only *how* each type's questions
+// get chosen changed (see the adaptive selection block above): each type
+// still contributes this many questions, but which specific ones depends on
+// how the learner answers, not a fixed upfront easy/medium/hard spread.
+// Reading (Read Aloud) is included now that AI grading covers it — before
+// that, Reading was carried by Reading Comprehension alone (thinner than
+// every other skill's coverage). Repeats, Short Answer, and Sentence Builds
+// each gave up one slot to make room for it without growing the test. Story
+// Retelling, Speaking Situations, Typing, and Summary and Opinion are still
+// not used here — Read Aloud already overlaps them for listening/speaking
+// signal, and every skill now has reasonable coverage without adding more
+// types.
 //
 // Passage Reconstruction was swapped out for Reading Comprehension: its
 // real Versant mechanic (read-then-recall-from-memory) has no single
@@ -100,43 +113,103 @@ export function pickDifficultySpread<T extends { id: string; difficulty: string 
   return picks;
 }
 
-async function selectSessionItems(userId: string) {
+// ---------------------------------------------------------------------------
+// Adaptive item selection for the placement test itself. Instead of building
+// all 20 questions upfront with a fixed easy/medium/hard spread per type,
+// each type now climbs one level at a time: right answer -> next question in
+// that type is one level harder; wrong (or skipped) -> one level easier.
+// Once a type's budget (ITEMS_PER_TYPE) is used up, the next type in
+// TYPE_ORDER starts fresh at START_LEVEL.
+//
+// Two things this fixes on its own, just from how it selects items:
+// - It can never leave an untested gap in the middle of what it covers,
+//   since it only ever asks about the level right next to the last answer
+//   (see the "capped by gap" case in cefr.ts, which this makes far rarer).
+// - Two learners who answer differently naturally get different questions,
+//   without needing a separate randomization pass.
+// ---------------------------------------------------------------------------
+
+type ItemPoolRow = {
+  id: string;
+  item_type_id: string;
+  content: unknown;
+  difficulty: string | null;
+  cefr_level: string | null;
+  skills: string[];
+  input_method: string;
+  instruction_text: string;
+  question_instruction: string;
+  timer_seconds: number | null;
+  two_phase_read_seconds: number | null;
+  two_phase_write_seconds: number | null;
+  previously_attempted: boolean;
+};
+
+async function fetchTypePool(userId: string, typeId: string): Promise<ItemPoolRow[]> {
   const result = await pool.query(
-    `SELECT i.id, i.item_type_id, i.content, i.difficulty, it.input_method, it.instruction_text, it.question_instruction, it.timer_seconds, it.two_phase_read_seconds, it.two_phase_write_seconds,
+    `SELECT i.id, i.item_type_id, i.content, i.difficulty, i.cefr_level, it.skills, it.input_method, it.instruction_text, it.question_instruction, it.timer_seconds, it.two_phase_read_seconds, it.two_phase_write_seconds,
        EXISTS (
          SELECT 1 FROM attempts a JOIN sessions s ON s.id = a.session_id
          WHERE s.user_id = $1 AND a.item_id = i.id
        ) AS previously_attempted
      FROM items i
      JOIN item_types it ON it.id = i.item_type_id
-     WHERE i.status = 'approved'
-     ORDER BY i.item_type_id, i.difficulty ASC`,
-    [userId],
+     WHERE i.status = 'approved' AND i.item_type_id = $2`,
+    [userId, typeId],
   );
+  return result.rows;
+}
 
-  const perType = new Map<string, (typeof result.rows)[number][]>();
-  for (const row of result.rows) {
-    const list = perType.get(row.item_type_id) ?? [];
-    list.push(row);
-    perType.set(row.item_type_id, list);
+// Nearest-level match from a type's pool, excluding ids already shown this
+// session — prefers a learner's unseen items, and among equally-good
+// candidates picks randomly rather than always the same one.
+function pickAdaptiveItem(rowPool: ItemPoolRow[], targetLevel: CefrLevel, excludeIds: Set<string>): ItemPoolRow | null {
+  const candidates = rowPool.filter((r) => !excludeIds.has(r.id));
+  if (candidates.length === 0) return null;
+  const targetRank = cefrRank(targetLevel);
+  const ranked = candidates
+    .map((r) => ({
+      row: r,
+      distance: Math.abs(cefrRank((r.cefr_level as CefrLevel) ?? START_LEVEL) - targetRank),
+    }))
+    .sort((a, b) => {
+      if (a.distance !== b.distance) return a.distance - b.distance;
+      if (a.row.previously_attempted !== b.row.previously_attempted) return a.row.previously_attempted ? 1 : -1;
+      return Math.random() - 0.5;
+    });
+  const closestDistance = ranked[0].distance;
+  const tied = ranked.filter((r) => r.distance === closestDistance && r.row.previously_attempted === ranked[0].row.previously_attempted);
+  return tied[Math.floor(Math.random() * tied.length)].row;
+}
+
+// Finds the first available item for TYPE_ORDER[startIndex] or, if that
+// type's pool is empty, the next type after it — returns null only if
+// nothing at all is left, across every remaining type.
+async function pickFirstItemFrom(
+  userId: string,
+  startIndex: number,
+): Promise<{ typeIndex: number; item: ItemPoolRow } | null> {
+  for (let i = startIndex; i < TYPE_ORDER.length; i++) {
+    const typeId = TYPE_ORDER[i];
+    const rows = await fetchTypePool(userId, typeId);
+    const item = pickAdaptiveItem(rows, START_LEVEL, new Set());
+    if (item) return { typeIndex: i, item };
   }
+  return null;
+}
 
-  return TYPE_ORDER.flatMap((typeId) => {
-    const rows = perType.get(typeId) ?? [];
-    const count = ITEMS_PER_TYPE[typeId] ?? 0;
-    // Prefer items this learner hasn't seen before; only fall back to
-    // already-attempted ones once the unseen pool runs out (a thin bank
-    // repeating rather than the session failing outright).
-    const notAttempted = rows.filter((r) => !r.previously_attempted);
-    const pool = notAttempted.length >= count ? notAttempted : rows;
-    return pickDifficultySpread(pool, count);
-  });
+interface AdaptiveComposition {
+  history: string[];
+  currentTypeIndex: number;
+  perType: Record<string, { budget: number; shown: string[] }>;
+  pendingItemId: string | null;
 }
 
 function toItemPayload(row: {
   id: string;
   item_type_id: string;
   content: unknown;
+  skills: string[];
   input_method: string;
   instruction_text: string;
   question_instruction: string;
@@ -148,6 +221,7 @@ function toItemPayload(row: {
     id: row.id,
     itemTypeId: row.item_type_id,
     content: row.content,
+    skills: row.skills,
     inputMethod: row.input_method,
     instructionText: row.instruction_text,
     questionInstruction: row.question_instruction,
@@ -211,6 +285,39 @@ placementRouter.post("/schedule-later", requireAuth, scheduleLaterLimiter, async
   }
 });
 
+// Reconstructs the full question history for an in-progress or completed
+// adaptive session, in the order questions were actually shown — used both
+// to resume a session (page refresh, POST /session reuse) and by GET
+// /session/:id. The last entry is the still-unanswered current question
+// unless the session is complete.
+async function buildHistoryResponse(sessionId: string, composition: AdaptiveComposition, completed: boolean) {
+  const itemIds = composition.history;
+  const itemsResult = await pool.query(
+    `SELECT i.id, i.item_type_id, i.content, it.skills, it.input_method, it.instruction_text, it.question_instruction, it.timer_seconds, it.two_phase_read_seconds, it.two_phase_write_seconds
+     FROM items i JOIN item_types it ON it.id = i.item_type_id
+     WHERE i.id = ANY($1::uuid[])`,
+    [itemIds],
+  );
+  const byId = new Map(itemsResult.rows.map((r) => [r.id, r]));
+  const attemptsResult = await pool.query(`SELECT item_id, response_text FROM attempts WHERE session_id = $1`, [
+    sessionId,
+  ]);
+  const attemptByItem = new Map(attemptsResult.rows.map((r) => [r.item_id, r.response_text]));
+
+  return {
+    sessionId,
+    completed,
+    items: itemIds
+      .map((id) => byId.get(id))
+      .filter(Boolean)
+      .map((row) => ({
+        ...toItemPayload(row!),
+        attempted: attemptByItem.has(row!.id),
+        responseText: attemptByItem.get(row!.id) ?? null,
+      })),
+  };
+}
+
 // Starting a session reuses any already-in-progress one for this user
 // instead of minting a new item set every time — a page refresh or an
 // accidental double-click shouldn't hand the learner a different, half-done
@@ -223,29 +330,36 @@ placementRouter.post("/session", requireAuth, async (req: AuthedRequest, res, ne
        ORDER BY started_at DESC LIMIT 1`,
       [req.user!.id],
     );
+    // A session started before the adaptive engine existed carries the old
+    // `{ itemIds }` shape instead of `{ history, perType, ... }` — trying to
+    // resume it would crash. There's no meaningful way to convert a
+    // fixed-spread-in-progress session into an adaptive one, so it's marked
+    // abandoned (no attempts are lost — those stay in the attempts table
+    // regardless) and a fresh adaptive session starts instead.
+    if (existing.rows[0] && Array.isArray(existing.rows[0].composition?.history)) {
+      const response = await buildHistoryResponse(existing.rows[0].id, existing.rows[0].composition, false);
+      return res.json(response);
+    }
     if (existing.rows[0]) {
-      const itemIds: string[] = existing.rows[0].composition?.itemIds ?? [];
-      const itemsResult = await pool.query(
-        `SELECT i.id, i.item_type_id, i.content, it.input_method, it.instruction_text, it.question_instruction, it.timer_seconds, it.two_phase_read_seconds, it.two_phase_write_seconds
-         FROM items i JOIN item_types it ON it.id = i.item_type_id
-         WHERE i.id = ANY($1::uuid[])`,
-        [itemIds],
-      );
-      const byId = new Map(itemsResult.rows.map((r) => [r.id, r]));
-      return res.json({
-        sessionId: existing.rows[0].id,
-        items: itemIds.map((id) => byId.get(id)).filter(Boolean).map(toItemPayload),
-      });
+      await pool.query(`UPDATE sessions SET completed_at = now() WHERE id = $1`, [existing.rows[0].id]);
     }
 
-    const items = await selectSessionItems(req.user!.id);
+    const first = await pickFirstItemFrom(req.user!.id, 0);
+    if (!first) return res.status(500).json({ error: "no_items_available" });
+
+    const composition: AdaptiveComposition = {
+      history: [first.item.id],
+      currentTypeIndex: first.typeIndex,
+      perType: { [TYPE_ORDER[first.typeIndex]]: { budget: ITEMS_PER_TYPE[TYPE_ORDER[first.typeIndex]], shown: [first.item.id] } },
+      pendingItemId: first.item.id,
+    };
     const sessionResult = await pool.query(
       `INSERT INTO sessions (user_id, session_type, mode, composition)
        VALUES ($1, 'placement', 'exam', $2) RETURNING id`,
-      [req.user!.id, JSON.stringify({ itemIds: items.map((i) => i.id) })],
+      [req.user!.id, JSON.stringify(composition)],
     );
 
-    res.status(201).json({ sessionId: sessionResult.rows[0].id, items: items.map(toItemPayload) });
+    res.status(201).json({ sessionId: sessionResult.rows[0].id, items: [toItemPayload(first.item)] });
   } catch (err) {
     next(err);
   }
@@ -259,33 +373,12 @@ placementRouter.get("/session/:sessionId", requireAuth, async (req: AuthedReques
     );
     const session = sessionResult.rows[0];
     if (!session) return res.status(404).json({ error: "session_not_found" });
+    if (!Array.isArray(session.composition?.history)) {
+      return res.status(410).json({ error: "session_predates_adaptive_engine" });
+    }
 
-    const itemIds: string[] = session.composition?.itemIds ?? [];
-    const itemsResult = await pool.query(
-      `SELECT i.id, i.item_type_id, i.content, it.input_method, it.instruction_text, it.question_instruction, it.timer_seconds, it.two_phase_read_seconds, it.two_phase_write_seconds
-       FROM items i JOIN item_types it ON it.id = i.item_type_id
-       WHERE i.id = ANY($1::uuid[])`,
-      [itemIds],
-    );
-    const byId = new Map(itemsResult.rows.map((r) => [r.id, r]));
-
-    const attemptsResult = await pool.query(`SELECT item_id, response_text FROM attempts WHERE session_id = $1`, [
-      session.id,
-    ]);
-    const attemptByItem = new Map(attemptsResult.rows.map((r) => [r.item_id, r.response_text]));
-
-    res.json({
-      sessionId: session.id,
-      completed: !!session.completed_at,
-      items: itemIds
-        .map((id) => byId.get(id))
-        .filter(Boolean)
-        .map((row) => ({
-          ...toItemPayload(row!),
-          attempted: attemptByItem.has(row!.id),
-          responseText: attemptByItem.get(row!.id) ?? null,
-        })),
-    });
+    const response = await buildHistoryResponse(session.id, session.composition, !!session.completed_at);
+    res.json(response);
   } catch (err) {
     next(err);
   }
@@ -295,13 +388,24 @@ placementRouter.post("/session/:sessionId/attempts", requireAuth, async (req: Au
   try {
     const body = submitAttemptSchema.parse(req.body);
 
-    const sessionResult = await pool.query(`SELECT id, completed_at FROM sessions WHERE id = $1 AND user_id = $2`, [
+    const sessionResult = await pool.query(`SELECT id, composition, completed_at FROM sessions WHERE id = $1 AND user_id = $2`, [
       req.params.sessionId,
       req.user!.id,
     ]);
     const session = sessionResult.rows[0];
     if (!session) return res.status(404).json({ error: "session_not_found" });
     if (session.completed_at) return res.status(409).json({ error: "session_already_completed" });
+    if (!Array.isArray(session.composition?.history)) {
+      return res.status(410).json({ error: "session_predates_adaptive_engine" });
+    }
+
+    const composition = session.composition as AdaptiveComposition;
+    // The adaptive engine only ever has one live question at a time — this
+    // guards against a stale client submitting for a question that isn't
+    // (or is no longer) the one actually pending.
+    if (composition.pendingItemId !== body.itemId) {
+      return res.status(409).json({ error: "not_the_current_item" });
+    }
 
     const itemResult = await pool.query(
       `SELECT i.item_type_id, i.answer_set, i.content, i.cefr_level, it.min_words
@@ -312,9 +416,9 @@ placementRouter.post("/session/:sessionId/attempts", requireAuth, async (req: Au
     const item = itemResult.rows[0];
     if (!item) return res.status(404).json({ error: "item_not_found" });
 
-    // Resubmitting the same item in this session (the learner went Back and
-    // changed their answer) replaces the old attempt instead of stacking a
-    // second one — otherwise the session summary would double-count it.
+    // Guards against a duplicate network retry of the same submission —
+    // the adaptive flow never intentionally resubmits an already-answered
+    // question (there's no "Back"), but a retry shouldn't double-count.
     const priorResult = await pool.query(
       `SELECT id, response_uri FROM attempts WHERE session_id = $1 AND item_id = $2`,
       [session.id, body.itemId],
@@ -339,10 +443,10 @@ placementRouter.post("/session/:sessionId/attempts", requireAuth, async (req: Au
       responseUri = `/uploads/attempts/${fileName}`;
     }
 
-    // Spoken item types are graded straight from the recording (see
-    // grading.ts) — that call already has to listen to the audio, so it
-    // returns its own transcript too, which is the authoritative one to
-    // store (more reliable than the browser's own live-guess transcript).
+    // The recording (if any) is still saved above for playback/human
+    // review, but grading itself runs on the transcript only — Claude's API
+    // has no audio input, so unlike before, it can't listen to the actual
+    // recording (see aiGrading.ts).
     const grade = await gradeAttempt(
       item.item_type_id,
       item.answer_set,
@@ -350,10 +454,8 @@ placementRouter.post("/session/:sessionId/attempts", requireAuth, async (req: Au
       item.cefr_level,
       item.min_words,
       body.responseText,
-      body.audioBase64,
-      body.audioMimeType,
     );
-    const responseText = grade.transcript ?? body.responseText ?? null;
+    const responseText = body.responseText ?? null;
 
     const attemptResult = await pool.query(
       `INSERT INTO attempts (session_id, item_id, window_start_at, submitted_at, response_uri, response_text)
@@ -363,19 +465,60 @@ placementRouter.post("/session/:sessionId/attempts", requireAuth, async (req: Au
     const attemptId = attemptResult.rows[0].id;
 
     const modelVersion =
-      grade.method === "audio-rubric"
-        ? "gemini-3.6-flash-audio-v1"
-        : grade.method === "ai-rubric"
-          ? "gemini-3.6-flash-v1"
-          : grade.method === "text-diff"
-            ? "text-diff-v1"
-            : "exact-match-v1";
+      grade.method === "ai-text" ? "claude-sonnet-5-v1" : grade.method === "text-diff" ? "text-diff-v1" : "exact-match-v1";
     await pool.query(
       `INSERT INTO scores (attempt_id, content_score, status, model_version) VALUES ($1, $2, $3, $4)`,
       [attemptId, grade.score, grade.status, modelVersion],
     );
 
-    res.status(201).json({ attemptId, status: grade.status, correct: grade.correct });
+    // --- Adaptive step: pick what comes next ---
+    // A skip or a failed-grading attempt gets treated the same as "wrong"
+    // for stepping purposes — there's no evidence they cleared this level,
+    // so the next question in this type steps down, same as a real miss.
+    const wasCorrect = grade.correct === true;
+    const currentType = item.item_type_id as string;
+    const typeState = composition.perType[currentType];
+    let nextItem: ItemPoolRow | null = null;
+
+    if (typeState.shown.length < typeState.budget) {
+      const nextLevel = stepLevel((item.cefr_level as CefrLevel) ?? START_LEVEL, wasCorrect);
+      const rows = await fetchTypePool(req.user!.id, currentType);
+      nextItem = pickAdaptiveItem(rows, nextLevel, new Set(typeState.shown));
+    }
+
+    if (nextItem) {
+      typeState.shown.push(nextItem.id);
+      composition.history.push(nextItem.id);
+      composition.pendingItemId = nextItem.id;
+    } else {
+      // This type's budget is used up (or its pool unexpectedly ran dry) —
+      // move on to the next type that still has items available.
+      const next = await pickFirstItemFrom(req.user!.id, composition.currentTypeIndex + 1);
+      if (next) {
+        composition.currentTypeIndex = next.typeIndex;
+        composition.perType[TYPE_ORDER[next.typeIndex]] = {
+          budget: ITEMS_PER_TYPE[TYPE_ORDER[next.typeIndex]],
+          shown: [next.item.id],
+        };
+        composition.history.push(next.item.id);
+        composition.pendingItemId = next.item.id;
+        nextItem = next.item;
+      } else {
+        // Nothing left anywhere — the test is done.
+        composition.pendingItemId = null;
+      }
+    }
+
+    await pool.query(`UPDATE sessions SET composition = $1 WHERE id = $2`, [JSON.stringify(composition), session.id]);
+
+    res.status(201).json({
+      attemptId,
+      status: grade.status,
+      correct: grade.correct,
+      // null means there's nothing left to ask — the frontend should call
+      // /complete once it sees this instead of waiting on a fixed count.
+      nextItem: nextItem ? toItemPayload(nextItem) : null,
+    });
   } catch (err) {
     next(err);
   }
@@ -453,17 +596,30 @@ placementRouter.post("/session/:sessionId/complete", requireAuth, async (req: Au
       skillLevels[skill] = { level: assessed.level ?? percentToCefr(percent), cappedByGap: assessed.cappedByGap };
     }
 
-    // The headline level is bounded by the weakest *tested* skill, not a
-    // flat overall percentage — a handful of easy questions answered
-    // correctly elsewhere shouldn't produce a confident-looking "C1" when
-    // every actual skill breakdown shows A1/A2. Only falls back to the flat
-    // percentage when literally no skill had enough evidence to assess at
-    // all (e.g. almost everything was skipped or is still pending).
-    const testedLevels = ALL_SKILLS.map((skill) => skillLevels[skill]?.level).filter((l): l is CefrLevel => l != null);
-    const cefrLevel: CefrLevel =
-      testedLevels.length > 0
-        ? testedLevels.reduce((worst, level) => (cefrRank(level) < cefrRank(worst) ? level : worst))
-        : percentToCefr(overallPercent);
+    // The headline level is assessed from every question the learner was
+    // actually SHOWN, across all skills combined — not just the ones they
+    // answered. A skipped question counts as a wrong answer here, the same
+    // as a real mistake would. Answering a handful of hard questions right
+    // while leaving most of the test blank should not be able to produce a
+    // high headline — skipping isn't neutral, it's evidence of not knowing.
+    // (An AI grading *failure* is different — that's a service fault, not
+    // the learner's fault, so it's left out of this entirely rather than
+    // counted against them.)
+    const skippedAsWrong = summaryResult.rows
+      .filter((r) => r.status === "pending")
+      .map((r) => ({ cefrLevel: r.cefr_level, correct: false }));
+    const answeredEvidence = graded.map((r) => ({
+      cefrLevel: r.cefr_level,
+      correct: Number(r.content_score) >= passThresholdForLevel(r.cefr_level),
+    }));
+    const overallAssessment = assessSkillLevel([...answeredEvidence, ...skippedAsWrong]);
+    // The fallback percentage (used only when the walk above finds no real
+    // evidence to certify any level) also has to count skips as wrong, for
+    // the same reason — otherwise a mostly-skipped test could still fall
+    // back to a percentage computed only from the few questions answered.
+    const overallPercentForLevel = Math.round((correctCount / (graded.length + pendingCount)) * 100);
+    const cefrLevel: CefrLevel = overallAssessment.level ?? percentToCefr(overallPercentForLevel);
+    const cefrCappedByGap = overallAssessment.cappedByGap;
 
     // buildRoadmap still needs a real number per skill to rank "weakest
     // first" for milestone ordering — an untested skill falls back to the
@@ -518,6 +674,7 @@ placementRouter.post("/session/:sessionId/complete", requireAuth, async (req: Au
       failedCount,
       overallPercent,
       cefrLevel,
+      cefrCappedByGap,
       skillPercents,
       skillLevels,
       goalLevel,

@@ -6,6 +6,7 @@ export interface TestItem {
   id: string;
   itemTypeId: string;
   content: Record<string, unknown>;
+  skills: SkillTag[];
   inputMethod: InputMethod;
   instructionText: string;
   questionInstruction: string;
@@ -17,8 +18,13 @@ export interface TestItem {
 
 export interface AttemptResult {
   attemptId: string;
-  status: "scored" | "pending";
+  status: "scored" | "pending" | "failed";
   correct: boolean | null;
+  // The placement test is adaptive now — this is the next question to show,
+  // chosen based on whether this answer was right. null means there's
+  // nothing left to ask; the caller should call completeSession instead of
+  // waiting for a fixed question count.
+  nextItem: TestItem | null;
 }
 
 export type CefrLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
@@ -38,6 +44,10 @@ export interface SessionSummary {
   // graded.length === 0 guard on the backend.
   overallPercent?: number;
   cefrLevel?: CefrLevel;
+  // Same meaning as skillLevels' cappedByGap below, but for the headline
+  // level itself, which is now assessed from every graded answer combined
+  // rather than the worst single per-skill level.
+  cefrCappedByGap?: boolean;
   // null per skill means that skill had zero graded questions this run
   // (skipped, or still pending) — not a real score.
   skillPercents?: Record<SkillTag, number | null>;

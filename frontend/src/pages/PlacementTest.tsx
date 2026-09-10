@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Volume2, Mic, Square, CheckCircle2, ArrowLeft, SkipForward } from "lucide-react";
+import { Volume2, Mic, Square, CheckCircle2, SkipForward } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
 import { Button } from "@/components/Button";
 import {
@@ -14,7 +14,7 @@ import {
 import { useVoiceRecorder, blobToBase64, speak } from "@/hooks/useVoiceRecorder";
 import {
   AUDIO_FIRST_TYPES,
-  SKILL_TEXT_CLASS,
+  SKILL_BADGE_CLASS,
   ITEM_TYPE_META,
   getSpokenSegments,
   getVisibleText,
@@ -22,16 +22,10 @@ import {
   getPassageAndQuestion,
 } from "@/lib/testItemDisplay";
 
-// More than this fraction of the test skipped and the result is more
-// "guess" than "estimate" — worth a pause before locking it in.
-const SKIP_WARNING_RATIO = 0.3;
-
-interface CachedAnswer {
-  responseText: string;
-  audioBase64?: string;
-  audioMimeType?: string;
-  audioBlobUrl?: string;
-}
+// Matches the sum of ITEMS_PER_TYPE on the backend (placement/routes.ts) —
+// only used for the progress bar, since the adaptive engine doesn't hand
+// the client a fixed question list upfront to count directly.
+const TOTAL_QUESTIONS = 20;
 
 export function PlacementTest() {
   const { t } = useTranslation();
@@ -39,16 +33,11 @@ export function PlacementTest() {
   const { recording, start: startRecording, stop: stopRecording } = useVoiceRecorder();
 
   const [sessionId, setSessionId] = useState<string | null>(null);
+  // Adaptive: this only ever grows by one at a time, appended from each
+  // attempt response's `nextItem` — there's no pre-loaded fixed list, and
+  // no going back to change an earlier answer (that would invalidate every
+  // adaptive choice made after it).
   const [items, setItems] = useState<TestItem[]>([]);
-  const [index, setIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, CachedAnswer>>({});
-  // Read inside the index-change effect below without making it re-fire
-  // every time an answer is cached — it should only run when the question
-  // itself changes.
-  const answersRef = useRef(answers);
-  useEffect(() => {
-    answersRef.current = answers;
-  }, [answers]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,11 +47,6 @@ export function PlacementTest() {
   const [pendingAudio, setPendingAudio] = useState<{ base64: string; mimeType: string } | null>(null);
   const [audioBlobUrl, setAudioBlobUrl] = useState<string | null>(null);
   const [summary, setSummary] = useState<SessionSummary | null>(null);
-  // Tracked separately from `answers` so we know, right before finishing,
-  // how much of the test was actually skipped rather than answered — a
-  // result built from mostly-skipped questions isn't a reliable estimate.
-  const [skippedIndices, setSkippedIndices] = useState<Set<number>>(new Set());
-  const [showFinishWarning, setShowFinishWarning] = useState(false);
 
   useEffect(() => {
     startSession()
@@ -74,21 +58,19 @@ export function PlacementTest() {
       .finally(() => setLoading(false));
   }, [t]);
 
-  const current = items[index];
+  const current = items[items.length - 1];
   const needsAudioFirst = current ? AUDIO_FIRST_TYPES.has(current.itemTypeId) : false;
   const visibleText = useMemo(() => (current && !needsAudioFirst ? getVisibleText(current) : ""), [current, needsAudioFirst]);
   const meta = current ? ITEM_TYPE_META[current.itemTypeId] : undefined;
 
-  // Restore whatever was already answered for this question (going Back
-  // shouldn't lose it), or start fresh for a question visited for the first time.
+  // Reset the answer inputs whenever a new question arrives.
   useEffect(() => {
-    const cached = answersRef.current[index];
-    setAnswerText(cached?.responseText ?? "");
-    setPendingAudio(cached?.audioBase64 ? { base64: cached.audioBase64, mimeType: cached.audioMimeType ?? "" } : null);
-    setAudioBlobUrl(cached?.audioBlobUrl ?? null);
-    setHasPlayed(!!cached);
+    setAnswerText("");
+    setPendingAudio(null);
+    setAudioBlobUrl(null);
+    setHasPlayed(false);
     setError(null);
-  }, [index]);
+  }, [current?.id]);
 
   async function handlePlay() {
     if (!current) return;
@@ -117,28 +99,12 @@ export function PlacementTest() {
     }
   }
 
-  function cacheCurrentAnswer() {
-    setAnswers((prev) => ({
-      ...prev,
-      [index]: {
-        responseText: answerText,
-        audioBase64: pendingAudio?.base64,
-        audioMimeType: pendingAudio?.mimeType,
-        audioBlobUrl: audioBlobUrl ?? undefined,
-      },
-    }));
-  }
-
-  // Shared by both Submit and Skip once an item's attempt has been recorded:
-  // either move to the next question, or — if this was the last one — either
-  // finish for real or pause on a warning if too much of the test was skipped.
-  async function advanceOrFinish(finalSkippedIndices: Set<number>) {
-    if (index + 1 < items.length) {
-      setIndex(index + 1);
-      return;
-    }
-    if (finalSkippedIndices.size / items.length > SKIP_WARNING_RATIO) {
-      setShowFinishWarning(true);
+  // Shared by both Submit and Skip once an attempt has been recorded: append
+  // whatever question comes next, or finish if the engine says there's
+  // nothing left to ask.
+  async function advanceOrFinish(nextItem: TestItem | null) {
+    if (nextItem) {
+      setItems((prev) => [...prev, nextItem]);
       return;
     }
     const result = await completeSession(sessionId!);
@@ -150,17 +116,13 @@ export function PlacementTest() {
     setSubmitting(true);
     setError(null);
     try {
-      await submitAttempt(sessionId, {
+      const result = await submitAttempt(sessionId, {
         itemId: current.id,
         responseText: answerText.trim() || undefined,
         audioBase64: pendingAudio?.base64,
         audioMimeType: pendingAudio?.mimeType,
       });
-      cacheCurrentAnswer();
-      const nextSkipped = new Set(skippedIndices);
-      nextSkipped.delete(index);
-      setSkippedIndices(nextSkipped);
-      await advanceOrFinish(nextSkipped);
+      await advanceOrFinish(result.nextItem);
     } catch {
       setError(t("placementTest.submitError"));
     } finally {
@@ -173,51 +135,13 @@ export function PlacementTest() {
     setSubmitting(true);
     setError(null);
     try {
-      await submitAttempt(sessionId, { itemId: current.id });
-      setAnswers((prev) => {
-        const next = { ...prev };
-        delete next[index];
-        return next;
-      });
-      const nextSkipped = new Set(skippedIndices).add(index);
-      setSkippedIndices(nextSkipped);
-      await advanceOrFinish(nextSkipped);
+      const result = await submitAttempt(sessionId, { itemId: current.id });
+      await advanceOrFinish(result.nextItem);
     } catch {
       setError(t("placementTest.submitError"));
     } finally {
       setSubmitting(false);
     }
-  }
-
-  async function handleFinishAnyway() {
-    if (!sessionId) return;
-    setShowFinishWarning(false);
-    setSubmitting(true);
-    try {
-      const result = await completeSession(sessionId);
-      setSummary(result);
-    } catch {
-      setError(t("placementTest.submitError"));
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  function handleGoBackAndAnswer() {
-    setShowFinishWarning(false);
-    // Land on the earliest skipped question rather than just closing the
-    // dialog and leaving them stuck on the last one with nothing to change.
-    const earliestSkipped = Math.min(...skippedIndices);
-    if (Number.isFinite(earliestSkipped)) {
-      cacheCurrentAnswer();
-      setIndex(earliestSkipped);
-    }
-  }
-
-  function handleBack() {
-    if (index === 0) return;
-    cacheCurrentAnswer();
-    setIndex(index - 1);
   }
 
   if (loading) {
@@ -263,6 +187,9 @@ export function PlacementTest() {
               {t("placementTest.yourLevel", { level: summary.cefrLevel })}
             </h1>
             <p className="text-xs text-muted mt-2">{t("placementTest.levelDisclaimer")}</p>
+            {summary.cefrCappedByGap && (
+              <p className="text-xs text-muted mt-1 italic">{t("placementTest.gapCappedNote")}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-4 gap-2.5 w-full">
@@ -319,25 +246,29 @@ export function PlacementTest() {
   if (!current) return null;
 
   const canSubmit = current.inputMethod === "mic" ? !recording && (answerText.trim() !== "" || !!pendingAudio) : answerText.trim() !== "";
-  const progressPct = Math.round((index / items.length) * 100);
+  const questionNumber = items.length;
+  const progressPct = Math.round(((questionNumber - 1) / TOTAL_QUESTIONS) * 100);
 
   return (
     <div className="app-surface min-h-screen flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-xl bg-surface border border-rule rounded-card p-8 flex flex-col gap-5">
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-mono uppercase tracking-wide text-ink font-semibold">{meta?.name}</span>
-              {meta?.skills.map((skill) => (
-                <span key={skill} className={`text-[10px] font-mono uppercase tracking-wide ${SKILL_TEXT_CLASS[skill]}`}>
-                  {t(`skills.${skill}`)}
-                </span>
-              ))}
-            </div>
+            <span className="text-xs font-mono uppercase tracking-wide text-ink font-semibold">{meta?.name}</span>
             <span className="text-xs font-mono text-muted">
-              {t("placementTest.progress", { current: index + 1, total: items.length })}
+              {t("placementTest.progress", { current: questionNumber, total: TOTAL_QUESTIONS })}
               {current.timerSeconds ? ` · ${current.timerSeconds}s` : ""}
             </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {current.skills.map((skill) => (
+              <span
+                key={skill}
+                className={`text-xs font-semibold uppercase tracking-wide px-2.5 py-1 rounded-pill border ${SKILL_BADGE_CLASS[skill]}`}
+              >
+                {t(`skills.${skill}`)}
+              </span>
+            ))}
           </div>
           <div className="h-1.5 rounded-pill bg-paper-warm overflow-hidden">
             <div className="h-full bg-navy rounded-pill transition-all" style={{ width: `${progressPct}%` }} />
@@ -434,9 +365,6 @@ export function PlacementTest() {
         {error && <p className="text-sm text-error">{error}</p>}
 
         <div className="flex items-center gap-3">
-          <Button variant="secondary" onClick={handleBack} disabled={index === 0 || submitting || recording} className="!px-3.5">
-            <ArrowLeft size={16} />
-          </Button>
           <Button variant="secondary" onClick={handleSkip} disabled={submitting || recording} className="flex-1">
             <span className="flex items-center justify-center gap-2">
               <SkipForward size={16} />
@@ -444,29 +372,10 @@ export function PlacementTest() {
             </span>
           </Button>
           <Button onClick={handleSubmit} disabled={!canSubmit || submitting} className="flex-1">
-            {submitting ? t("placementTest.submitting") : index + 1 < items.length ? t("placementTest.next") : t("placementTest.finish")}
+            {submitting ? t("placementTest.submitting") : t("placementTest.next")}
           </Button>
         </div>
       </div>
-
-      {showFinishWarning && (
-        <div className="fixed inset-0 bg-ink/40 flex items-center justify-center px-4 z-50">
-          <div className="w-full max-w-sm bg-surface border border-rule rounded-card p-6 flex flex-col gap-4">
-            <h2 className="font-display font-bold text-lg text-ink">{t("placementTest.skipWarningTitle")}</h2>
-            <p className="text-sm text-muted">
-              {t("placementTest.skipWarningBody", { count: skippedIndices.size, total: items.length })}
-            </p>
-            <div className="flex flex-col gap-2">
-              <Button onClick={handleGoBackAndAnswer} className="w-full">
-                {t("placementTest.goBackAndAnswer")}
-              </Button>
-              <Button variant="secondary" onClick={handleFinishAnyway} disabled={submitting} className="w-full">
-                {submitting ? t("placementTest.submitting") : t("placementTest.finishAnyway")}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
