@@ -206,12 +206,18 @@ export function Modules() {
       }
       return;
     }
-    const { blob, mimeType, transcript } = await stopRecording();
+    const { blob, mimeType, transcript, recognitionError } = await stopRecording();
     if (transcript) setAnswerText(transcript);
     if (blob) {
       const base64 = await blobToBase64(blob);
       setPendingAudio({ base64, mimeType });
       setAudioBlobUrl(URL.createObjectURL(blob));
+    }
+    // See PlacementTest.tsx's handleToggleRecord for the full reasoning —
+    // a recording with no transcript is otherwise silently graded as
+    // "pending," indistinguishable from a skip.
+    if (blob && !transcript) {
+      setError(recognitionError ? t("placementTest.recognitionServiceError") : t("placementTest.noSpeechDetected"));
     }
   }
 
@@ -332,7 +338,7 @@ export function Modules() {
 
   if (!current) return null;
 
-  const canSubmit = current.inputMethod === "mic" ? !recording && (answerText.trim() !== "" || !!pendingAudio) : answerText.trim() !== "";
+  const canSubmit = current.inputMethod === "mic" ? !recording && answerText.trim() !== "" : answerText.trim() !== "";
   const progressPct = Math.round((index / items.length) * 100);
 
   return (
@@ -434,12 +440,19 @@ export function Modules() {
             </div>
           )}
 
-          {answerText && (
+          {/* Only shown as a fallback when nothing was transcribed — once
+              speech recognition actually captures an answer, it's trusted
+              and submitted silently instead of being displayed back. */}
+          {audioBlobUrl && !answerText && (
             <div>
               <label className="text-xs font-mono uppercase tracking-wide text-muted">{t("placementTest.transcript")}</label>
               <textarea
                 value={answerText}
-                onChange={(e) => setAnswerText(e.target.value)}
+                onChange={(e) => {
+                  setAnswerText(e.target.value);
+                  if (error) setError(null);
+                }}
+                placeholder={t("placementTest.transcriptFallbackPlaceholder")}
                 className="w-full rounded-input border border-rule bg-paper px-3.5 py-2.5 text-sm text-ink mt-1"
                 rows={2}
               />

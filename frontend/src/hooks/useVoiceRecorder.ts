@@ -4,6 +4,15 @@ export interface RecordingResult {
   blob: Blob | null;
   mimeType: string;
   transcript: string;
+  // Only set when SpeechRecognition itself reported an error (its raw
+  // `event.error` string — e.g. "network", "not-allowed", "service-not-
+  // allowed", "no-speech"). SpeechRecognition is a completely separate
+  // pipeline from the audio recording — it streams the mic to the
+  // browser's own speech service over the network — so it can fail for
+  // reasons that have nothing to do with the recording itself (most
+  // commonly a blocked/unreachable network on a locked-down machine). Null
+  // means either it succeeded, or the browser doesn't support it at all.
+  recognitionError: string | null;
 }
 
 // Live transcription is a progressive enhancement — SpeechRecognition is
@@ -16,10 +25,12 @@ export function useVoiceRecorder() {
   const chunksRef = useRef<Blob[]>([]);
   const recognitionRef = useRef<any>(null);
   const transcriptRef = useRef("");
+  const recognitionErrorRef = useRef<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   const start = useCallback(async () => {
     transcriptRef.current = "";
+    recognitionErrorRef.current = null;
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     streamRef.current = stream;
 
@@ -45,8 +56,18 @@ export function useVoiceRecorder() {
         }
         transcriptRef.current = text.trim();
       };
-      recognition.onerror = () => {
-        // Recording still succeeds without a transcript.
+      recognition.onerror = (event: any) => {
+        // "no-speech" just means the recognizer genuinely heard nothing —
+        // that's the ordinary silent-mic case already handled elsewhere,
+        // not a failure of the recognizer itself. Anything else (most
+        // commonly "network" — this API streams audio to the browser's own
+        // speech service over the internet, so it fails outright on a
+        // blocked/unreachable network, independent of the recording, mic,
+        // or volume all being fine) gets surfaced so the UI can tell the
+        // two apart instead of showing the same generic message for both.
+        if (event?.error && event.error !== "no-speech") {
+          recognitionErrorRef.current = event.error;
+        }
       };
       recognitionRef.current = recognition;
       recognition.start();
@@ -59,7 +80,7 @@ export function useVoiceRecorder() {
     return new Promise((resolve) => {
       const recorder = recorderRef.current;
       if (!recorder) {
-        resolve({ blob: null, mimeType: "", transcript: "" });
+        resolve({ blob: null, mimeType: "", transcript: "", recognitionError: null });
         return;
       }
       recorder.onstop = () => {
@@ -72,7 +93,7 @@ export function useVoiceRecorder() {
           // already stopped
         }
         setRecording(false);
-        resolve({ blob, mimeType, transcript: transcriptRef.current });
+        resolve({ blob, mimeType, transcript: transcriptRef.current, recognitionError: recognitionErrorRef.current });
       };
       recorder.stop();
     });

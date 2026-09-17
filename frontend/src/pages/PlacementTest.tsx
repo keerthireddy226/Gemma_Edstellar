@@ -90,12 +90,29 @@ export function PlacementTest() {
       }
       return;
     }
-    const { blob, mimeType, transcript } = await stopRecording();
+    const { blob, mimeType, transcript, recognitionError } = await stopRecording();
     if (transcript) setAnswerText(transcript);
     if (blob) {
       const base64 = await blobToBase64(blob);
       setPendingAudio({ base64, mimeType });
       setAudioBlobUrl(URL.createObjectURL(blob));
+    }
+    // A recording with no recognizable speech in it used to still be
+    // submittable on its own — but grading only ever looks at the
+    // transcript (Claude has no audio input), so that recording would be
+    // silently graded as "pending," indistinguishable from a skip, with no
+    // sign anything went wrong. Surface it here instead, and let them type
+    // the answer manually as a fallback.
+    //
+    // Two different reasons this can happen, told apart so the message is
+    // actually accurate: `recognitionError` means the transcription service
+    // itself failed (almost always "network" — it streams the mic to the
+    // browser's own speech service over the internet, so it fails outright
+    // on a blocked/unreachable network, regardless of how clearly someone
+    // spoke or how good the recording is). No error at all just means it
+    // ran fine and genuinely heard silence.
+    if (blob && !transcript) {
+      setError(recognitionError ? t("placementTest.recognitionServiceError") : t("placementTest.noSpeechDetected"));
     }
   }
 
@@ -245,7 +262,11 @@ export function PlacementTest() {
 
   if (!current) return null;
 
-  const canSubmit = current.inputMethod === "mic" ? !recording && (answerText.trim() !== "" || !!pendingAudio) : answerText.trim() !== "";
+  // A recorded blob alone is no longer enough to submit — grading only ever
+  // reads the transcript (see handleToggleRecord above), so a mic answer
+  // needs real text in it, the same requirement every other input method
+  // already has.
+  const canSubmit = current.inputMethod === "mic" ? !recording && answerText.trim() !== "" : answerText.trim() !== "";
   const questionNumber = items.length;
   const progressPct = Math.round(((questionNumber - 1) / TOTAL_QUESTIONS) * 100);
 
@@ -332,12 +353,19 @@ export function PlacementTest() {
               </div>
             )}
 
-            {answerText && (
+            {/* Only shown as a fallback when nothing was transcribed — once
+                speech recognition actually captures an answer, it's trusted
+                and submitted silently instead of being displayed back. */}
+            {audioBlobUrl && !answerText && (
               <div>
                 <label className="text-xs font-mono uppercase tracking-wide text-muted">{t("placementTest.transcript")}</label>
                 <textarea
                   value={answerText}
-                  onChange={(e) => setAnswerText(e.target.value)}
+                  onChange={(e) => {
+                    setAnswerText(e.target.value);
+                    if (error) setError(null);
+                  }}
+                  placeholder={t("placementTest.transcriptFallbackPlaceholder")}
                   className="w-full rounded-input border border-rule bg-paper px-3.5 py-2.5 text-sm text-ink mt-1"
                   rows={2}
                 />
