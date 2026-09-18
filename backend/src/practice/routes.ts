@@ -7,6 +7,8 @@ import { pool } from "../db.js";
 import { requireAuth, type AuthedRequest } from "../auth/middleware.js";
 import { submitAttemptSchema } from "../placement/schemas.js";
 import { gradeAttempt } from "../placement/grading.js";
+import { computeFluencySignals, summarizeSpeakingDelivery, isTrulyCorrect } from "../placement/fluencySignals.js";
+import { scoreAudioFluency } from "../placement/geminiFluency.js";
 import { passThresholdForLevel } from "../placement/cefr.js";
 import { pickDifficultySpread } from "../placement/routes.js";
 import type { SkillTag } from "../placement/roadmap.js";
@@ -262,7 +264,7 @@ practiceRouter.post("/session/:sessionId/attempts", requireAuth, async (req: Aut
     if (session.completed_at) return res.status(409).json({ error: "session_already_completed" });
 
     const itemResult = await pool.query(
-      `SELECT i.item_type_id, i.answer_set, i.content, i.cefr_level, it.min_words
+      `SELECT i.item_type_id, i.answer_set, i.content, i.cefr_level, it.min_words, it.input_method
        FROM items i JOIN item_types it ON it.id = i.item_type_id
        WHERE i.id = $1`,
       [body.itemId],
@@ -318,13 +320,36 @@ practiceRouter.post("/session/:sessionId/attempts", requireAuth, async (req: Aut
     const attemptId = attemptResult.rows[0].id;
 
     const modelVersion =
-      grade.method === "ai-text" ? "claude-sonnet-5-v1" : grade.method === "text-diff" ? "text-diff-v1" : "exact-match-v1";
+      grade.method === "ai-text" ? "gemini-3.5-flash-lite-v1" : grade.method === "text-diff" ? "text-diff-v1" : "exact-match-v1";
+
+    // Free fluency signals — see placement/routes.ts for the full reasoning.
+    const freeSignals =
+      item.input_method === "mic" && responseText
+        ? computeFluencySignals(responseText, body.durationMs)
+        : null;
+
+    // Real pronunciation/fluency scoring from the actual recording — see
+    // geminiFluency.ts. Fails closed; absent, not broken, if unconfigured.
+    const geminiScores =
+      item.input_method === "mic" && body.audioBase64
+        ? await scoreAudioFluency(body.audioBase64, body.audioMimeType ?? "audio/webm", item.cefr_level)
+        : null;
+
+    const mannerScores = freeSignals || geminiScores ? { ...freeSignals, gemini: geminiScores ?? undefined } : null;
+
     await pool.query(
-      `INSERT INTO scores (attempt_id, content_score, status, model_version) VALUES ($1, $2, $3, $4)`,
-      [attemptId, grade.score, grade.status, modelVersion],
+      `INSERT INTO scores (attempt_id, content_score, manner_scores, status, model_version) VALUES ($1, $2, $3, $4, $5)`,
+      [attemptId, grade.score, mannerScores ? JSON.stringify(mannerScores) : null, grade.status, modelVersion],
     );
 
-    res.status(201).json({ attemptId, status: grade.status, correct: grade.correct });
+    // See placement/routes.ts's attempts handler for the full reasoning —
+    // for a mic answer, "correct" now also requires pronunciation, fluency,
+    // and pace to clear the same bar as content, when actually measured.
+    const wasCorrect =
+      grade.status === "scored"
+        ? isTrulyCorrect(grade.score, item.cefr_level, item.input_method, mannerScores, passThresholdForLevel)
+        : grade.correct;
+    res.status(201).json({ attemptId, status: grade.status, correct: wasCorrect });
   } catch (err) {
     next(err);
   }
@@ -343,22 +368,26 @@ practiceRouter.post("/session/:sessionId/complete", requireAuth, async (req: Aut
     if (!sessionResult.rows[0]) return res.status(404).json({ error: "session_not_found_or_already_completed" });
 
     const summaryResult = await pool.query(
-      `SELECT sc.status, sc.content_score, i.cefr_level
+      `SELECT sc.status, sc.content_score, sc.manner_scores, it.input_method, i.cefr_level
        FROM attempts a
        JOIN scores sc ON sc.attempt_id = a.id
        JOIN items i ON i.id = a.item_id
+       JOIN item_types it ON it.id = i.item_type_id
        WHERE a.session_id = $1`,
       [req.params.sessionId],
     );
     const graded = summaryResult.rows.filter((r) => r.status === "scored");
-    const correctCount = graded.filter((r) => Number(r.content_score) >= passThresholdForLevel(r.cefr_level)).length;
+    const correctCount = graded.filter((r) =>
+      isTrulyCorrect(Number(r.content_score), r.cefr_level, r.input_method, r.manner_scores, passThresholdForLevel),
+    ).length;
     const pendingCount = summaryResult.rows.filter((r) => r.status === "pending").length;
     // Distinct from pending: an answer was given and grading was attempted,
     // but the AI call itself failed (rate limit, network error) — a
     // temporary service problem, not "you didn't answer enough."
     const failedCount = summaryResult.rows.filter((r) => r.status === "failed").length;
+    const speakingDelivery = summarizeSpeakingDelivery(graded.map((r) => r.manner_scores));
 
-    res.json({ gradedCount: graded.length, correctCount, pendingCount, failedCount });
+    res.json({ gradedCount: graded.length, correctCount, pendingCount, failedCount, speakingDelivery });
   } catch (err) {
     next(err);
   }

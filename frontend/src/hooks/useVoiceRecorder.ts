@@ -13,6 +13,9 @@ export interface RecordingResult {
   // commonly a blocked/unreachable network on a locked-down machine). Null
   // means either it succeeded, or the browser doesn't support it at all.
   recognitionError: string | null;
+  // Wall-clock length of the recording. Used server-side for a free speech-
+  // rate (words-per-minute) signal — see fluencySignals.ts.
+  durationMs: number;
 }
 
 // Live transcription is a progressive enhancement — SpeechRecognition is
@@ -27,10 +30,12 @@ export function useVoiceRecorder() {
   const transcriptRef = useRef("");
   const recognitionErrorRef = useRef<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const startedAtRef = useRef(0);
 
   const start = useCallback(async () => {
     transcriptRef.current = "";
     recognitionErrorRef.current = null;
+    startedAtRef.current = Date.now();
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     streamRef.current = stream;
 
@@ -80,7 +85,7 @@ export function useVoiceRecorder() {
     return new Promise((resolve) => {
       const recorder = recorderRef.current;
       if (!recorder) {
-        resolve({ blob: null, mimeType: "", transcript: "", recognitionError: null });
+        resolve({ blob: null, mimeType: "", transcript: "", recognitionError: null, durationMs: 0 });
         return;
       }
       recorder.onstop = () => {
@@ -93,7 +98,13 @@ export function useVoiceRecorder() {
           // already stopped
         }
         setRecording(false);
-        resolve({ blob, mimeType, transcript: transcriptRef.current, recognitionError: recognitionErrorRef.current });
+        resolve({
+          blob,
+          mimeType,
+          transcript: transcriptRef.current,
+          recognitionError: recognitionErrorRef.current,
+          durationMs: Date.now() - startedAtRef.current,
+        });
       };
       recorder.stop();
     });

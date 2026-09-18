@@ -1,27 +1,30 @@
 // Rubric-based grading for everything that has no single machine-checkable
-// correct answer, using Claude. Every one of these types is graded from
+// correct answer, using Gemini. Every one of these types is graded from
 // TEXT — for spoken types, that's the transcript the browser's own
 // SpeechRecognition produced (or whatever the learner typed as a fallback).
 //
-// Claude's API has no audio input at all (verified directly against
-// Anthropic's API reference before building this — there is no "audio"
-// content block type), so unlike the previous Gemini-based version, this
-// cannot listen to the actual recording or judge pronunciation/fluency.
-// Only the words are judged, the same limitation every text-only grading
-// approach has.
+// This used to run on Claude, which has no audio input at all. Migrated to
+// Gemini because Gemini can accept both text and audio under one API key —
+// but this function still only ever sends it TEXT, on purpose: Gemini's own
+// audio-quality judgment (see geminiFluency.ts) was tested directly and
+// found to hallucinate on real recordings, so content correctness is kept
+// on the same solid ground as before (text only) rather than trusting an
+// audio judgment call here too. Gemini's text-only grading was tested
+// separately — repeated identical trials came back consistent, unlike its
+// audio judgment — see Grading_Methods_Report.md.
 //
 // Fails closed: any missing key, network error, or unparseable response
 // returns null, and the caller treats that exactly like "no verdict yet."
 // A grading outage should never crash an attempt submission or silently
 // mark someone wrong.
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI } from "@google/genai";
 
-const CLAUDE_MODEL = "claude-sonnet-5";
+export const GEMINI_GRADING_MODEL = "gemini-3.5-flash-lite";
 
-let client: Anthropic | null = null;
-function getClient(): Anthropic | null {
-  if (!process.env.ANTHROPIC_API_KEY) return null;
-  if (!client) client = new Anthropic();
+let client: GoogleGenAI | null = null;
+function getClient(): GoogleGenAI | null {
+  if (!process.env.GEMINI_API_KEY) return null;
+  if (!client) client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   return client;
 }
 
@@ -98,17 +101,13 @@ function buildTask(
   }
 }
 
-const GRADE_TOOL: Anthropic.Tool = {
-  name: "submit_grade",
-  description: "Submit the grade for this learner's answer.",
-  input_schema: {
-    type: "object",
-    properties: {
-      score: { type: "number", description: "0 to 1, how well the answer meets the task." },
-      reason: { type: "string", description: "One short sentence explaining the score." },
-    },
-    required: ["score", "reason"],
+const GRADE_SCHEMA = {
+  type: "object",
+  properties: {
+    score: { type: "number", description: "0 to 1, how well the answer meets the task." },
+    reason: { type: "string", description: "One short sentence explaining the score." },
   },
+  required: ["score", "reason"],
 };
 
 export async function gradeWithAI(
@@ -122,35 +121,27 @@ export async function gradeWithAI(
   const task = buildTask(itemTypeId, (content ?? {}) as Record<string, unknown>, (answerSet ?? {}) as Record<string, unknown>, minWords);
   if (!task) return null;
 
-  const anthropic = getClient();
-  if (!anthropic) return null;
+  const ai = getClient();
+  if (!ai) return null;
 
-  let message: Anthropic.Message;
+  const prompt = `${task}\n\n${levelStandard(cefrLevel)}\n\nLearner's response: "${responseText}"\n\nGive a score from 0 (fails the task) to 1 (fully meets it) and a one-sentence reason.`;
+
+  let parsed: { score?: unknown; reason?: unknown };
   try {
-    message = await anthropic.messages.create({
-      model: CLAUDE_MODEL,
-      max_tokens: 500,
-      tools: [GRADE_TOOL],
-      tool_choice: { type: "tool", name: "submit_grade" },
-      messages: [
-        {
-          role: "user",
-          content: `${task}\n\n${levelStandard(cefrLevel)}\n\nLearner's response: "${responseText}"\n\nCall submit_grade with a score from 0 (fails the task) to 1 (fully meets it) and a one-sentence reason.`,
-        },
-      ],
+    const response = await ai.models.generateContent({
+      model: GEMINI_GRADING_MODEL,
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: { responseMimeType: "application/json", responseJsonSchema: GRADE_SCHEMA },
     });
+    parsed = JSON.parse(response.text ?? "");
   } catch (err) {
     console.error("gradeWithAI: request failed:", err);
     return null;
   }
 
-  const toolUse = message.content.find((block): block is Anthropic.ToolUseBlock => block.type === "tool_use");
-  if (!toolUse) return null;
-
-  const input = toolUse.input as { score?: unknown; reason?: unknown };
-  const score = Number(input.score);
+  const score = Number(parsed.score);
   if (Number.isNaN(score)) return null;
-  return { score: Math.max(0, Math.min(1, score)), reason: String(input.reason ?? "") };
+  return { score: Math.max(0, Math.min(1, score)), reason: String(parsed.reason ?? "") };
 }
 
 // "Typing" is a copy-the-passage-exactly drill (a typing-speed exercise),
@@ -179,8 +170,9 @@ export function scoreTypingAccuracy(target: string, response: string): number {
 }
 
 // The 13 types that now go through gradeWithAI above (all of them judged
-// from text only — see the file header for why the spoken ones lost
-// pronunciation/fluency judgment when this moved off Gemini).
+// from text only — Gemini could technically accept the audio directly, but
+// its audio judgment tested unreliable, so this deliberately stays
+// text-only, same basis as when this ran on Claude).
 export const AI_GRADED_TYPES = new Set([
   "email_writing",
   "summary_and_opinion",

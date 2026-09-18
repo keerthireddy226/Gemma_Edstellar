@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import type { SkillTag, TestItem } from "@/hooks/useTestSession";
+import type { SkillTag, TestItem, SpeakingDeliverySummary } from "@/hooks/useTestSession";
 
 export interface PracticeSummary {
   gradedCount: number;
@@ -10,6 +10,7 @@ export interface PracticeSummary {
   // failed (rate limit, network error) — a temporary service issue, not the
   // learner's fault, shown separately from pendingCount.
   failedCount: number;
+  speakingDelivery?: SpeakingDeliverySummary | null;
 }
 
 export interface SkillAvailability {
@@ -32,7 +33,7 @@ export function startPracticeSession(
 
 export function submitPracticeAttempt(
   sessionId: string,
-  payload: { itemId: string; responseText?: string; audioBase64?: string; audioMimeType?: string },
+  payload: { itemId: string; responseText?: string; audioBase64?: string; audioMimeType?: string; durationMs?: number },
 ) {
   return api(`/practice/session/${sessionId}/attempts`, {
     method: "POST",

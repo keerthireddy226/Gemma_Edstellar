@@ -9,6 +9,8 @@ import { generateToken, hashToken } from "../auth/tokens.js";
 import { sendPlacementReminderEmail } from "../auth/mailer.js";
 import { submitAttemptSchema } from "./schemas.js";
 import { gradeAttempt } from "./grading.js";
+import { computeFluencySignals, summarizeSpeakingDelivery, isTrulyCorrect } from "./fluencySignals.js";
+import { scoreAudioFluency } from "./geminiFluency.js";
 import {
   CEFR_LEVELS,
   cefrRank,
@@ -408,7 +410,7 @@ placementRouter.post("/session/:sessionId/attempts", requireAuth, async (req: Au
     }
 
     const itemResult = await pool.query(
-      `SELECT i.item_type_id, i.answer_set, i.content, i.cefr_level, it.min_words
+      `SELECT i.item_type_id, i.answer_set, i.content, i.cefr_level, it.min_words, it.input_method
        FROM items i JOIN item_types it ON it.id = i.item_type_id
        WHERE i.id = $1`,
       [body.itemId],
@@ -465,17 +467,43 @@ placementRouter.post("/session/:sessionId/attempts", requireAuth, async (req: Au
     const attemptId = attemptResult.rows[0].id;
 
     const modelVersion =
-      grade.method === "ai-text" ? "claude-sonnet-5-v1" : grade.method === "text-diff" ? "text-diff-v1" : "exact-match-v1";
+      grade.method === "ai-text" ? "gemini-3.5-flash-lite-v1" : grade.method === "text-diff" ? "text-diff-v1" : "exact-match-v1";
+
+    // Free fluency signals (speech rate, filler words) — computed from the
+    // transcript and recording length alone, no AI, no cost. Separate from
+    // content_score entirely: this describes how a spoken answer was
+    // delivered, not whether it was correct. Only meaningful for mic
+    // answers that actually produced a transcript.
+    const freeSignals =
+      item.input_method === "mic" && responseText
+        ? computeFluencySignals(responseText, body.durationMs)
+        : null;
+
+    // Real pronunciation/fluency scoring, from actually listening to the
+    // recording — the thing Claude cannot do at all. Only attempted when
+    // there's both a recording and a GEMINI_API_KEY configured; fails
+    // closed (see geminiFluency.ts), so a quota limit or network error just
+    // means this field is absent, never a broken submission.
+    const geminiScores =
+      item.input_method === "mic" && body.audioBase64
+        ? await scoreAudioFluency(body.audioBase64, body.audioMimeType ?? "audio/webm", item.cefr_level)
+        : null;
+
+    const mannerScores = freeSignals || geminiScores ? { ...freeSignals, gemini: geminiScores ?? undefined } : null;
+
     await pool.query(
-      `INSERT INTO scores (attempt_id, content_score, status, model_version) VALUES ($1, $2, $3, $4)`,
-      [attemptId, grade.score, grade.status, modelVersion],
+      `INSERT INTO scores (attempt_id, content_score, manner_scores, status, model_version) VALUES ($1, $2, $3, $4, $5)`,
+      [attemptId, grade.score, mannerScores ? JSON.stringify(mannerScores) : null, grade.status, modelVersion],
     );
 
     // --- Adaptive step: pick what comes next ---
     // A skip or a failed-grading attempt gets treated the same as "wrong"
     // for stepping purposes — there's no evidence they cleared this level,
     // so the next question in this type steps down, same as a real miss.
-    const wasCorrect = grade.correct === true;
+    // For a mic answer, "correct" now also requires pronunciation, fluency,
+    // and pace to clear the bar (when we actually measured them) — see
+    // isTrulyCorrect in fluencySignals.ts for the full reasoning.
+    const wasCorrect = isTrulyCorrect(grade.score, item.cefr_level, item.input_method, mannerScores, passThresholdForLevel);
     const currentType = item.item_type_id as string;
     const typeState = composition.perType[currentType];
     let nextItem: ItemPoolRow | null = null;
@@ -514,7 +542,7 @@ placementRouter.post("/session/:sessionId/attempts", requireAuth, async (req: Au
     res.status(201).json({
       attemptId,
       status: grade.status,
-      correct: grade.correct,
+      correct: grade.status === "scored" ? wasCorrect : grade.correct,
       // null means there's nothing left to ask — the frontend should call
       // /complete once it sees this instead of waiting on a fixed count.
       nextItem: nextItem ? toItemPayload(nextItem) : null,
@@ -533,7 +561,7 @@ placementRouter.post("/session/:sessionId/complete", requireAuth, async (req: Au
     if (!sessionResult.rows[0]) return res.status(404).json({ error: "session_not_found_or_already_completed" });
 
     const summaryResult = await pool.query(
-      `SELECT sc.status, sc.content_score, it.skills, i.cefr_level
+      `SELECT sc.status, sc.content_score, sc.manner_scores, it.skills, it.input_method, i.cefr_level
        FROM attempts a
        JOIN scores sc ON sc.attempt_id = a.id
        JOIN items i ON i.id = a.item_id
@@ -543,8 +571,12 @@ placementRouter.post("/session/:sessionId/complete", requireAuth, async (req: Au
     );
     const graded = summaryResult.rows.filter((r) => r.status === "scored");
     // pg returns `numeric` columns as strings, not JS numbers. Each row's own
-    // level sets its own bar — C2 content demands far more than A1 does.
-    const correctCount = graded.filter((r) => Number(r.content_score) >= passThresholdForLevel(r.cefr_level)).length;
+    // level sets its own bar — C2 content demands far more than A1 does. For
+    // a mic answer, "correct" also requires pronunciation/fluency/pace to
+    // clear that same bar, when measured — see isTrulyCorrect.
+    const correctCount = graded.filter((r) =>
+      isTrulyCorrect(Number(r.content_score), r.cefr_level, r.input_method, r.manner_scores, passThresholdForLevel),
+    ).length;
     const pendingCount = summaryResult.rows.filter((r) => r.status === "pending").length;
     // Distinct from pending: an answer WAS given and grading was actually
     // attempted, but the AI call itself broke (rate limit, network error) —
@@ -581,7 +613,7 @@ placementRouter.post("/session/:sessionId/complete", requireAuth, async (req: Au
         continue;
       }
       const percent = Math.round(
-        (relevant.filter((r) => Number(r.content_score) >= passThresholdForLevel(r.cefr_level)).length /
+        (relevant.filter((r) => isTrulyCorrect(Number(r.content_score), r.cefr_level, r.input_method, r.manner_scores, passThresholdForLevel)).length /
           relevant.length) *
           100,
       );
@@ -591,7 +623,10 @@ placementRouter.post("/session/:sessionId/complete", requireAuth, async (req: Au
       // not just a flat percentage. Falls back to the percent-based estimate
       // only when items were answered but none carry a cefr_level tag yet.
       const assessed = assessSkillLevel(
-        relevant.map((r) => ({ cefrLevel: r.cefr_level, correct: Number(r.content_score) >= passThresholdForLevel(r.cefr_level) })),
+        relevant.map((r) => ({
+          cefrLevel: r.cefr_level,
+          correct: isTrulyCorrect(Number(r.content_score), r.cefr_level, r.input_method, r.manner_scores, passThresholdForLevel),
+        })),
       );
       skillLevels[skill] = { level: assessed.level ?? percentToCefr(percent), cappedByGap: assessed.cappedByGap };
     }
@@ -599,18 +634,25 @@ placementRouter.post("/session/:sessionId/complete", requireAuth, async (req: Au
     // The headline level is assessed from every question the learner was
     // actually SHOWN, across all skills combined — not just the ones they
     // answered. A skipped question counts as a wrong answer here, the same
-    // as a real mistake would. Answering a handful of hard questions right
-    // while leaving most of the test blank should not be able to produce a
-    // high headline — skipping isn't neutral, it's evidence of not knowing.
+    // as a real mistake would — but only at a level where the learner
+    // engaged with *something*. A level nobody attempted at all (every
+    // single question at that difficulty was skipped) is genuinely
+    // untested, not failed — the walk already treats an untested level as a
+    // gap, and it should stay that way here too rather than reading as a
+    // hard 0% that kills the whole climb before it can reach levels the
+    // learner actually did well on. Skipping some questions at a level
+    // you're otherwise engaging with still counts against you there, same
+    // as before — this only excuses a level with zero real attempts.
     // (An AI grading *failure* is different — that's a service fault, not
     // the learner's fault, so it's left out of this entirely rather than
     // counted against them.)
+    const gradedLevels = new Set(graded.map((r) => r.cefr_level));
     const skippedAsWrong = summaryResult.rows
-      .filter((r) => r.status === "pending")
+      .filter((r) => r.status === "pending" && gradedLevels.has(r.cefr_level))
       .map((r) => ({ cefrLevel: r.cefr_level, correct: false }));
     const answeredEvidence = graded.map((r) => ({
       cefrLevel: r.cefr_level,
-      correct: Number(r.content_score) >= passThresholdForLevel(r.cefr_level),
+      correct: isTrulyCorrect(Number(r.content_score), r.cefr_level, r.input_method, r.manner_scores, passThresholdForLevel),
     }));
     const overallAssessment = assessSkillLevel([...answeredEvidence, ...skippedAsWrong]);
     // The fallback percentage (used only when the walk above finds no real
@@ -667,6 +709,8 @@ placementRouter.post("/session/:sessionId/complete", requireAuth, async (req: Au
       );
     }
 
+    const speakingDelivery = summarizeSpeakingDelivery(graded.map((r) => r.manner_scores));
+
     res.json({
       gradedCount: graded.length,
       correctCount,
@@ -678,6 +722,7 @@ placementRouter.post("/session/:sessionId/complete", requireAuth, async (req: Au
       skillPercents,
       skillLevels,
       goalLevel,
+      speakingDelivery,
     });
   } catch (err) {
     next(err);

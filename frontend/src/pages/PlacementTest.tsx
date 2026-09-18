@@ -46,6 +46,7 @@ export function PlacementTest() {
   const [playing, setPlaying] = useState(false);
   const [pendingAudio, setPendingAudio] = useState<{ base64: string; mimeType: string } | null>(null);
   const [audioBlobUrl, setAudioBlobUrl] = useState<string | null>(null);
+  const [recordingDurationMs, setRecordingDurationMs] = useState<number | null>(null);
   const [summary, setSummary] = useState<SessionSummary | null>(null);
 
   useEffect(() => {
@@ -68,6 +69,7 @@ export function PlacementTest() {
     setAnswerText("");
     setPendingAudio(null);
     setAudioBlobUrl(null);
+    setRecordingDurationMs(null);
     setHasPlayed(false);
     setError(null);
   }, [current?.id]);
@@ -90,12 +92,13 @@ export function PlacementTest() {
       }
       return;
     }
-    const { blob, mimeType, transcript, recognitionError } = await stopRecording();
+    const { blob, mimeType, transcript, recognitionError, durationMs } = await stopRecording();
     if (transcript) setAnswerText(transcript);
     if (blob) {
       const base64 = await blobToBase64(blob);
       setPendingAudio({ base64, mimeType });
       setAudioBlobUrl(URL.createObjectURL(blob));
+      setRecordingDurationMs(durationMs);
     }
     // A recording with no recognizable speech in it used to still be
     // submittable on its own — but grading only ever looks at the
@@ -138,6 +141,7 @@ export function PlacementTest() {
         responseText: answerText.trim() || undefined,
         audioBase64: pendingAudio?.base64,
         audioMimeType: pendingAudio?.mimeType,
+        durationMs: recordingDurationMs ?? undefined,
       });
       await advanceOrFinish(result.nextItem);
     } catch {
@@ -236,6 +240,50 @@ export function PlacementTest() {
               );
             })}
           </div>
+
+          {summary.speakingDelivery && (
+            <div className="w-full bg-paper-warm rounded-input p-4 flex flex-col gap-3 text-left">
+              <span className="text-xs font-mono uppercase tracking-wide text-muted">
+                {t("placementTest.speakingDeliveryTitle")}
+              </span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {summary.speakingDelivery.averageWordsPerMinute !== null && (
+                  <div>
+                    <div className="font-display font-bold text-lg text-ink">
+                      {summary.speakingDelivery.averageWordsPerMinute}
+                    </div>
+                    <div className="text-xs text-muted">{t("placementTest.wordsPerMinute")}</div>
+                  </div>
+                )}
+                <div>
+                  <div className="font-display font-bold text-lg text-ink">{summary.speakingDelivery.totalFillerCount}</div>
+                  <div className="text-xs text-muted">{t("placementTest.fillerWords")}</div>
+                </div>
+                {summary.speakingDelivery.averagePronunciation !== null && (
+                  <div>
+                    <div className="font-display font-bold text-lg text-ink">
+                      {Math.round(summary.speakingDelivery.averagePronunciation * 100)}%
+                    </div>
+                    <div className="text-xs text-muted">{t("placementTest.pronunciation")}</div>
+                  </div>
+                )}
+                {summary.speakingDelivery.averageFluency !== null && (
+                  <div>
+                    <div className="font-display font-bold text-lg text-ink">
+                      {Math.round(summary.speakingDelivery.averageFluency * 100)}%
+                    </div>
+                    <div className="text-xs text-muted">{t("placementTest.fluency")}</div>
+                  </div>
+                )}
+              </div>
+              {summary.speakingDelivery.sampleComment && (
+                <p className="text-xs text-ink italic">"{summary.speakingDelivery.sampleComment}"</p>
+              )}
+              <p className="text-[10px] text-muted">
+                {t("placementTest.speakingDeliveryBasis", { count: summary.speakingDelivery.basedOnCount })}
+              </p>
+            </div>
+          )}
 
           {summary.pendingCount > 0 && (
             <p className="text-xs text-muted">{t("placementTest.pendingNote", { pending: summary.pendingCount })}</p>
