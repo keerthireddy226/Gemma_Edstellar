@@ -246,13 +246,7 @@
     "goToRoadmap": "Ir a tu Plan de Estudio",
     "notEnoughAnswered": "No hay suficientes respuestas",
     "gapCappedNote": "Algunos niveles no se evaluaron; tu nivel real podría ser más alto.",
-    "failedNote": "{{failed}} de tus respuestas no se pudieron calificar debido a un problema temporal con nuestro servicio de calificación — esto no tiene que ver con tus respuestas, inténtalo de nuevo más tarde.",
-    "speakingDeliveryTitle": "Entrega al Hablar",
-    "wordsPerMinute": "Palabras / min",
-    "fillerWords": "Muletillas",
-    "pronunciation": "Pronunciación",
-    "fluency": "Fluidez",
-    "speakingDeliveryBasis": "Basado en {{count}} respuesta(s) habladas."
+    "failedNote": "{{failed}} de tus respuestas no se pudieron calificar debido a un problema temporal con nuestro servicio de calificación — esto no tiene que ver con tus respuestas, inténtalo de nuevo más tarde."
   },
   "roadmap": {
     "loading": "Cargando tu plan de estudio…",

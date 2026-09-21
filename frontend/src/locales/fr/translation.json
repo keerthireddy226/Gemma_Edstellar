@@ -246,13 +246,7 @@
     "goToRoadmap": "Aller à votre feuille de route",
     "notEnoughAnswered": "Pas assez de réponses",
     "gapCappedNote": "Certains niveaux n'ont pas été testés — votre niveau réel pourrait être plus élevé.",
-    "failedNote": "{{failed}} de vos réponses n'ont pas pu être notées en raison d'un problème temporaire avec notre service de notation — cela ne concerne pas vos réponses, veuillez réessayer plus tard.",
-    "speakingDeliveryTitle": "Expression Orale",
-    "wordsPerMinute": "Mots / min",
-    "fillerWords": "Mots de remplissage",
-    "pronunciation": "Prononciation",
-    "fluency": "Fluidité",
-    "speakingDeliveryBasis": "Basé sur {{count}} réponse(s) orale(s)."
+    "failedNote": "{{failed}} de vos réponses n'ont pas pu être notées en raison d'un problème temporaire avec notre service de notation — cela ne concerne pas vos réponses, veuillez réessayer plus tard."
   },
   "roadmap": {
     "loading": "Chargement de votre feuille de route…",

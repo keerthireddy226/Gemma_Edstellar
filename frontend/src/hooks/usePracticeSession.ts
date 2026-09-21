@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import type { SkillTag, TestItem, SpeakingDeliverySummary } from "@/hooks/useTestSession";
+import type { SkillTag, TestItem } from "@/hooks/useTestSession";
 
 export interface PracticeSummary {
   gradedCount: number;
@@ -10,7 +10,6 @@ export interface PracticeSummary {
   // failed (rate limit, network error) — a temporary service issue, not the
   // learner's fault, shown separately from pendingCount.
   failedCount: number;
-  speakingDelivery?: SpeakingDeliverySummary | null;
 }
 
 export interface SkillAvailability {

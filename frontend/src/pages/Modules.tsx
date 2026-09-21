@@ -324,49 +324,6 @@ export function Modules() {
         {summary.failedCount > 0 && (
           <p className="text-sm text-error">{t("placementTest.failedNote", { failed: summary.failedCount })}</p>
         )}
-        {summary.speakingDelivery && (
-          <div className="w-full bg-paper-warm rounded-input p-4 flex flex-col gap-3 text-left">
-            <span className="text-xs font-mono uppercase tracking-wide text-muted">
-              {t("placementTest.speakingDeliveryTitle")}
-            </span>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {summary.speakingDelivery.averageWordsPerMinute !== null && (
-                <div>
-                  <div className="font-display font-bold text-lg text-ink">
-                    {summary.speakingDelivery.averageWordsPerMinute}
-                  </div>
-                  <div className="text-xs text-muted">{t("placementTest.wordsPerMinute")}</div>
-                </div>
-              )}
-              <div>
-                <div className="font-display font-bold text-lg text-ink">{summary.speakingDelivery.totalFillerCount}</div>
-                <div className="text-xs text-muted">{t("placementTest.fillerWords")}</div>
-              </div>
-              {summary.speakingDelivery.averagePronunciation !== null && (
-                <div>
-                  <div className="font-display font-bold text-lg text-ink">
-                    {Math.round(summary.speakingDelivery.averagePronunciation * 100)}%
-                  </div>
-                  <div className="text-xs text-muted">{t("placementTest.pronunciation")}</div>
-                </div>
-              )}
-              {summary.speakingDelivery.averageFluency !== null && (
-                <div>
-                  <div className="font-display font-bold text-lg text-ink">
-                    {Math.round(summary.speakingDelivery.averageFluency * 100)}%
-                  </div>
-                  <div className="text-xs text-muted">{t("placementTest.fluency")}</div>
-                </div>
-              )}
-            </div>
-            {summary.speakingDelivery.sampleComment && (
-              <p className="text-xs text-ink italic">"{summary.speakingDelivery.sampleComment}"</p>
-            )}
-            <p className="text-[10px] text-muted">
-              {t("placementTest.speakingDeliveryBasis", { count: summary.speakingDelivery.basedOnCount })}
-            </p>
-          </div>
-        )}
         <div className="flex items-center gap-3 w-full">
           <Button variant="secondary" onClick={resetToPicker} className="flex-1">
             {t("modules.practiceAgain")}

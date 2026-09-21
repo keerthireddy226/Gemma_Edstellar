@@ -57,23 +57,6 @@ export interface SessionSummary {
   // explaining in the UI rather than just showing the two side by side.
   skillLevels?: Record<SkillTag, { level: CefrLevel; cappedByGap: boolean } | null>;
   goalLevel?: CefrLevel;
-  // Rolled up from every spoken (mic) answer's free signals + Gemini's real
-  // pronunciation/fluency listening, if any were captured this session.
-  // null means no spoken answers had anything to summarize — not a failure,
-  // just nothing to show (e.g. only typed questions were answered, or
-  // GEMINI_API_KEY isn't configured and none had a usable duration either).
-  speakingDelivery?: SpeakingDeliverySummary | null;
-}
-
-export interface SpeakingDeliverySummary {
-  averageWordsPerMinute: number | null;
-  totalFillerCount: number;
-  // Real listening-based scores from Gemini — null when GEMINI_API_KEY isn't
-  // configured or every attempt's Gemini call failed/was skipped.
-  averagePronunciation: number | null;
-  averageFluency: number | null;
-  sampleComment: string | null;
-  basedOnCount: number;
 }
 
 export function startSession(): Promise<{ sessionId: string; items: TestItem[] }> {

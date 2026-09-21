@@ -7,7 +7,7 @@ import { pool } from "../db.js";
 import { requireAuth, type AuthedRequest } from "../auth/middleware.js";
 import { submitAttemptSchema } from "../placement/schemas.js";
 import { gradeAttempt } from "../placement/grading.js";
-import { computeFluencySignals, summarizeSpeakingDelivery, isTrulyCorrect } from "../placement/fluencySignals.js";
+import { computeFluencySignals, isTrulyCorrect } from "../placement/fluencySignals.js";
 import { scoreAudioFluency } from "../placement/geminiFluency.js";
 import { passThresholdForLevel } from "../placement/cefr.js";
 import { pickDifficultySpread } from "../placement/routes.js";
@@ -385,9 +385,8 @@ practiceRouter.post("/session/:sessionId/complete", requireAuth, async (req: Aut
     // but the AI call itself failed (rate limit, network error) — a
     // temporary service problem, not "you didn't answer enough."
     const failedCount = summaryResult.rows.filter((r) => r.status === "failed").length;
-    const speakingDelivery = summarizeSpeakingDelivery(graded.map((r) => r.manner_scores));
 
-    res.json({ gradedCount: graded.length, correctCount, pendingCount, failedCount, speakingDelivery });
+    res.json({ gradedCount: graded.length, correctCount, pendingCount, failedCount });
   } catch (err) {
     next(err);
   }

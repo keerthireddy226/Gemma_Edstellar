@@ -9,7 +9,7 @@ import { generateToken, hashToken } from "../auth/tokens.js";
 import { sendPlacementReminderEmail } from "../auth/mailer.js";
 import { submitAttemptSchema } from "./schemas.js";
 import { gradeAttempt } from "./grading.js";
-import { computeFluencySignals, summarizeSpeakingDelivery, isTrulyCorrect } from "./fluencySignals.js";
+import { computeFluencySignals, isTrulyCorrect } from "./fluencySignals.js";
 import { scoreAudioFluency } from "./geminiFluency.js";
 import {
   CEFR_LEVELS,
@@ -731,8 +731,6 @@ placementRouter.post("/session/:sessionId/complete", requireAuth, async (req: Au
       );
     }
 
-    const speakingDelivery = summarizeSpeakingDelivery(graded.map((r) => r.manner_scores));
-
     res.json({
       gradedCount: graded.length,
       correctCount,
@@ -744,7 +742,6 @@ placementRouter.post("/session/:sessionId/complete", requireAuth, async (req: Au
       skillPercents,
       skillLevels,
       goalLevel,
-      speakingDelivery,
     });
   } catch (err) {
     next(err);

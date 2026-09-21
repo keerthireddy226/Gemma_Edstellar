@@ -246,13 +246,7 @@
     "goToRoadmap": "Go to your Roadmap",
     "notEnoughAnswered": "Not enough answered",
     "gapCappedNote": "Some levels weren't tested — your real level may be higher.",
-    "failedNote": "{{failed}} of your answers couldn't be graded due to a temporary issue with our grading service — this isn't about your answers, please try again later.",
-    "speakingDeliveryTitle": "Speaking Delivery",
-    "wordsPerMinute": "Words / min",
-    "fillerWords": "Filler words",
-    "pronunciation": "Pronunciation",
-    "fluency": "Fluency",
-    "speakingDeliveryBasis": "Based on {{count}} spoken answer(s)."
+    "failedNote": "{{failed}} of your answers couldn't be graded due to a temporary issue with our grading service — this isn't about your answers, please try again later."
   },
   "roadmap": {
     "loading": "Loading your roadmap…",
