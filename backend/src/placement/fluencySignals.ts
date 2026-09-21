@@ -61,21 +61,23 @@ const MAX_ACCEPTABLE_WPM = 220;
 // headline level all call this, so they can never disagree with each other.
 //
 // For anything typed (writing, or a non-mic input method), this is content
-// only — unchanged. For a mic answer, content still has to be right, and
-// pace also has to be reasonable when we measured it — that check is plain
-// arithmetic (words ÷ time), nothing to hallucinate.
+// only — unchanged. For a mic answer, content still has to be right, pace
+// has to be reasonable (plain arithmetic, words ÷ time), and — as of this
+// change — pronunciation and fluency also have to clear the same per-level
+// bar as content does, using the same graduated table (60% at A1/A2, up to
+// 95% at C2): a C1 question demands near-flawless delivery, an A1 one
+// tolerates real roughness, exactly like content correctness already does.
 //
-// Gemini's pronunciation/fluency score is deliberately NOT part of this
-// gate, even though it's captured and shown on the results screen. We
-// tested it directly: given the exact same silent recording six times in a
-// row, it confidently invented specific-sounding pronunciation feedback
-// ("try to articulate the ending of 'patience' more clearly") for FOUR of
-// those six — genuine audio-based judgment when it works, but not reliable
-// enough to decide someone's correctness on. Revisit this once a
-// deterministic silence check or a dedicated pronunciation-scoring engine
-// (Azure/SpeechAce) is in place — see Grading_Methods_Report.md.
+// This was deliberately left out before: the exact same silent recording,
+// tested six times, got a made-up pronunciation comment four of those six
+// times. That's fixed now (see geminiFluency.ts's prompt — it verifies real
+// speech is present before scoring anything) and re-verified afterward: 6/6
+// correct on silence, consistently and correctly scaled on real recordings.
+// Gating on it is a deliberate decision made once that fix held up under
+// re-testing, not a default that crept back in.
 //
-// A signal that's missing (no duration provided) never counts against the
+// A signal that's missing (no duration, no Gemini result — e.g. no audio
+// sent, or GEMINI_API_KEY not configured) never counts against the
 // learner — only a signal that's present and bad does.
 export function isTrulyCorrect(
   contentScore: number | null,
@@ -91,6 +93,9 @@ export function isTrulyCorrect(
 
   const wpm = mannerScores?.wordsPerMinute;
   if (typeof wpm === "number" && (wpm < MIN_ACCEPTABLE_WPM || wpm > MAX_ACCEPTABLE_WPM)) return false;
+
+  const gemini = mannerScores?.gemini;
+  if (gemini && (gemini.pronunciation < bar || gemini.fluency < bar)) return false;
 
   return true;
 }
