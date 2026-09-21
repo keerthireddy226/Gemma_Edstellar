@@ -102,7 +102,7 @@ function AchievementBanner() {
   return (
     <div className="flex items-center gap-3 bg-gradient-to-r from-warning/10 via-surface to-surface border border-warning/20 rounded-card px-4 py-3">
       <span className="h-9 w-9 rounded-input bg-warning text-white flex items-center justify-center shrink-0 shadow-sm">
-        <Target size={18} strokeWidth={1.8} />
+        <Target size={22} strokeWidth={1.8} />
       </span>
       <div className="flex-1 min-w-0">
         <div className="text-sm font-bold text-ink">{t("achievement.goalSetterTitle")}</div>
@@ -119,7 +119,7 @@ function StatsRow({ progressPercent }: { progressPercent: number }) {
       <div className="bg-surface border border-rule rounded-card p-4">
         <div className="flex items-center justify-between mb-2.5">
           <span className="font-mono text-[10px] uppercase tracking-wider text-muted">{t("roadmap.goalProgress")}</span>
-          <ProgressRing percent={progressPercent} size={26} strokeWidth={2.5} colorClass="text-accent" />
+          <ProgressRing percent={progressPercent} size={32} strokeWidth={2.5} colorClass="text-accent" />
         </div>
         <div className="font-display font-bold text-2xl text-accent">{progressPercent}%</div>
         <div className="text-xs text-muted mt-0.5">{t("roadmap.ofYourRoadmap")}</div>
@@ -140,7 +140,7 @@ function StatsRow({ progressPercent }: { progressPercent: number }) {
       <div className="bg-surface border border-rule rounded-card p-4">
         <div className="flex items-center justify-between mb-2.5">
           <span className="font-mono text-[10px] uppercase tracking-wider text-muted">{t("roadmap.today")}</span>
-          <Clock size={16} strokeWidth={1.8} className="text-navy-deep" />
+          <Clock size={20} strokeWidth={1.8} className="text-navy-deep" />
         </div>
         <div className="font-display font-bold text-2xl text-ink">0m</div>
         <div className="text-xs text-muted mt-0.5">{t("roadmap.practicedSoFar")}</div>
@@ -175,7 +175,7 @@ function SkillBreakdown({
   return (
     <div className="bg-surface border border-rule rounded-card p-5 flex flex-col gap-4">
       <h3 className="flex items-center gap-1.5 font-mono text-[11px] font-medium tracking-[.2em] uppercase text-muted">
-        <Target size={13} className="text-accent" /> {t("roadmap.skillBreakdownTitle")}
+        <Target size={16} className="text-accent" /> {t("roadmap.skillBreakdownTitle")}
       </h3>
       <div className="grid grid-cols-2 gap-4">
         {entries.map(([skill, pct]) => {
@@ -185,7 +185,7 @@ function SkillBreakdown({
           return (
             <div key={skill} className="flex flex-col items-center text-center">
               <ProgressRing percent={pct ?? 0} size={56} strokeWidth={5} colorClass={pct === null ? "text-muted" : color}>
-                <Icon size={16} strokeWidth={2} className={pct === null ? "text-muted" : color} />
+                <Icon size={20} strokeWidth={2} className={pct === null ? "text-muted" : color} />
               </ProgressRing>
               <div className="text-xs font-semibold text-ink mt-2">{t(`skills.${skill}`)}</div>
               <div className="text-[10px] text-muted">
@@ -264,7 +264,7 @@ function RoadmapTimeline({ milestones, daysSinceStart }: { milestones: RoadmapMi
                       : "bg-surface border-rule text-muted-soft"
                 }`}
               >
-                {isDone ? <Check size={16} strokeWidth={3} /> : isCurrent ? <Flag size={15} strokeWidth={2.2} /> : <span className="text-xs leading-none">🔒</span>}
+                {isDone ? <Check size={20} strokeWidth={3} /> : isCurrent ? <Flag size={18} strokeWidth={2.2} /> : <span className="text-xs leading-none">🔒</span>}
               </span>
               <div className="flex-1 pt-1">
                 <div className="text-sm font-bold text-ink">
@@ -290,7 +290,7 @@ function RecommendedPractice({ practice }: { practice: RoadmapData["recommendedP
   return (
     <div className="bg-surface border border-rule rounded-card p-5 flex flex-col gap-1">
       <h3 className="flex items-center gap-1.5 font-mono text-[11px] font-medium tracking-[.2em] uppercase text-muted mb-1.5">
-        <ListChecks size={13} className="text-success" /> {t("recommendedPractice.title")}
+        <ListChecks size={16} className="text-success" /> {t("recommendedPractice.title")}
       </h3>
       {practice.items.map((item) => (
         <div key={item.itemTypeId} className="flex items-center gap-2.5 px-2.5 py-2 rounded-input">
@@ -467,7 +467,7 @@ export function Roadmap() {
     return (
       <div className="flex flex-col items-center text-center gap-4 bg-surface border border-rule rounded-card p-10 max-w-lg mx-auto mt-10">
         <span className="h-14 w-14 rounded-full bg-paper-warm border-2 border-navy flex items-center justify-center">
-          <ClipboardCheck size={26} strokeWidth={1.8} className="text-navy" />
+          <ClipboardCheck size={32} strokeWidth={1.8} className="text-navy" />
         </span>
         <h2 className="font-display font-bold text-xl text-ink">{t("roadmap.notReadyTitle")}</h2>
         <p className="text-sm text-muted max-w-sm">
@@ -510,7 +510,7 @@ export function Roadmap() {
 
         <div className="bg-surface border border-rule rounded-card p-5 flex flex-col gap-3.5">
           <h3 className="flex items-center gap-1.5 font-mono text-[11px] font-medium tracking-[.24em] uppercase text-muted">
-            <Compass size={13} className="text-warning" /> {t("roadmap.timelineTitle")}
+            <Compass size={16} className="text-warning" /> {t("roadmap.timelineTitle")}
           </h3>
           <RoadmapTimeline milestones={roadmap.milestones} daysSinceStart={daysSinceStart} />
         </div>

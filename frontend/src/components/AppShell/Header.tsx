@@ -57,7 +57,7 @@ function UserMenu() {
             }}
             className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-ink hover:bg-paper-warm transition-colors cursor-pointer"
           >
-            <User size={16} strokeWidth={1.8} />
+            <User size={20} strokeWidth={1.8} />
             {t("nav.profile")}
           </button>
           <button
@@ -67,7 +67,7 @@ function UserMenu() {
             }}
             className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-error hover:bg-paper-warm transition-colors cursor-pointer"
           >
-            <LogOut size={16} strokeWidth={1.8} />
+            <LogOut size={20} strokeWidth={1.8} />
             {t("onboarding.logout")}
           </button>
         </div>
@@ -90,7 +90,7 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
           aria-label={t("shell.openMenu")}
           className="lg:hidden -ml-1 p-1.5 rounded-input text-muted hover:bg-paper-warm hover:text-ink transition-colors cursor-pointer shrink-0"
         >
-          <Menu size={20} />
+          <Menu size={24} />
         </button>
         <h1 className="font-display font-bold text-lg text-ink truncate">{t(titleKey)}</h1>
       </div>
@@ -102,7 +102,7 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
           aria-label={t("shell.toggleTheme")}
           className="p-1.5 rounded-input text-muted hover:bg-paper-warm hover:text-ink transition-colors cursor-pointer"
         >
-          {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+          {theme === "dark" ? <Sun size={22} /> : <Moon size={22} />}
         </button>
         <UserMenu />
       </div>

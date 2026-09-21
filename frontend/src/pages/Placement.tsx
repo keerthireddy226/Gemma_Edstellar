@@ -75,7 +75,7 @@ export function Placement() {
           <div className="w-full bg-paper-warm rounded-input p-4 flex flex-col gap-3 text-left">
             {infoRows.map(({ key, Icon, text }) => (
               <div key={key} className="flex items-start gap-3">
-                <Icon size={18} strokeWidth={1.8} className="text-navy shrink-0 mt-0.5" />
+                <Icon size={22} strokeWidth={1.8} className="text-navy shrink-0 mt-0.5" />
                 <p className="text-sm text-ink">{text}</p>
               </div>
             ))}

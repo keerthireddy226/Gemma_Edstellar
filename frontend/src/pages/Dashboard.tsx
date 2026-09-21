@@ -36,7 +36,7 @@ function StatTile({ icon: Icon, label, value, tint }: { icon: typeof Headphones;
   return (
     <div className="bg-surface border border-rule rounded-card p-4 flex items-center gap-3">
       <span className={`h-10 w-10 rounded-input flex items-center justify-center shrink-0 ${tint}`}>
-        <Icon size={18} strokeWidth={1.8} />
+        <Icon size={22} strokeWidth={1.8} />
       </span>
       <div className="flex flex-col gap-0.5 min-w-0">
         <span className="font-display font-bold text-xl text-ink leading-tight">{value}</span>
@@ -66,7 +66,7 @@ function SkillProgressList({ modules }: { modules: DashboardModule[] }) {
             }`}
           >
             <ProgressRing percent={m.progressPercent} size={44} strokeWidth={4} colorClass={SKILL_RING_COLOR[m.skill]}>
-              <Icon size={16} strokeWidth={1.8} className={SKILL_RING_COLOR[m.skill]} />
+              <Icon size={20} strokeWidth={1.8} className={SKILL_RING_COLOR[m.skill]} />
             </ProgressRing>
             <div className="flex-1 min-w-0">
               <span className="text-sm font-semibold text-ink">{t(`skills.${m.skill}`)}</span>
@@ -99,7 +99,7 @@ function TodaysTasksList({ tasks }: { tasks: TodaysTask[] }) {
                 task.done ? "bg-success/15 text-success" : SKILL_TINT_CLASSES[task.skill]
               }`}
             >
-              {task.done ? <Check size={16} strokeWidth={2.2} /> : <Icon size={16} strokeWidth={1.8} />}
+              {task.done ? <Check size={20} strokeWidth={2.2} /> : <Icon size={20} strokeWidth={1.8} />}
             </span>
             <div className="flex-1 min-w-0">
               <div className={`text-sm font-semibold truncate ${task.done ? "text-muted line-through" : "text-ink"}`}>
@@ -154,7 +154,7 @@ function LearnerDashboard() {
     return (
       <div className="flex flex-col items-center text-center gap-4 bg-surface border border-rule rounded-card p-10 max-w-lg mx-auto mt-10">
         <span className="h-14 w-14 rounded-full bg-paper-warm border-2 border-navy flex items-center justify-center">
-          <ClipboardCheck size={26} strokeWidth={1.8} className="text-navy" />
+          <ClipboardCheck size={32} strokeWidth={1.8} className="text-navy" />
         </span>
         <h2 className="font-display font-bold text-xl text-ink">{t("roadmap.notReadyTitle")}</h2>
         <p className="text-sm text-muted max-w-sm">
@@ -182,7 +182,7 @@ function LearnerDashboard() {
         <div className="flex items-center gap-2 shrink-0 relative z-10 sm:mr-20">
           <Button variant="secondary" onClick={() => navigate(ROUTES.ROADMAP)}>
             <span className="flex items-center gap-1.5">
-              <Map size={15} strokeWidth={1.8} /> {t("dashboardHome.viewRoadmap")}
+              <Map size={18} strokeWidth={1.8} /> {t("dashboardHome.viewRoadmap")}
             </span>
           </Button>
           <Button onClick={() => navigate(`${ROUTES.MODULES}?skill=${startSkill}`)}>{t("dashboardHome.startPractice")}</Button>

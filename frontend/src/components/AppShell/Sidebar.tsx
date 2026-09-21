@@ -42,14 +42,14 @@ function NavEntry({
   if (locked) {
     return (
       <span className={lockedClasses}>
-        <Icon size={18} strokeWidth={1.8} />
+        <Icon size={22} strokeWidth={1.8} />
         {label}
       </span>
     );
   }
   return (
     <Link to={to} onClick={onClick} className={navClasses(isActive)}>
-      <Icon size={18} strokeWidth={1.8} />
+      <Icon size={22} strokeWidth={1.8} />
       {label}
     </Link>
   );
@@ -82,15 +82,18 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
         ].join(" ")}
       >
         <div className="flex items-center gap-2.5 px-5 py-5">
-          <span className="h-9 w-9 rounded-input bg-lime text-navy flex items-center justify-center shrink-0">
-            <GraduationCap size={20} strokeWidth={1.8} />
+          <span className="h-11 w-11 rounded-input bg-lime text-navy flex items-center justify-center shrink-0">
+            <GraduationCap size={28} strokeWidth={1.8} />
           </span>
-          <span className="text-lime font-display font-bold text-sm leading-tight">Gemma_Edstellar</span>
+          <span className="flex flex-col leading-tight">
+            <span className="text-logo-primary font-logo font-bold text-xl">Spica</span>
+            <span className="text-logo-accent font-logo italic text-xs -mt-0.5">by Edstellar</span>
+          </span>
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-2 flex flex-col gap-1">
           <Link to={ROUTES.ROADMAP} onClick={onClose} className={navClasses(location.pathname === ROUTES.ROADMAP)}>
-            <Map size={18} strokeWidth={1.8} />
+            <Map size={22} strokeWidth={1.8} />
             {t("nav.roadmap")}
           </Link>
 
@@ -104,7 +107,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
           />
           {locked ? (
             <span className={lockedClasses}>
-              <BookOpen size={18} strokeWidth={1.8} />
+              <BookOpen size={22} strokeWidth={1.8} />
               {t("nav.modules")}
             </span>
           ) : (
@@ -113,9 +116,9 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
                 onClick={() => setModulesExpanded((v) => !v)}
                 className="flex items-center gap-3 rounded-input px-3 py-2.5 text-sm font-medium text-lime/60 hover:bg-white/5 hover:text-lime/90 transition-colors cursor-pointer"
               >
-                <BookOpen size={18} strokeWidth={1.8} />
+                <BookOpen size={22} strokeWidth={1.8} />
                 <span className="flex-1 text-left">{t("nav.modules")}</span>
-                <ChevronDown size={16} className={`transition-transform ${modulesExpanded ? "rotate-180" : ""}`} />
+                <ChevronDown size={20} className={`transition-transform ${modulesExpanded ? "rotate-180" : ""}`} />
               </button>
 
               {modulesExpanded && (

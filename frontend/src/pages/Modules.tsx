@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Volume2, Mic, Square, CheckCircle2, ArrowLeft, SkipForward, Headphones, BookOpen, PenLine } from "lucide-react";
+import { Volume2, Mic, Square, CheckCircle2, ArrowLeft, Clock, Headphones, BookOpen, PenLine } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
 import { Button } from "@/components/Button";
 import {
@@ -16,7 +16,7 @@ import type { TestItem, SkillTag } from "@/hooks/useTestSession";
 import { useVoiceRecorder, blobToBase64, speak } from "@/hooks/useVoiceRecorder";
 import {
   AUDIO_FIRST_TYPES,
-  SKILL_TEXT_CLASS,
+  SKILL_BADGE_CLASS,
   ITEM_TYPE_META,
   getSpokenSegments,
   getVisibleText,
@@ -69,7 +69,7 @@ function SkillPicker({
             return (
               <div key={skill} className="flex items-center gap-3 bg-surface border border-rule rounded-card px-4 py-3.5">
                 <span className="h-10 w-10 rounded-input bg-paper flex items-center justify-center shrink-0">
-                  <Icon size={18} strokeWidth={1.8} className="text-navy-deep" />
+                  <Icon size={22} strokeWidth={1.8} className="text-navy-deep" />
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-ink">{t(`skills.${skill}`)}</div>
@@ -309,9 +309,9 @@ export function Modules() {
 
   if (summary) {
     return (
-      <div className="max-w-lg mx-auto bg-surface border border-rule rounded-card p-8 flex flex-col gap-5 items-center text-center">
+      <div className="max-w-lg mx-auto bg-surface border border-rule rounded-card shadow-sm p-8 flex flex-col gap-5 items-center text-center">
         <div className="h-14 w-14 rounded-full bg-navy text-lime flex items-center justify-center">
-          <CheckCircle2 size={26} />
+          <CheckCircle2 size={32} />
         </div>
         <h1 className="font-display font-bold text-2xl text-ink">{t("modules.sessionComplete")}</h1>
         <p className="text-sm text-muted">
@@ -346,28 +346,45 @@ export function Modules() {
   const progressPct = Math.round((index / items.length) * 100);
 
   return (
-    <div className="max-w-xl mx-auto bg-surface border border-rule rounded-card p-8 flex flex-col gap-5">
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-mono uppercase tracking-wide text-ink font-semibold">{meta?.name}</span>
-            {meta?.skills.map((skill) => (
-              <span key={skill} className={`text-[10px] font-mono uppercase tracking-wide ${SKILL_TEXT_CLASS[skill]}`}>
-                {t(`skills.${skill}`)}
-              </span>
-            ))}
-          </div>
-          <span className="text-xs font-mono text-muted">
-            {t("placementTest.progress", { current: index + 1, total: items.length })}
-            {current.timerSeconds ? ` · ${current.timerSeconds}s` : ""}
-          </span>
-        </div>
-        <div className="h-1.5 rounded-pill bg-paper-warm overflow-hidden">
-          <div className="h-full bg-navy rounded-pill transition-all" style={{ width: `${progressPct}%` }} />
-        </div>
+    <div className="max-w-xl mx-auto flex flex-col gap-3">
+      <div className="flex items-center justify-end px-1">
+        <span className="text-xs font-mono text-muted">
+          {t("placementTest.progress", { current: index + 1, total: items.length })}
+        </span>
       </div>
 
-      <p className="text-sm text-ink">{current.questionInstruction}</p>
+      <div className="relative w-full bg-surface border border-rule rounded-card shadow-sm overflow-hidden">
+        <div
+          className="absolute top-0 left-0 right-0 h-1.5"
+          style={{ backgroundColor: `var(--color-${(meta?.skills ?? current.skills)[0]})` }}
+        />
+        <div className="p-8 flex flex-col gap-5">
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-mono uppercase tracking-wide text-ink font-semibold">{meta?.name}</span>
+              {current.timerSeconds ? (
+                <span className="flex items-center gap-1 text-xs font-mono font-semibold text-navy-deep bg-navy/10 px-2.5 py-1 rounded-pill">
+                  <Clock size={24} />
+                  {current.timerSeconds}s
+                </span>
+              ) : null}
+            </div>
+            <div className="flex items-center gap-1.5">
+              {(meta?.skills ?? current.skills).map((skill) => (
+                <span
+                  key={skill}
+                  className={`text-xs font-semibold uppercase tracking-wide px-2.5 py-1 rounded-pill border ${SKILL_BADGE_CLASS[skill]}`}
+                >
+                  {t(`skills.${skill}`)}
+                </span>
+              ))}
+            </div>
+            <div className="h-2 rounded-pill bg-paper-warm overflow-hidden">
+              <div className="h-full bg-navy rounded-pill transition-all" style={{ width: `${progressPct}%` }} />
+            </div>
+          </div>
+
+          <p className="text-sm text-ink">{current.questionInstruction}</p>
 
       {current.inputMethod === "two-phase" ? (
         twoPhaseStage === "idle" ? (
@@ -382,7 +399,7 @@ export function Modules() {
       ) : needsAudioFirst ? (
         <Button variant="secondary" onClick={handlePlay} disabled={playing || recording}>
           <span className="flex items-center justify-center gap-2">
-            <Volume2 size={16} />
+            <Volume2 size={20} />
             {playing ? t("placementTest.playing") : hasPlayed ? t("placementTest.playAgain") : t("placementTest.play")}
           </span>
         </Button>
@@ -429,7 +446,7 @@ export function Modules() {
             disabled={playing || (needsAudioFirst && !hasPlayed)}
           >
             <span className="flex items-center justify-center gap-2">
-              {recording ? <Square size={16} /> : <Mic size={16} />}
+              {recording ? <Square size={20} /> : <Mic size={20} />}
               {recording ? t("placementTest.stopRecording") : audioBlobUrl ? t("placementTest.recordAgain") : t("placementTest.record")}
             </span>
           </Button>
@@ -437,7 +454,7 @@ export function Modules() {
           {audioBlobUrl && !recording && (
             <div className="flex flex-col gap-2">
               <span className="flex items-center gap-1.5 text-sm text-success">
-                <CheckCircle2 size={15} />
+                <CheckCircle2 size={18} />
                 {t("placementTest.audioSaved")}
               </span>
               <audio controls src={audioBlobUrl} className="w-full h-9" />
@@ -463,21 +480,24 @@ export function Modules() {
         />
       )}
 
-      {error && <p className="text-sm text-error">{error}</p>}
+          {error && <p className="text-sm text-error">{error}</p>}
 
-      <div className="flex items-center gap-3">
-        <Button variant="secondary" onClick={handleBack} disabled={index === 0 || submitting || recording} className="!px-3.5">
-          <ArrowLeft size={16} />
-        </Button>
-        <Button variant="secondary" onClick={handleSkip} disabled={submitting || recording} className="flex-1">
-          <span className="flex items-center justify-center gap-2">
-            <SkipForward size={16} />
-            {t("placementTest.skip")}
-          </span>
-        </Button>
-        <Button onClick={handleSubmit} disabled={!canSubmit || submitting} className="flex-1">
-          {submitting ? t("placementTest.submitting") : index + 1 < items.length ? t("placementTest.next") : t("placementTest.finish")}
-        </Button>
+          <div className="flex items-center gap-3">
+            <Button variant="secondary" onClick={handleBack} disabled={index === 0 || submitting || recording} className="!px-3.5">
+              <ArrowLeft size={20} />
+            </Button>
+            <button
+              onClick={handleSkip}
+              disabled={submitting || recording}
+              className="text-sm font-medium text-muted hover:text-ink transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed px-1"
+            >
+              {t("placementTest.skip")}
+            </button>
+            <Button onClick={handleSubmit} disabled={!canSubmit || submitting} className="flex-1">
+              {submitting ? t("placementTest.submitting") : index + 1 < items.length ? t("placementTest.next") : t("placementTest.finish")}
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

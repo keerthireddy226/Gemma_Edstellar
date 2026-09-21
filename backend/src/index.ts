@@ -53,5 +53,5 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 
 const port = process.env.PORT ?? 4000;
 app.listen(port, () => {
-  console.log(`Gemma_Edstellar backend listening on :${port}`);
+  console.log(`Spica backend listening on :${port}`);
 });

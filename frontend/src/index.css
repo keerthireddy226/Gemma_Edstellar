@@ -21,6 +21,10 @@
   --font-body: "Inter", sans-serif;
   --font-mono: "IBM Plex Mono", monospace;
   --font-sans: "Inter", sans-serif;
+  /* The brand wordmark specifically ("Spica by Edstellar") — a serif, not
+     the sans-serif font every other heading uses, to read as a logotype
+     rather than another UI heading. */
+  --font-logo: "Playfair Display", serif;
 
   --color-navy: #c97c5c; /* clay (primary in light mode) — sidebar, main buttons, active states */
   --color-navy-soft: #dda084; /* lighter clay — active states, hero gradient */
@@ -47,6 +51,12 @@
   --color-success: #6e9660; /* moss for correct/success states */
   --color-warning: #e0aa52; /* wheat / amber (tertiary) — rewards, streak */
   --color-error: #c15c4a; /* muted brick red */
+  /* The "Spica by Edstellar" wordmark's own two colors: a deep teal
+     primary paired with a dark espresso accent — the classic warm-clay
+     pairing (cool contrast + a dark warm neutral), rather than another
+     picked-from-a-wheel hue that keeps testing badly in practice. */
+  --color-logo-primary: #1f6f64;
+  --color-logo-accent: #3d3128;
 
   --color-listening: #6e9660; /* moss (primary) */
   --color-speaking: #d9713d; /* terracotta / ember (secondary) */
@@ -87,6 +97,8 @@
     --color-success: #7fcb6b;
     --color-warning: #ffcb66;
     --color-error: #d9634a;
+    --color-logo-primary: #4fb3a3;
+    --color-logo-accent: #a89a8a;
 
     --color-listening: #7fcb6b; /* moss (primary, bright) */
     --color-speaking: #c97c5c; /* muted clay (secondary) */
@@ -121,6 +133,8 @@
   --color-accent-soft: #3a281c;
   --color-success: #7fcb6b;
   --color-warning: #ffcb66;
+  --color-logo-primary: #4fb3a3;
+  --color-logo-accent: #a89a8a;
   --color-error: #d9634a;
 
   --color-listening: #7fcb6b; /* moss (primary, bright) */
@@ -131,6 +145,19 @@
   --glow-accent: rgba(201, 124, 92, 0.18);
   --glow-navy: rgba(127, 203, 107, 0.18);
   --shine: linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 55%);
+}
+
+html {
+  /* A single, global scale-up: every Tailwind text/spacing/max-width
+     utility (text-sm, p-8, max-w-xl, gap-4, etc.) is rem-based, so bumping
+     the root font-size makes every page — login, onboarding, placement
+     test, practice, dashboard, roadmap — noticeably bigger at once,
+     without hand-editing each page's classNames individually. Fixed-radius
+     tokens (--radius-card etc., defined in px above) and explicit pixel
+     icon sizes don't scale from this alone — icon sizes are bumped
+     separately in code.
+   */
+  font-size: 125%;
 }
 
 html,
@@ -207,6 +234,32 @@ body {
 
 * {
   box-sizing: border-box;
+}
+
+/*
+ * Chrome/Edge/Safari paint autofilled inputs with their own UA background
+ * and font rendering, ignoring most author CSS on that field — the classic
+ * symptom is an autofilled value suddenly looking bigger/bolder than the
+ * placeholder did, with a yellow/blue tint behind it. The box-shadow-inset
+ * trick repaints the background back to ours (a plain background-color
+ * can't win against the UA style), and explicitly restating font-size and
+ * text color keeps the filled value the same small size as everything else
+ * on the field instead of whatever default the browser would otherwise use.
+ */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--color-paper) inset !important;
+  box-shadow: 0 0 0 1000px var(--color-paper) inset !important;
+  -webkit-text-fill-color: var(--color-ink) !important;
+  /* `inherit` isn't enough here — Chrome's autofill re-applies its own
+     font-size at render time in a way plain inheritance doesn't override.
+     Matching Tailwind's text-sm value directly in rem (which is still
+     relative to the root scale, so this stays correct if that scale ever
+     changes) is what actually wins. */
+  font-size: 0.75rem !important;
+  font-family: inherit !important;
+  caret-color: var(--color-ink);
 }
 
 button {

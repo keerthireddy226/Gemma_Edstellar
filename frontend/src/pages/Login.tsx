@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { Mail, Lock } from "lucide-react";
 import { useAuth, type Role } from "@/hooks/useAuth";
 import { Button } from "@/components/Button";
 import { AuthCard, FormField } from "@/components/AuthCard";
@@ -44,11 +45,12 @@ export function Login({ allowedRoles }: { allowedRoles: Role[] }) {
 
   return (
     <AuthCard eyebrow={t("common.appName")} title={t("auth.login.title")} subtitle={t("auth.login.subtitle")}>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <FormField
           id="email"
           label={t("auth.login.emailLabel")}
           type="email"
+          icon={<Mail size={15} />}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder={t("auth.login.emailPlaceholder")}
@@ -59,28 +61,31 @@ export function Login({ allowedRoles }: { allowedRoles: Role[] }) {
           id="password"
           label={t("auth.login.passwordLabel")}
           type="password"
+          icon={<Lock size={15} />}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder={t("auth.login.passwordPlaceholder")}
           autoComplete="current-password"
           required
         />
-        {error && <p className="text-sm text-error">{error}</p>}
-        <Button type="submit" className="mt-1 w-full" disabled={submitting}>
+        {error && <p className="text-xs text-error">{error}</p>}
+        <Button type="submit" className="mt-0.5 w-full !py-2 !text-xs" disabled={submitting}>
           {submitting ? t("auth.login.submitting") : t("auth.login.submit")}
         </Button>
       </form>
-      <div className="flex justify-between text-sm text-muted">
-        <Link to={ROUTES.FORGOT_PASSWORD} className="hover:text-ink">
-          {t("auth.login.forgotPassword")}
-        </Link>
-        {allowedRoles.includes("learner") && (
-          <Link to={ROUTES.SIGNUP} className="hover:text-ink">
-            {t("auth.login.createAccount")}
+      <div className="flex flex-col gap-3 border-t border-rule pt-3.5">
+        <div className="flex justify-between text-xs text-muted">
+          <Link to={ROUTES.FORGOT_PASSWORD} className="hover:text-ink">
+            {t("auth.login.forgotPassword")}
           </Link>
-        )}
+          {allowedRoles.includes("learner") && (
+            <Link to={ROUTES.SIGNUP} className="hover:text-ink">
+              {t("auth.login.createAccount")}
+            </Link>
+          )}
+        </div>
+        <LanguageSwitcher />
       </div>
-      <LanguageSwitcher />
     </AuthCard>
   );
 }

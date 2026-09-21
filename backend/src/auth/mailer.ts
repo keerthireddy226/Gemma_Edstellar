@@ -23,19 +23,19 @@ async function sendMail(to: string, subject: string, text: string) {
 
 export async function sendVerificationEmail(email: string, token: string) {
   const link = `${FRONTEND_URL}/verify-email?token=${token}`;
-  await sendMail(email, "Verify your email — Gemma_Edstellar", `Verify your email by opening this link:\n\n${link}\n\nIf you didn't create this account, ignore this message.`);
+  await sendMail(email, "Verify your email — Spica", `Verify your email by opening this link:\n\n${link}\n\nIf you didn't create this account, ignore this message.`);
 }
 
 export async function sendPasswordResetEmail(email: string, token: string) {
   const link = `${FRONTEND_URL}/reset-password?token=${token}`;
-  await sendMail(email, "Reset your password — Gemma_Edstellar", `Reset your password by opening this link (expires in 30 minutes):\n\n${link}\n\nIf you didn't request this, ignore this message.`);
+  await sendMail(email, "Reset your password — Spica", `Reset your password by opening this link (expires in 30 minutes):\n\n${link}\n\nIf you didn't request this, ignore this message.`);
 }
 
 export async function sendPlacementReminderEmail(email: string, token: string) {
   const link = `${FRONTEND_URL}/placement?reminder=${token}`;
   await sendMail(
     email,
-    "Your placement test is waiting — Gemma_Edstellar",
+    "Your placement test is waiting — Spica",
     `Whenever you're ready, come back and take your placement test:\n\n${link}\n\nThis reminder is valid for 1 week — after that, log in and you can send yourself a new one.`,
   );
 }

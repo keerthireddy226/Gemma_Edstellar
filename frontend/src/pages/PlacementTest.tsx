@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Volume2, Mic, Square, CheckCircle2, SkipForward } from "lucide-react";
+import { Volume2, Mic, Square, CheckCircle2, Clock } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
 import { Button } from "@/components/Button";
 import {
@@ -162,7 +162,7 @@ export function PlacementTest() {
       // open-ended right now) — no level to show, just the raw tally.
       return (
         <div className="app-surface min-h-screen flex items-center justify-center px-4 py-10">
-          <div className="w-full max-w-lg bg-surface border border-rule rounded-card p-8 flex flex-col gap-4 items-center text-center">
+          <div className="w-full max-w-lg bg-surface border border-rule rounded-card shadow-sm p-8 flex flex-col gap-4 items-center text-center">
             <h1 className="font-display font-bold text-2xl text-ink">{t("placementTest.resultsTitle")}</h1>
             <p className="text-sm text-muted">
               {t("placementTest.resultsSummary", {
@@ -182,9 +182,9 @@ export function PlacementTest() {
 
     return (
       <div className="app-surface min-h-screen flex items-center justify-center px-4 py-10">
-        <div className="w-full max-w-lg bg-surface border border-rule rounded-card p-8 flex flex-col gap-5 items-center text-center">
+        <div className="w-full max-w-lg bg-surface border border-rule rounded-card shadow-sm p-8 flex flex-col gap-5 items-center text-center">
           <div className="h-14 w-14 rounded-full bg-navy text-lime flex items-center justify-center">
-            <CheckCircle2 size={26} />
+            <CheckCircle2 size={32} />
           </div>
           <div>
             <h1 className="font-display font-bold text-2xl text-ink">
@@ -259,36 +259,54 @@ export function PlacementTest() {
 
   return (
     <div className="app-surface min-h-screen flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-xl bg-surface border border-rule rounded-card p-8 flex flex-col gap-5">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-mono uppercase tracking-wide text-ink font-semibold">{meta?.name}</span>
-            <span className="text-xs font-mono text-muted">
-              {t("placementTest.progress", { current: questionNumber, total: TOTAL_QUESTIONS })}
-              {current.timerSeconds ? ` · ${current.timerSeconds}s` : ""}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            {current.skills.map((skill) => (
-              <span
-                key={skill}
-                className={`text-xs font-semibold uppercase tracking-wide px-2.5 py-1 rounded-pill border ${SKILL_BADGE_CLASS[skill]}`}
-              >
-                {t(`skills.${skill}`)}
-              </span>
-            ))}
-          </div>
-          <div className="h-1.5 rounded-pill bg-paper-warm overflow-hidden">
-            <div className="h-full bg-navy rounded-pill transition-all" style={{ width: `${progressPct}%` }} />
-          </div>
+      <div className="w-full max-w-xl flex flex-col gap-3">
+        <div className="flex items-center justify-between px-1">
+          <span className="font-logo tracking-tight flex items-baseline gap-1.5">
+            <span className="font-bold text-xl text-logo-primary">Spica</span>
+            <span className="italic text-sm text-logo-accent">by Edstellar</span>
+          </span>
+          <span className="text-xs font-mono text-muted">
+            {t("placementTest.progress", { current: questionNumber, total: TOTAL_QUESTIONS })}
+          </span>
         </div>
 
-        <p className="text-sm text-ink">{current.questionInstruction}</p>
+        <div className="relative w-full bg-surface border border-rule rounded-card shadow-sm overflow-hidden">
+          <div
+            className="absolute top-0 left-0 right-0 h-1.5"
+            style={{ backgroundColor: `var(--color-${current.skills[0]})` }}
+          />
+          <div className="p-8 flex flex-col gap-5">
+            <div className="flex flex-col gap-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-mono uppercase tracking-wide text-ink font-semibold">{meta?.name}</span>
+                {current.timerSeconds ? (
+                  <span className="flex items-center gap-1 text-xs font-mono font-semibold text-navy-deep bg-navy/10 px-2.5 py-1 rounded-pill">
+                    <Clock size={24} />
+                    {current.timerSeconds}s
+                  </span>
+                ) : null}
+              </div>
+              <div className="flex items-center gap-1.5">
+                {current.skills.map((skill) => (
+                  <span
+                    key={skill}
+                    className={`text-xs font-semibold uppercase tracking-wide px-2.5 py-1 rounded-pill border ${SKILL_BADGE_CLASS[skill]}`}
+                  >
+                    {t(`skills.${skill}`)}
+                  </span>
+                ))}
+              </div>
+              <div className="h-2 rounded-pill bg-paper-warm overflow-hidden">
+                <div className="h-full bg-navy rounded-pill transition-all" style={{ width: `${progressPct}%` }} />
+              </div>
+            </div>
+
+            <p className="text-sm text-ink">{current.questionInstruction}</p>
 
         {needsAudioFirst ? (
           <Button variant="secondary" onClick={handlePlay} disabled={playing || recording}>
             <span className="flex items-center justify-center gap-2">
-              <Volume2 size={16} />
+              <Volume2 size={20} />
               {playing ? t("placementTest.playing") : hasPlayed ? t("placementTest.playAgain") : t("placementTest.play")}
             </span>
           </Button>
@@ -325,7 +343,7 @@ export function PlacementTest() {
               disabled={playing || (needsAudioFirst && !hasPlayed)}
             >
               <span className="flex items-center justify-center gap-2">
-                {recording ? <Square size={16} /> : <Mic size={16} />}
+                {recording ? <Square size={20} /> : <Mic size={20} />}
                 {recording ? t("placementTest.stopRecording") : audioBlobUrl ? t("placementTest.recordAgain") : t("placementTest.record")}
               </span>
             </Button>
@@ -333,7 +351,7 @@ export function PlacementTest() {
             {audioBlobUrl && !recording && (
               <div className="flex flex-col gap-2">
                 <span className="flex items-center gap-1.5 text-sm text-success">
-                  <CheckCircle2 size={15} />
+                  <CheckCircle2 size={18} />
                   {t("placementTest.audioSaved")}
                 </span>
                 <audio controls src={audioBlobUrl} className="w-full h-9" />
@@ -359,18 +377,21 @@ export function PlacementTest() {
           />
         )}
 
-        {error && <p className="text-sm text-error">{error}</p>}
+            {error && <p className="text-sm text-error">{error}</p>}
 
-        <div className="flex items-center gap-3">
-          <Button variant="secondary" onClick={handleSkip} disabled={submitting || recording} className="flex-1">
-            <span className="flex items-center justify-center gap-2">
-              <SkipForward size={16} />
-              {t("placementTest.skip")}
-            </span>
-          </Button>
-          <Button onClick={handleSubmit} disabled={!canSubmit || submitting} className="flex-1">
-            {submitting ? t("placementTest.submitting") : t("placementTest.next")}
-          </Button>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleSkip}
+                disabled={submitting || recording}
+                className="text-sm font-medium text-muted hover:text-ink transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed px-1"
+              >
+                {t("placementTest.skip")}
+              </button>
+              <Button onClick={handleSubmit} disabled={!canSubmit || submitting} className="flex-1">
+                {submitting ? t("placementTest.submitting") : t("placementTest.next")}
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
