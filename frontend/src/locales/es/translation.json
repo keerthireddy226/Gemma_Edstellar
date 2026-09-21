@@ -217,6 +217,11 @@
     "instructions": {
       "checkboxLabel": "He leído las instrucciones y estoy listo/a para comenzar.",
       "begin": "Comenzar la prueba"
+    },
+    "resume": {
+      "title": "Continúa donde lo dejaste",
+      "subtitle": "Ya respondiste {{count}} pregunta(s) en esta prueba — continuar conserva ese progreso en lugar de empezar de nuevo.",
+      "continue": "Continuar la prueba"
     }
   },
   "placementTest": {
@@ -232,6 +237,7 @@
     "audioSaved": "Audio guardado",
     "stopRecording": "Detener grabación",
     "skip": "Omitir",
+    "exitConfirm": "¿Salir del examen ahora? No se guardará tu progreso en esta pregunta.",
     "answerPlaceholder": "Escribe tu respuesta aquí…",
     "submitting": "Enviando…",
     "next": "Siguiente",

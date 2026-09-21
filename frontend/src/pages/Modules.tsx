@@ -117,6 +117,7 @@ export function Modules() {
   const [audioBlobUrl, setAudioBlobUrl] = useState<string | null>(null);
   const [recordingDurationMs, setRecordingDurationMs] = useState<number | null>(null);
   const [summary, setSummary] = useState<PracticeSummary | null>(null);
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   // "two-phase" items (Passage Reconstruction): show the passage, then hide
   // it and switch to a blank textarea — testing recall, not copying.
   const [twoPhaseStage, setTwoPhaseStage] = useState<"idle" | "reading" | "writing">("idle");
@@ -183,6 +184,21 @@ export function Modules() {
     setTwoPhaseStage(cached ? "writing" : "idle");
     setError(null);
   }, [index]);
+
+  // Live countdown, display-only (mirrors PlacementTest.tsx) — doesn't gate
+  // or auto-submit anything.
+  useEffect(() => {
+    if (!current?.timerSeconds) {
+      setRemainingSeconds(null);
+      return;
+    }
+    setRemainingSeconds(current.timerSeconds);
+    const interval = setInterval(() => {
+      setRemainingSeconds((prev) => (prev === null ? null : Math.max(0, prev - 1)));
+    }, 1000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, current?.timerSeconds]);
 
   function handleStartReading() {
     if (!current) return;
@@ -362,10 +378,14 @@ export function Modules() {
           <div className="flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-mono uppercase tracking-wide text-ink font-semibold">{meta?.name}</span>
-              {current.timerSeconds ? (
-                <span className="flex items-center gap-1 text-xs font-mono font-semibold text-navy-deep bg-navy/10 px-2.5 py-1 rounded-pill">
-                  <Clock size={24} />
-                  {current.timerSeconds}s
+              {remainingSeconds !== null ? (
+                <span
+                  className={`flex items-center gap-1 text-xs font-mono font-bold px-2.5 py-1 rounded-pill border transition-colors ${
+                    remainingSeconds <= 5 ? "text-error border-error/30 bg-error/10" : "text-navy-deep border-navy/20 bg-navy/10"
+                  }`}
+                >
+                  <Clock size={16} />
+                  {String(Math.floor(remainingSeconds / 60)).padStart(1, "0")}:{String(remainingSeconds % 60).padStart(2, "0")}
                 </span>
               ) : null}
             </div>
@@ -384,49 +404,81 @@ export function Modules() {
             </div>
           </div>
 
-          <p className="text-sm text-ink">{current.questionInstruction}</p>
+          <h2 className="font-display font-bold text-lg text-ink text-center leading-snug">{current.questionInstruction}</h2>
 
       {current.inputMethod === "two-phase" ? (
         twoPhaseStage === "idle" ? (
-          <Button variant="secondary" onClick={handleStartReading}>
-            {t("modules.startReading")}
-          </Button>
+          <div className="flex justify-center">
+            <Button variant="secondary" onClick={handleStartReading}>
+              {t("modules.startReading")}
+            </Button>
+          </div>
         ) : twoPhaseStage === "reading" ? (
-          <p className="text-base text-ink bg-paper-warm rounded-input p-4">{getVisibleText(current)}</p>
+          <p
+            className="text-sm text-ink bg-paper-warm rounded-card border-l-4 p-4 leading-relaxed shadow-sm"
+            style={{ borderLeftColor: `var(--color-${(meta?.skills ?? current.skills)[0]})` }}
+          >
+            {getVisibleText(current)}
+          </p>
         ) : (
-          <p className="text-sm text-muted italic">{t("modules.passageHidden")}</p>
+          <p className="text-sm text-muted italic text-center">{t("modules.passageHidden")}</p>
         )
       ) : needsAudioFirst ? (
-        <Button variant="secondary" onClick={handlePlay} disabled={playing || recording}>
-          <span className="flex items-center justify-center gap-2">
-            <Volume2 size={20} />
+        <div className="flex flex-col items-center gap-2">
+          <button
+            onClick={handlePlay}
+            disabled={playing || recording}
+            className="h-14 w-14 rounded-full bg-navy text-lime btn-shine flex items-center justify-center shadow-[0_8px_18px_-8px_rgba(0,0,0,0.3)] transition-transform hover:scale-105 disabled:opacity-60 disabled:hover:scale-100 cursor-pointer disabled:cursor-not-allowed"
+          >
+            <Volume2 size={22} />
+          </button>
+          <span className="text-xs text-muted">
             {playing ? t("placementTest.playing") : hasPlayed ? t("placementTest.playAgain") : t("placementTest.play")}
           </span>
-        </Button>
+        </div>
       ) : getPassageAndQuestion(current) ? (
-        <div className="flex flex-col gap-3">
-          <p className="text-sm text-ink bg-paper-warm rounded-input p-4 whitespace-pre-wrap">
+        <div className="flex flex-col gap-2.5">
+          <p
+            className="text-sm text-ink bg-paper-warm rounded-card border-l-4 p-4 whitespace-pre-wrap leading-relaxed shadow-sm"
+            style={{ borderLeftColor: `var(--color-${(meta?.skills ?? current.skills)[0]})` }}
+          >
             {getPassageAndQuestion(current)!.passage}
           </p>
-          <p className="text-sm font-semibold text-ink">{getPassageAndQuestion(current)!.question}</p>
+          <p className="text-sm font-semibold text-ink px-1">{getPassageAndQuestion(current)!.question}</p>
         </div>
       ) : (
-        <p className="text-base text-ink bg-paper-warm rounded-input p-4">{visibleText}</p>
+        <p
+          className="text-sm text-ink bg-paper-warm rounded-card border-l-4 p-4 leading-relaxed shadow-sm"
+          style={{ borderLeftColor: `var(--color-${(meta?.skills ?? current.skills)[0]})` }}
+        >
+          {visibleText}
+        </p>
       )}
 
       {current.inputMethod === "radio" ? (
-        <div className="flex flex-col gap-2">
-          {getOptions(current).map((option, i) => (
-            <button
-              key={i}
-              onClick={() => setAnswerText(String(i))}
-              className={`text-left rounded-input border px-3.5 py-2.5 text-sm font-medium transition-colors cursor-pointer ${
-                answerText === String(i) ? "border-accent bg-accent/10 text-ink" : "border-rule hover:border-rule-strong"
-              }`}
-            >
-              {option}
-            </button>
-          ))}
+        <div className="flex flex-col gap-2.5">
+          {getOptions(current).map((option, i) => {
+            const letter = String.fromCharCode(65 + i);
+            const selected = answerText === String(i);
+            return (
+              <button
+                key={i}
+                onClick={() => setAnswerText(String(i))}
+                className={`flex items-center gap-3 text-left rounded-card border-2 px-4 py-3 text-sm font-medium transition-all cursor-pointer ${
+                  selected ? "border-accent bg-accent/10 text-ink shadow-sm" : "border-rule hover:border-rule-strong hover:bg-paper-warm/60"
+                }`}
+              >
+                <span
+                  className={`h-7 w-7 shrink-0 rounded-full flex items-center justify-center text-xs font-bold ${
+                    selected ? "bg-accent text-white" : "bg-paper-warm text-muted"
+                  }`}
+                >
+                  {letter}
+                </span>
+                {option}
+              </button>
+            );
+          })}
         </div>
       ) : current.inputMethod === "two-phase" ? (
         twoPhaseStage === "writing" && (
@@ -434,25 +486,39 @@ export function Modules() {
             value={answerText}
             onChange={(e) => setAnswerText(e.target.value)}
             placeholder={t("placementTest.answerPlaceholder")}
-            className="w-full rounded-input border border-rule bg-paper px-3.5 py-2.5 text-sm text-ink"
+            className="w-full rounded-card border border-rule bg-surface px-4 py-3 text-sm text-ink shadow-sm focus:border-navy focus:outline-none transition-colors"
             rows={4}
           />
         )
       ) : current.inputMethod === "mic" ? (
-        <div className="flex flex-col gap-3">
-          <Button
-            variant={recording ? "primary" : "secondary"}
+        <div className="flex flex-col items-center gap-3">
+          <button
             onClick={handleToggleRecord}
             disabled={playing || (needsAudioFirst && !hasPlayed)}
+            className={`h-14 w-14 rounded-full flex items-center justify-center shadow-[0_8px_18px_-8px_rgba(0,0,0,0.3)] transition-transform hover:scale-105 disabled:opacity-60 disabled:hover:scale-100 cursor-pointer disabled:cursor-not-allowed ${
+              recording ? "bg-error text-white" : "bg-navy text-lime btn-shine"
+            }`}
           >
-            <span className="flex items-center justify-center gap-2">
-              {recording ? <Square size={20} /> : <Mic size={20} />}
-              {recording ? t("placementTest.stopRecording") : audioBlobUrl ? t("placementTest.recordAgain") : t("placementTest.record")}
+            {recording ? <Square size={18} /> : <Mic size={22} />}
+          </button>
+
+          {recording ? (
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-error">{t("placementTest.stopRecording")}</span>
+              <span className="flex items-center gap-1">
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <span key={i} className="recording-dot h-2 w-2 rounded-full bg-error" style={{ animationDelay: `${i * 0.15}s` }} />
+                ))}
+              </span>
+            </div>
+          ) : (
+            <span className="text-sm font-medium text-muted">
+              {audioBlobUrl ? t("placementTest.recordAgain") : t("placementTest.record")}
             </span>
-          </Button>
+          )}
 
           {audioBlobUrl && !recording && (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col items-center gap-2 w-full">
               <span className="flex items-center gap-1.5 text-sm text-success">
                 <CheckCircle2 size={18} />
                 {t("placementTest.audioSaved")}
@@ -460,14 +526,13 @@ export function Modules() {
               <audio controls src={audioBlobUrl} className="w-full h-9" />
             </div>
           )}
-
         </div>
       ) : current.inputMethod === "textarea" ? (
         <textarea
           value={answerText}
           onChange={(e) => setAnswerText(e.target.value)}
           placeholder={t("placementTest.answerPlaceholder")}
-          className="w-full rounded-input border border-rule bg-paper px-3.5 py-2.5 text-sm text-ink"
+          className="w-full rounded-card border border-rule bg-surface px-4 py-3 text-sm text-ink shadow-sm focus:border-navy focus:outline-none transition-colors"
           rows={4}
         />
       ) : (
@@ -476,11 +541,11 @@ export function Modules() {
           value={answerText}
           onChange={(e) => setAnswerText(e.target.value)}
           placeholder={t("placementTest.answerPlaceholder")}
-          className="w-full rounded-input border border-rule bg-paper px-3.5 py-2.5 text-sm text-ink"
+          className="w-full rounded-card border border-rule bg-surface px-4 py-3 text-sm text-ink shadow-sm focus:border-navy focus:outline-none transition-colors"
         />
       )}
 
-          {error && <p className="text-sm text-error">{error}</p>}
+          {error && <p className="text-sm text-error text-center">{error}</p>}
 
           <div className="flex items-center gap-3">
             <Button variant="secondary" onClick={handleBack} disabled={index === 0 || submitting || recording} className="!px-3.5">

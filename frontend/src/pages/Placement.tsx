@@ -5,6 +5,7 @@ import { Clock, BookOpen, ShieldCheck, Headphones } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { scheduleLater } from "@/hooks/usePlacement";
 import { getRoadmap } from "@/hooks/useRoadmap";
+import { getCurrentSession } from "@/hooks/useTestSession";
 import { Button } from "@/components/Button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ROUTES } from "@/constants/routes";
@@ -18,6 +19,10 @@ export function Placement() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checkingPlacement, setCheckingPlacement] = useState(true);
+  // Set once the in-progress check below resolves — null while unknown,
+  // then either "not started" or the number of questions already shown in
+  // an existing, unfinished session (leaving early doesn't lose it).
+  const [resumeQuestionsShown, setResumeQuestionsShown] = useState<number | null>(null);
 
   // Landing here after already completing the test (e.g. via browser back,
   // or a direct link) should skip straight to the roadmap rather than offer
@@ -29,12 +34,27 @@ export function Placement() {
         if (!cancelled) navigate(ROUTES.ROADMAP, { replace: true });
       })
       .catch(() => {
-        if (!cancelled) setCheckingPlacement(false);
+        if (cancelled) return;
+        setCheckingPlacement(false);
+        // Side-effect-free peek (doesn't create a session) — an
+        // unfinished placement session means the learner started this
+        // before and left partway through, so the intro screen should
+        // offer to continue it instead of re-gating on the instructions
+        // checkbox as if this were their first time.
+        getCurrentSession()
+          .then((res) => {
+            if (!cancelled) setResumeQuestionsShown(res.inProgress ? (res.questionsShown ?? 0) : 0);
+          })
+          .catch(() => {
+            if (!cancelled) setResumeQuestionsShown(0);
+          });
       });
     return () => {
       cancelled = true;
     };
   }, [navigate]);
+
+  const isResuming = !!resumeQuestionsShown;
 
   async function handleScheduleLater() {
     setError(null);
@@ -56,7 +76,7 @@ export function Placement() {
     { key: "equipment", Icon: Headphones, text: t("placement.info.equipment") },
   ];
 
-  if (checkingPlacement) return null;
+  if (checkingPlacement || resumeQuestionsShown === null) return null;
 
   return (
     <div className="app-surface min-h-screen flex items-center justify-center px-4 py-10">
@@ -68,8 +88,12 @@ export function Placement() {
             </svg>
           </div>
           <div>
-            <h1 className="font-display font-bold text-2xl text-ink">{t("placement.title")}</h1>
-            <p className="text-sm text-muted mt-1.5">{t("placement.subtitle")}</p>
+            <h1 className="font-display font-bold text-2xl text-ink">
+              {isResuming ? t("placement.resume.title") : t("placement.title")}
+            </h1>
+            <p className="text-sm text-muted mt-1.5">
+              {isResuming ? t("placement.resume.subtitle", { count: resumeQuestionsShown }) : t("placement.subtitle")}
+            </p>
           </div>
 
           <div className="w-full bg-paper-warm rounded-input p-4 flex flex-col gap-3 text-left">
@@ -81,23 +105,31 @@ export function Placement() {
             ))}
           </div>
 
-          <label className="flex items-start gap-2.5 rounded-input border border-rule p-3.5 w-full text-left cursor-pointer">
-            <input
-              type="checkbox"
-              checked={instructionsAcknowledged}
-              onChange={(e) => setInstructionsAcknowledged(e.target.checked)}
-              className="mt-0.5 accent-navy"
-            />
-            <span className="text-sm text-ink">{t("placement.instructions.checkboxLabel")}</span>
-          </label>
+          {!isResuming && (
+            <label className="flex items-start gap-2.5 rounded-input border border-rule p-3.5 w-full text-left cursor-pointer">
+              <input
+                type="checkbox"
+                checked={instructionsAcknowledged}
+                onChange={(e) => setInstructionsAcknowledged(e.target.checked)}
+                className="mt-0.5 accent-navy"
+              />
+              <span className="text-sm text-ink">{t("placement.instructions.checkboxLabel")}</span>
+            </label>
+          )}
 
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <Button onClick={() => navigate(ROUTES.PLACEMENT_TEST)} disabled={!instructionsAcknowledged}>
-              {t("placement.instructions.begin")}
-            </Button>
-            <Button variant="secondary" onClick={handleScheduleLater}>
-              {submitting ? t("placement.scheduling") : scheduleSent ? t("placement.scheduleSent") : t("placement.scheduleLater")}
-            </Button>
+            {isResuming ? (
+              <Button onClick={() => navigate(ROUTES.PLACEMENT_TEST)}>{t("placement.resume.continue")}</Button>
+            ) : (
+              <>
+                <Button onClick={() => navigate(ROUTES.PLACEMENT_TEST)} disabled={!instructionsAcknowledged}>
+                  {t("placement.instructions.begin")}
+                </Button>
+                <Button variant="secondary" onClick={handleScheduleLater}>
+                  {submitting ? t("placement.scheduling") : scheduleSent ? t("placement.scheduleSent") : t("placement.scheduleLater")}
+                </Button>
+              </>
+            )}
           </div>
 
           {error && <p className="text-sm text-error">{error}</p>}

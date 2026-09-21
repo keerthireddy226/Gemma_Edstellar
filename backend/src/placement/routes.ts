@@ -367,6 +367,32 @@ placementRouter.post("/session", requireAuth, async (req: AuthedRequest, res, ne
   }
 });
 
+// Side-effect-free peek used by the Placement intro page: lets it show
+// "Continue where you left off" instead of "Begin the test" without ever
+// creating a session itself (unlike POST /session, which always resumes-or-
+// starts one). Registered before the :sessionId param route below so
+// "current" doesn't get swallowed as a session id.
+placementRouter.get("/session/current", requireAuth, async (req: AuthedRequest, res, next) => {
+  try {
+    const existing = await pool.query(
+      `SELECT composition FROM sessions
+       WHERE user_id = $1 AND session_type = 'placement' AND completed_at IS NULL
+       ORDER BY started_at DESC LIMIT 1`,
+      [req.user!.id],
+    );
+    const row = existing.rows[0];
+    if (!row || !Array.isArray(row.composition?.history)) {
+      return res.json({ inProgress: false });
+    }
+    // history includes the current not-yet-answered question, so this is a
+    // "questions shown so far" count, not a strict answered-count — good
+    // enough for a progress hint, not worth a second query to be exact.
+    res.json({ inProgress: true, questionsShown: row.composition.history.length });
+  } catch (err) {
+    next(err);
+  }
+});
+
 placementRouter.get("/session/:sessionId", requireAuth, async (req: AuthedRequest, res, next) => {
   try {
     const sessionResult = await pool.query(

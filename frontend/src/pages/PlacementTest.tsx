@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Volume2, Mic, Square, CheckCircle2, Clock } from "lucide-react";
+import { Volume2, Mic, Square, CheckCircle2, Clock, X } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
 import { Button } from "@/components/Button";
 import {
@@ -48,6 +48,7 @@ export function PlacementTest() {
   const [audioBlobUrl, setAudioBlobUrl] = useState<string | null>(null);
   const [recordingDurationMs, setRecordingDurationMs] = useState<number | null>(null);
   const [summary, setSummary] = useState<SessionSummary | null>(null);
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
 
   useEffect(() => {
     startSession()
@@ -73,6 +74,27 @@ export function PlacementTest() {
     setHasPlayed(false);
     setError(null);
   }, [current?.id]);
+
+  // Live countdown, display-only — purely a visual sense of urgency, it
+  // doesn't gate or auto-submit anything (submission is still driven by
+  // canSubmit/handleSubmit below).
+  useEffect(() => {
+    if (!current?.timerSeconds) {
+      setRemainingSeconds(null);
+      return;
+    }
+    setRemainingSeconds(current.timerSeconds);
+    const interval = setInterval(() => {
+      setRemainingSeconds((prev) => (prev === null ? null : Math.max(0, prev - 1)));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [current?.id, current?.timerSeconds]);
+
+  function handleExit() {
+    if (window.confirm(t("placementTest.exitConfirm"))) {
+      navigate(ROUTES.DASHBOARD);
+    }
+  }
 
   async function handlePlay() {
     if (!current) return;
@@ -257,137 +279,198 @@ export function PlacementTest() {
   const questionNumber = items.length;
   const progressPct = Math.round(((questionNumber - 1) / TOTAL_QUESTIONS) * 100);
 
+  const urgentTimer = remainingSeconds !== null && remainingSeconds <= 5;
+
   return (
-    <div className="app-surface min-h-screen flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-xl flex flex-col gap-3">
-        <div className="flex items-center justify-between px-1">
-          <span className="font-logo tracking-tight flex items-baseline gap-1.5">
-            <span className="font-bold text-xl text-logo-primary">Spica</span>
-            <span className="italic text-sm text-logo-accent">by Edstellar</span>
+    <div className="fixed inset-0 bg-paper flex flex-col">
+      <div className="h-1.5 w-full shrink-0" style={{ backgroundColor: `var(--color-${current.skills[0]})` }} />
+
+      <div className="flex items-center justify-between gap-3 px-5 py-3 shrink-0">
+        {remainingSeconds !== null ? (
+          <span
+            className={`flex items-center gap-1.5 text-sm font-mono font-bold rounded-pill px-3 py-1 border transition-colors ${
+              urgentTimer ? "text-error border-error/30 bg-error/10" : "text-navy-deep border-navy/20 bg-navy/10"
+            }`}
+          >
+            <Clock size={14} />
+            {String(Math.floor(remainingSeconds / 60)).padStart(1, "0")}:{String(remainingSeconds % 60).padStart(2, "0")}
           </span>
+        ) : (
+          <span className="font-logo tracking-tight flex items-baseline gap-1.5">
+            <span className="font-bold text-base text-logo-primary">Spica</span>
+          </span>
+        )}
+
+        <div className="flex items-center gap-3">
           <span className="text-xs font-mono text-muted">
             {t("placementTest.progress", { current: questionNumber, total: TOTAL_QUESTIONS })}
           </span>
+          <button
+            onClick={handleExit}
+            aria-label="Exit test"
+            className="h-7 w-7 rounded-full flex items-center justify-center text-muted hover:text-ink hover:bg-paper-warm transition-colors cursor-pointer"
+          >
+            <X size={16} />
+          </button>
         </div>
+      </div>
 
-        <div className="relative w-full bg-surface border border-rule rounded-card shadow-sm overflow-hidden">
-          <div
-            className="absolute top-0 left-0 right-0 h-1.5"
-            style={{ backgroundColor: `var(--color-${current.skills[0]})` }}
-          />
-          <div className="p-8 flex flex-col gap-5">
-            <div className="flex flex-col gap-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono uppercase tracking-wide text-ink font-semibold">{meta?.name}</span>
-                {current.timerSeconds ? (
-                  <span className="flex items-center gap-1 text-xs font-mono font-semibold text-navy-deep bg-navy/10 px-2.5 py-1 rounded-pill">
-                    <Clock size={24} />
-                    {current.timerSeconds}s
-                  </span>
-                ) : null}
-              </div>
-              <div className="flex items-center gap-1.5">
-                {current.skills.map((skill) => (
-                  <span
-                    key={skill}
-                    className={`text-xs font-semibold uppercase tracking-wide px-2.5 py-1 rounded-pill border ${SKILL_BADGE_CLASS[skill]}`}
-                  >
-                    {t(`skills.${skill}`)}
-                  </span>
-                ))}
-              </div>
-              <div className="h-2 rounded-pill bg-paper-warm overflow-hidden">
-                <div className="h-full bg-navy rounded-pill transition-all" style={{ width: `${progressPct}%` }} />
-              </div>
-            </div>
+      <div className="h-1 bg-paper-warm shrink-0 overflow-hidden">
+        <div className="h-full bg-navy transition-all" style={{ width: `${progressPct}%` }} />
+      </div>
 
-            <p className="text-sm text-ink">{current.questionInstruction}</p>
-
-        {needsAudioFirst ? (
-          <Button variant="secondary" onClick={handlePlay} disabled={playing || recording}>
-            <span className="flex items-center justify-center gap-2">
-              <Volume2 size={20} />
-              {playing ? t("placementTest.playing") : hasPlayed ? t("placementTest.playAgain") : t("placementTest.play")}
-            </span>
-          </Button>
-        ) : getPassageAndQuestion(current) ? (
-          <div className="flex flex-col gap-3">
-            <p className="text-sm text-ink bg-paper-warm rounded-input p-4 whitespace-pre-wrap">
-              {getPassageAndQuestion(current)!.passage}
-            </p>
-            <p className="text-sm font-semibold text-ink">{getPassageAndQuestion(current)!.question}</p>
-          </div>
-        ) : (
-          <p className="text-base text-ink bg-paper-warm rounded-input p-4">{visibleText}</p>
-        )}
-
-        {current.inputMethod === "radio" ? (
-          <div className="flex flex-col gap-2">
-            {getOptions(current).map((option, i) => (
-              <button
-                key={i}
-                onClick={() => setAnswerText(String(i))}
-                className={`text-left rounded-input border px-3.5 py-2.5 text-sm font-medium transition-colors cursor-pointer ${
-                  answerText === String(i) ? "border-accent bg-accent/10 text-ink" : "border-rule hover:border-rule-strong"
-                }`}
-              >
-                {option}
-              </button>
-            ))}
-          </div>
-        ) : current.inputMethod === "mic" ? (
-          <div className="flex flex-col gap-3">
-            <Button
-              variant={recording ? "primary" : "secondary"}
-              onClick={handleToggleRecord}
-              disabled={playing || (needsAudioFirst && !hasPlayed)}
-            >
-              <span className="flex items-center justify-center gap-2">
-                {recording ? <Square size={20} /> : <Mic size={20} />}
-                {recording ? t("placementTest.stopRecording") : audioBlobUrl ? t("placementTest.recordAgain") : t("placementTest.record")}
-              </span>
-            </Button>
-
-            {audioBlobUrl && !recording && (
-              <div className="flex flex-col gap-2">
-                <span className="flex items-center gap-1.5 text-sm text-success">
-                  <CheckCircle2 size={18} />
-                  {t("placementTest.audioSaved")}
+      <div className="flex-1 overflow-y-auto flex flex-col items-center px-5 py-6">
+        <div className="w-full max-w-md flex flex-col gap-5">
+          <div className="flex flex-col items-center gap-2 text-center">
+            <div className="flex items-center gap-1.5">
+              {current.skills.map((skill) => (
+                <span
+                  key={skill}
+                  className={`text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-pill border ${SKILL_BADGE_CLASS[skill]}`}
+                >
+                  {t(`skills.${skill}`)}
                 </span>
-                <audio controls src={audioBlobUrl} className="w-full h-9" />
+              ))}
+            </div>
+            <span className="text-[11px] font-mono uppercase tracking-[0.15em] text-muted font-semibold">{meta?.name}</span>
+            <h1 className="font-display font-bold text-lg sm:text-xl text-ink leading-snug">
+              {current.questionInstruction}
+            </h1>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            {needsAudioFirst ? (
+              <div className="flex justify-center">
+                <button
+                  onClick={handlePlay}
+                  disabled={playing || recording}
+                  className="h-14 w-14 rounded-full bg-navy text-lime btn-shine flex items-center justify-center shadow-[0_8px_18px_-8px_rgba(0,0,0,0.3)] transition-transform hover:scale-105 disabled:opacity-60 disabled:hover:scale-100 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  <Volume2 size={22} />
+                </button>
               </div>
+            ) : getPassageAndQuestion(current) ? (
+              <div className="flex flex-col gap-2.5">
+                <p
+                  className="text-sm text-ink bg-paper-warm rounded-card border-l-4 p-4 whitespace-pre-wrap leading-relaxed shadow-sm"
+                  style={{ borderLeftColor: `var(--color-${current.skills[0]})` }}
+                >
+                  {getPassageAndQuestion(current)!.passage}
+                </p>
+                <p className="text-sm font-semibold text-ink px-1">{getPassageAndQuestion(current)!.question}</p>
+              </div>
+            ) : (
+              <p
+                className="text-sm text-ink bg-paper-warm rounded-card border-l-4 p-4 leading-relaxed shadow-sm"
+                style={{ borderLeftColor: `var(--color-${current.skills[0]})` }}
+              >
+                {visibleText}
+              </p>
             )}
 
-          </div>
-        ) : current.inputMethod === "textarea" ? (
-          <textarea
-            value={answerText}
-            onChange={(e) => setAnswerText(e.target.value)}
-            placeholder={t("placementTest.answerPlaceholder")}
-            className="w-full rounded-input border border-rule bg-paper px-3.5 py-2.5 text-sm text-ink"
-            rows={4}
-          />
-        ) : (
-          <input
-            type="text"
-            value={answerText}
-            onChange={(e) => setAnswerText(e.target.value)}
-            placeholder={t("placementTest.answerPlaceholder")}
-            className="w-full rounded-input border border-rule bg-paper px-3.5 py-2.5 text-sm text-ink"
-          />
-        )}
+            {needsAudioFirst && (
+              <p className="text-xs text-muted text-center -mt-1">
+                {playing ? t("placementTest.playing") : hasPlayed ? t("placementTest.playAgain") : t("placementTest.play")}
+              </p>
+            )}
 
-            {error && <p className="text-sm text-error">{error}</p>}
+            {current.inputMethod === "radio" ? (
+              <div className="flex flex-col gap-2.5">
+                {getOptions(current).map((option, i) => {
+                  const letter = String.fromCharCode(65 + i);
+                  const selected = answerText === String(i);
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => setAnswerText(String(i))}
+                      className={`flex items-center gap-3 text-left rounded-card border-2 px-4 py-3 text-sm font-medium transition-all cursor-pointer ${
+                        selected
+                          ? "border-accent bg-accent/10 text-ink shadow-sm"
+                          : "border-rule hover:border-rule-strong hover:bg-paper-warm/60"
+                      }`}
+                    >
+                      <span
+                        className={`h-7 w-7 shrink-0 rounded-full flex items-center justify-center text-xs font-bold ${
+                          selected ? "bg-accent text-white" : "bg-paper-warm text-muted"
+                        }`}
+                      >
+                        {letter}
+                      </span>
+                      {option}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : current.inputMethod === "mic" ? (
+              <div className="flex flex-col items-center gap-3">
+                <button
+                  onClick={handleToggleRecord}
+                  disabled={playing || (needsAudioFirst && !hasPlayed)}
+                  className={`h-14 w-14 rounded-full flex items-center justify-center shadow-[0_8px_18px_-8px_rgba(0,0,0,0.3)] transition-transform hover:scale-105 disabled:opacity-60 disabled:hover:scale-100 cursor-pointer disabled:cursor-not-allowed ${
+                    recording ? "bg-error text-white" : "bg-navy text-lime btn-shine"
+                  }`}
+                >
+                  {recording ? <Square size={20} /> : <Mic size={22} />}
+                </button>
 
-            <div className="flex items-center gap-4">
+                {recording ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-error">{t("placementTest.stopRecording")}</span>
+                    <span className="flex items-center gap-1">
+                      {[0, 1, 2, 3, 4].map((i) => (
+                        <span
+                          key={i}
+                          className="recording-dot h-2 w-2 rounded-full bg-error"
+                          style={{ animationDelay: `${i * 0.15}s` }}
+                        />
+                      ))}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-sm font-medium text-muted">
+                    {audioBlobUrl ? t("placementTest.recordAgain") : t("placementTest.record")}
+                  </span>
+                )}
+
+                {audioBlobUrl && !recording && (
+                  <div className="flex flex-col items-center gap-2 w-full">
+                    <span className="flex items-center gap-1.5 text-sm text-success">
+                      <CheckCircle2 size={18} />
+                      {t("placementTest.audioSaved")}
+                    </span>
+                    <audio controls src={audioBlobUrl} className="w-full h-9" />
+                  </div>
+                )}
+              </div>
+            ) : current.inputMethod === "textarea" ? (
+              <textarea
+                value={answerText}
+                onChange={(e) => setAnswerText(e.target.value)}
+                placeholder={t("placementTest.answerPlaceholder")}
+                className="w-full rounded-card border border-rule bg-surface px-4 py-3 text-sm text-ink shadow-sm focus:border-navy focus:outline-none transition-colors"
+                rows={5}
+              />
+            ) : (
+              <input
+                type="text"
+                value={answerText}
+                onChange={(e) => setAnswerText(e.target.value)}
+                placeholder={t("placementTest.answerPlaceholder")}
+                className="w-full rounded-card border border-rule bg-surface px-4 py-3 text-sm text-ink shadow-sm focus:border-navy focus:outline-none transition-colors"
+              />
+            )}
+
+            {error && <p className="text-sm text-error text-center">{error}</p>}
+
+            <div className="flex items-center justify-center">
               <button
                 onClick={handleSkip}
                 disabled={submitting || recording}
-                className="text-sm font-medium text-muted hover:text-ink transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed px-1"
+                className="text-sm font-medium text-muted hover:text-ink transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed min-w-[160px] px-6 py-2 text-center"
               >
                 {t("placementTest.skip")}
               </button>
-              <Button onClick={handleSubmit} disabled={!canSubmit || submitting} className="flex-1">
+              <Button onClick={handleSubmit} disabled={!canSubmit || submitting} className="min-w-[220px]">
                 {submitting ? t("placementTest.submitting") : t("placementTest.next")}
               </Button>
             </div>

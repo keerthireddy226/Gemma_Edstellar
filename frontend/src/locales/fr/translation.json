@@ -217,6 +217,11 @@
     "instructions": {
       "checkboxLabel": "J'ai lu les instructions et je suis prêt(e) à commencer.",
       "begin": "Commencer le test"
+    },
+    "resume": {
+      "title": "Reprenez où vous vous étiez arrêté(e)",
+      "subtitle": "Vous avez déjà répondu à {{count}} question(s) dans ce test — continuer conserve cette progression au lieu de repartir de zéro.",
+      "continue": "Continuer le test"
     }
   },
   "placementTest": {
@@ -232,6 +237,7 @@
     "audioSaved": "Audio enregistré",
     "stopRecording": "Arrêter l'enregistrement",
     "skip": "Passer",
+    "exitConfirm": "Quitter le test maintenant ? Votre progression sur cette question ne sera pas enregistrée.",
     "answerPlaceholder": "Tapez votre réponse ici…",
     "submitting": "Envoi en cours…",
     "next": "Suivant",

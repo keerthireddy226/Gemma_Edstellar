@@ -63,6 +63,13 @@ export function startSession(): Promise<{ sessionId: string; items: TestItem[] }
   return api("/placement/session", { method: "POST" });
 }
 
+// Side-effect-free — unlike startSession, this never creates or resumes a
+// session itself. Used by the Placement intro page to decide whether to
+// show "Continue where you left off" instead of "Begin the test".
+export function getCurrentSession(): Promise<{ inProgress: boolean; questionsShown?: number }> {
+  return api("/placement/session/current");
+}
+
 export function submitAttempt(
   sessionId: string,
   payload: { itemId: string; responseText?: string; audioBase64?: string; audioMimeType?: string; durationMs?: number },
