@@ -660,8 +660,30 @@ placementRouter.post("/session/:sessionId/complete", requireAuth, async (req: Au
     // the same reason — otherwise a mostly-skipped test could still fall
     // back to a percentage computed only from the few questions answered.
     const overallPercentForLevel = Math.round((correctCount / (graded.length + pendingCount)) * 100);
-    const cefrLevel: CefrLevel = overallAssessment.level ?? percentToCefr(overallPercentForLevel);
-    const cefrCappedByGap = overallAssessment.cappedByGap;
+    const pooledCefrLevel: CefrLevel = overallAssessment.level ?? percentToCefr(overallPercentForLevel);
+
+    // The headline must never outrank the weakest skill that was actually
+    // tested. Pooling every skill's answers together (above) is what the
+    // walk needs to find a level at all when no single skill has enough
+    // per-level samples on its own — but taken alone, it can let a strong
+    // skill mathematically outweigh a genuinely failed one, producing a
+    // headline that contradicts the very breakdown shown right below it
+    // (e.g. 0% on Listening next to an overall "B1"). A skill nobody was
+    // tested on (null) doesn't count against this — only a skill with real,
+    // measured evidence can pull the headline down.
+    const testedSkillLevels = ALL_SKILLS.map((skill) => skillLevels[skill]?.level).filter(
+      (level): level is CefrLevel => level != null,
+    );
+    const weakestTestedSkillLevel =
+      testedSkillLevels.length > 0
+        ? testedSkillLevels.reduce((weakest, level) => (cefrRank(level) < cefrRank(weakest) ? level : weakest))
+        : null;
+    const cefrLevel: CefrLevel =
+      weakestTestedSkillLevel && cefrRank(weakestTestedSkillLevel) < cefrRank(pooledCefrLevel) ? weakestTestedSkillLevel : pooledCefrLevel;
+    // Once a weak skill has pulled the headline down below what the pooled
+    // walk found, that's the real, complete reason why — the gap caveat
+    // only makes sense when the pooled result stands as-is.
+    const cefrCappedByGap = cefrLevel === pooledCefrLevel && overallAssessment.cappedByGap;
 
     // buildRoadmap still needs a real number per skill to rank "weakest
     // first" for milestone ordering — an untested skill falls back to the
