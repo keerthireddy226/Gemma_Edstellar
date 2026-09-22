@@ -322,7 +322,17 @@ export function PlacementTest() {
         <div className="h-full bg-navy transition-all" style={{ width: `${progressPct}%` }} />
       </div>
 
-      <div className="flex-1 overflow-y-auto flex flex-col items-center px-5 py-6">
+      {/* Fixed (not max-) height — the same for every question, regardless
+          of content — so the Skip/Next bar below it always lands on the
+          exact same pixel position. Content is centered inside this fixed
+          box rather than pinned to its top, so a short question doesn't
+          read as a big dead gap — the leftover space splits above and
+          below it instead of collecting in one place. Only a genuinely
+          long passage scrolls, via the overflow-y-auto here. */}
+      <div
+        className="overflow-y-auto flex flex-col items-center justify-center px-5 py-6"
+        style={{ height: "calc(100vh - 220px)" }}
+      >
         <div className="w-full max-w-md flex flex-col gap-5">
           <div className="flex flex-col items-center gap-2 text-center">
             <div className="flex items-center gap-1.5">
@@ -464,20 +474,25 @@ export function PlacementTest() {
             )}
 
             {error && <p className="text-sm text-error text-center">{error}</p>}
-
-            <div className="flex items-center justify-center">
-              <button
-                onClick={handleSkip}
-                disabled={submitting || recording}
-                className="text-sm font-medium text-muted hover:text-ink transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed min-w-[160px] px-6 py-2 text-center"
-              >
-                {t("placementTest.skip")}
-              </button>
-              <Button onClick={handleSubmit} disabled={!canSubmit || submitting} className="min-w-[220px]">
-                {submitting ? t("placementTest.submitting") : t("placementTest.next")}
-              </Button>
-            </div>
           </div>
+        </div>
+      </div>
+
+      {/* Its own fixed-height bar, outside the content box above — since
+          that box is now a constant height for every question, this footer
+          always sits at the same place on screen too. */}
+      <div className="shrink-0 border-t border-rule bg-surface px-5 py-3">
+        <div className="max-w-md mx-auto flex items-center justify-center">
+          <button
+            onClick={handleSkip}
+            disabled={submitting || recording}
+            className="text-sm font-medium text-muted hover:text-ink transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed min-w-[160px] px-6 py-2 text-center"
+          >
+            {t("placementTest.skip")}
+          </button>
+          <Button onClick={handleSubmit} disabled={!canSubmit || submitting} className="min-w-[220px]">
+            {submitting ? t("placementTest.submitting") : t("placementTest.next")}
+          </Button>
         </div>
       </div>
     </div>

@@ -400,6 +400,8 @@
     "remainingItems": "{{count}} sur {{total}} éléments restants à essayer",
     "allDone": "Vous avez terminé tout ce qui est disponible dans cette banque pour le moment — revenez après l'ajout de nouveau contenu.",
     "start": "Commencer",
+    "backToSkills": "Retour aux compétences",
+    "pickTypeSubtitle": "Choisissez un type de question à pratiquer.",
     "starting": "Démarrage de votre session de pratique…",
     "startError": "Une erreur s'est produite lors du démarrage de cette session de pratique. Veuillez réessayer.",
     "sessionComplete": "Beau travail !",

@@ -523,9 +523,18 @@ placementRouter.post("/session/:sessionId/attempts", requireAuth, async (req: Au
     );
 
     // --- Adaptive step: pick what comes next ---
-    // A skip or a failed-grading attempt gets treated the same as "wrong"
-    // for stepping purposes — there's no evidence they cleared this level,
-    // so the next question in this type steps down, same as a real miss.
+    // A skip is treated as "wrong" for stepping purposes — it's the
+    // learner's own choice not to attempt it, so there's no evidence they
+    // cleared this level, same as a real miss.
+    //
+    // A failed-grading attempt is different: that's a grading *service*
+    // fault (AI call broke), not anything the learner did — they may well
+    // have answered correctly. Stepping them down for it would silently
+    // penalize an infrastructure problem, which contradicts the results
+    // summary's own "this isn't about your answers" framing for failedCount
+    // (see the summary endpoint below). So it stays at the *same* level
+    // instead of moving up or down — neither rewarded nor punished.
+    //
     // For a mic answer, "correct" now also requires pronunciation, fluency,
     // and pace to clear the bar (when we actually measured them) — see
     // isTrulyCorrect in fluencySignals.ts for the full reasoning.
@@ -535,7 +544,8 @@ placementRouter.post("/session/:sessionId/attempts", requireAuth, async (req: Au
     let nextItem: ItemPoolRow | null = null;
 
     if (typeState.shown.length < typeState.budget) {
-      const nextLevel = stepLevel((item.cefr_level as CefrLevel) ?? START_LEVEL, wasCorrect);
+      const nextLevel =
+        grade.status === "failed" ? ((item.cefr_level as CefrLevel) ?? START_LEVEL) : stepLevel((item.cefr_level as CefrLevel) ?? START_LEVEL, wasCorrect);
       const rows = await fetchTypePool(req.user!.id, currentType);
       nextItem = pickAdaptiveItem(rows, nextLevel, new Set(typeState.shown));
     }

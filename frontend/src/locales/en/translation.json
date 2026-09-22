@@ -400,6 +400,8 @@
     "remainingItems": "{{count}} of {{total}} items left to try",
     "allDone": "You've completed everything in this bank for now — check back after more content is added.",
     "start": "Start",
+    "backToSkills": "Back to skills",
+    "pickTypeSubtitle": "Pick a question type to practice.",
     "starting": "Starting your practice session…",
     "startError": "Something went wrong starting this practice session. Please try again.",
     "sessionComplete": "Nice work!",

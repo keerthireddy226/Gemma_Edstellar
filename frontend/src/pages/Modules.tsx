@@ -31,6 +31,41 @@ const SKILL_ICONS: Record<SkillTag, typeof Headphones> = {
   writing: PenLine,
 };
 
+// Which question types show up under each skill's type picker — verified
+// directly against item_types.skills in the database (not every type's
+// skills tag matches ITEM_TYPE_META's, e.g. open_questions is speaking-only
+// in the DB), so this is spelled out explicitly per skill rather than
+// derived from ITEM_TYPE_META.skills.
+const SKILL_TYPES: Record<SkillTag, string[]> = {
+  listening: [
+    "conversations",
+    "dictation",
+    "passage_comprehension",
+    "reading_selective",
+    "repeats",
+    "response_selection",
+    "sentence_builds",
+    "short_answer",
+    "story_retelling",
+  ],
+  speaking: [
+    "conversations",
+    "open_questions",
+    "passage_comprehension",
+    "reading",
+    "reading_selective",
+    "repeats",
+    "sentence_builds",
+    "short_answer",
+    "speaking_situations",
+    "story_retelling",
+  ],
+  reading: ["passage_reconstruction", "reading", "reading_comprehension", "reading_selective", "speaking_situations", "summary_and_opinion"],
+  // free_writing exists in the DB's item_types but has no ITEM_TYPE_META
+  // entry and zero approved content — left out until it's actually usable.
+  writing: ["dictation", "email_writing", "passage_reconstruction", "sentence_completion", "summary_and_opinion", "typing"],
+};
+
 interface CachedAnswer {
   responseText: string;
   audioBase64?: string;
@@ -89,6 +124,58 @@ function SkillPicker({
   );
 }
 
+// Shown after picking a skill — one card per question type in that skill,
+// each starting a practice session scoped to just that type (via the
+// existing itemTypeId param POST /practice/session already supports).
+// Reuses whatever content already exists for now; this is the navigation
+// layer only, not the separate Modules-only question bank planned later.
+function TypePicker({ skill, starting, onBack, onSelect }: { skill: SkillTag; starting: boolean; onBack: () => void; onSelect: (typeId: string) => void }) {
+  const { t } = useTranslation();
+  const Icon = SKILL_ICONS[skill];
+  const types = SKILL_TYPES[skill];
+
+  return (
+    <div className="max-w-3xl mx-auto flex flex-col gap-4">
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink transition-colors cursor-pointer self-start"
+      >
+        <ArrowLeft size={16} strokeWidth={1.8} /> {t("modules.backToSkills")}
+      </button>
+
+      <div className="flex items-center gap-3">
+        <span className="h-11 w-11 rounded-input bg-paper flex items-center justify-center shrink-0">
+          <Icon size={22} strokeWidth={1.8} className="text-navy-deep" />
+        </span>
+        <div>
+          <h1 className="font-display font-bold text-xl text-ink">{t(`skills.${skill}`)} Practice</h1>
+          <p className="text-xs text-muted">{t("modules.pickTypeSubtitle")}</p>
+        </div>
+      </div>
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {types.map((typeId) => {
+          const meta = ITEM_TYPE_META[typeId];
+          if (!meta) return null;
+          return (
+            <button
+              key={typeId}
+              onClick={() => onSelect(typeId)}
+              disabled={starting}
+              className="text-left bg-surface border border-rule rounded-card p-4 hover:border-rule-strong transition-colors cursor-pointer flex flex-col gap-2.5 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <span className="h-8 w-8 rounded-input bg-paper flex items-center justify-center shrink-0">
+                <Icon size={16} strokeWidth={1.8} className="text-navy-deep" />
+              </span>
+              <span className="font-display font-semibold text-sm text-ink">{meta.name}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function Modules() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -97,6 +184,9 @@ export function Modules() {
 
   const [availability, setAvailability] = useState<SkillAvailability[] | null>(null);
   const [loadingAvailability, setLoadingAvailability] = useState(true);
+  // A skill picked but no type chosen yet — shows TypePicker instead of
+  // starting a session immediately.
+  const [pickerSkill, setPickerSkill] = useState<SkillTag | null>(null);
 
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [items, setItems] = useState<TestItem[]>([]);
@@ -155,10 +245,13 @@ export function Modules() {
     }
   }
 
-  // Arriving from the Dashboard's "Start Practice" button passes ?skill= (and
-  // optionally ?count=); arriving from a "Today's Tasks" row also passes
-  // ?type= to practice just that one exercise type — auto-start instead of
-  // showing the picker.
+  // Arriving from the Dashboard's "Start Practice" button (or a Sidebar
+  // skill link) passes ?skill= alone — that shows the type picker rather
+  // than auto-starting, since a skill by itself no longer implies "all
+  // types mixed together" (matches the reference practice portal: pick a
+  // skill, then pick one specific question type). Arriving from a "Today's
+  // Tasks" row passes ?type= too (and optionally ?count=) to skip straight
+  // into that one exercise type instead.
   //
   // Guarded with a ref (not just the empty dep array) because StrictMode's
   // dev-mode double-invoke otherwise fires this twice back to back — two
@@ -173,7 +266,11 @@ export function Modules() {
     const itemTypeId = searchParams.get("type");
     if (skill === "listening" || skill === "speaking" || skill === "reading" || skill === "writing") {
       autoStarted.current = true;
-      handleStart(skill, count ? Number(count) : undefined, itemTypeId ?? undefined);
+      if (itemTypeId) {
+        handleStart(skill, count ? Number(count) : undefined, itemTypeId);
+      } else {
+        setPickerSkill(skill);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -321,10 +418,21 @@ export function Modules() {
     setSummary(null);
   }
 
-  // No active or just-finished session — show the skill picker.
+  // No active or just-finished session — show the skill picker, or the
+  // type picker if a skill's already been chosen but no specific type yet.
   if (!sessionId && !starting) {
+    if (pickerSkill) {
+      return (
+        <TypePicker
+          skill={pickerSkill}
+          starting={starting}
+          onBack={() => setPickerSkill(null)}
+          onSelect={(typeId) => handleStart(pickerSkill, undefined, typeId)}
+        />
+      );
+    }
     return (
-      <SkillPicker availability={availability} loading={loadingAvailability} starting={starting} onStart={(skill) => handleStart(skill)} />
+      <SkillPicker availability={availability} loading={loadingAvailability} starting={starting} onStart={(skill) => setPickerSkill(skill)} />
     );
   }
 
@@ -378,12 +486,21 @@ export function Modules() {
         </span>
       </div>
 
-      <div className="relative w-full bg-surface border border-rule rounded-card shadow-sm overflow-hidden">
+      {/* Fixed (not max-) height — the same for every question — so the
+          Back/Skip/Next footer always lands at the same place. Content is
+          centered inside this fixed box instead of pinned to its top, so a
+          short question's leftover space splits above and below it rather
+          than collecting in one visible gap. Only a genuinely long passage
+          scrolls, via the overflow-y-auto on the inner content div. */}
+      <div
+        className="relative w-full bg-surface border border-rule rounded-card shadow-sm overflow-hidden flex flex-col"
+        style={{ height: "calc(100vh - 240px)" }}
+      >
         <div
           className="absolute top-0 left-0 right-0 h-1.5"
           style={{ backgroundColor: `var(--color-${(meta?.skills ?? current.skills)[0]})` }}
         />
-        <div className="p-8 flex flex-col gap-5">
+        <div className="flex-1 p-8 pt-8 flex flex-col justify-center gap-5 overflow-y-auto">
           <div className="flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-mono uppercase tracking-wide text-ink font-semibold">{meta?.name}</span>
@@ -555,22 +672,22 @@ export function Modules() {
       )}
 
           {error && <p className="text-sm text-error text-center">{error}</p>}
+        </div>
 
-          <div className="flex items-center gap-3">
-            <Button variant="secondary" onClick={handleBack} disabled={index === 0 || submitting || recording} className="!px-3.5">
-              <ArrowLeft size={20} />
-            </Button>
-            <button
-              onClick={handleSkip}
-              disabled={submitting || recording}
-              className="text-sm font-medium text-muted hover:text-ink transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed px-1"
-            >
-              {t("placementTest.skip")}
-            </button>
-            <Button onClick={handleSubmit} disabled={!canSubmit || submitting} className="flex-1">
-              {submitting ? t("placementTest.submitting") : index + 1 < items.length ? t("placementTest.next") : t("placementTest.finish")}
-            </Button>
-          </div>
+        <div className="shrink-0 border-t border-rule px-8 py-4 flex items-center gap-3">
+          <Button variant="secondary" onClick={handleBack} disabled={index === 0 || submitting || recording} className="!px-3.5">
+            <ArrowLeft size={20} />
+          </Button>
+          <button
+            onClick={handleSkip}
+            disabled={submitting || recording}
+            className="text-sm font-medium text-muted hover:text-ink transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed px-1"
+          >
+            {t("placementTest.skip")}
+          </button>
+          <Button onClick={handleSubmit} disabled={!canSubmit || submitting} className="flex-1">
+            {submitting ? t("placementTest.submitting") : index + 1 < items.length ? t("placementTest.next") : t("placementTest.finish")}
+          </Button>
         </div>
       </div>
     </div>
