@@ -247,6 +247,23 @@ body {
   animation: recording-pulse 1.1s ease-in-out infinite;
 }
 
+/* Small nudge toward an action button — e.g. "Start Practice" when a
+   learner has no sessions yet — a subtle horizontal bounce, not a big
+   distracting motion. */
+@keyframes nudge-arrow {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+}
+
+.nudge-arrow {
+  animation: nudge-arrow 1.1s ease-in-out infinite;
+}
+
 * {
   box-sizing: border-box;
 }

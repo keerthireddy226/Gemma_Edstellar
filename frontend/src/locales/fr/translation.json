@@ -317,14 +317,20 @@
   "motivational": {
     "line1": "15 minutes de pratique quotidienne valent mieux que 2 heures une fois par semaine.",
     "line2": "Parler à voix haute — même seul(e) — est le raccourci le plus rapide vers la fluidité.",
-    "line3": "Chaque erreur à l'entraînement est une de moins à l'examen."
+    "line3": "Chaque erreur à l'entraînement est une de moins à l'examen.",
+    "line4": "La régularité l'emporte sur l'intensité — un peu chaque jour, ça s'additionne vite.",
+    "line5": "Vous n'avez pas besoin d'être parfait(e). Il suffit de continuer.",
+    "line6": "Chaque expert a été un débutant qui n'a pas abandonné.",
+    "line7": "De petits pas aujourd'hui, une grande confiance demain.",
+    "line8": "Pratiquez aujourd'hui pour que le jour de l'examen semble ordinaire.",
+    "line9": "Le meilleur moment pour pratiquer était hier. Le deuxième meilleur, c'est maintenant."
   },
   "achievement": {
     "goalSetterTitle": "Objectif défini",
     "goalSetterBody": "Vous avez défini votre niveau cible et votre feuille de route."
   },
   "recommendedPractice": {
-    "title": "Pratique recommandée",
+    "title": "Sélectionné pour vous",
     "startPractice": "Commencer la pratique",
     "estimatedMinutes": "~{{minutes}} min"
   },
@@ -365,10 +371,16 @@
   "dashboardHome": {
     "welcomeBack": "Bon retour, {{name}}",
     "subtitle": "Continuez votre pratique de l'anglais et développez votre confiance dans les quatre compétences.",
+    "subtitleFirstTime": "Vous n'avez pas encore commencé à pratiquer — votre première session ne prend que quelques minutes. Allons-y !",
+    "subtitleAllDoneToday": "Vous avez terminé tout ce qui était prévu aujourd'hui — bravo ! Revenez demain pour garder votre série.",
+    "subtitleContinue_one": "{{count}} tâche restante aujourd'hui — allons-y !",
+    "subtitleContinue_other": "{{count}} tâches restantes aujourd'hui — allons-y !",
     "viewRoadmap": "Feuille de route",
     "startPractice": "Commencer la pratique",
     "overallProgressTitle": "Progression globale de la pratique",
     "todaysTasksTitle": "Tâches du jour",
+    "todaysTasksTitleGo": "Tâches du jour — Allons-y !",
+    "todaysTasksAllDone": "Tâches du jour — Terminées !",
     "taskProgress": "{{done}}/{{target}} éléments aujourd'hui",
     "practiceAction": "Pratiquer",
     "statusNotStarted": "Non commencé",

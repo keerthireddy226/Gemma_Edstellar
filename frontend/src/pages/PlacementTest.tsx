@@ -223,15 +223,14 @@ export function PlacementTest() {
               const entry = summary.skillLevels?.[skill as keyof typeof summary.skillLevels];
               return (
                 <div key={skill} className="bg-paper-warm rounded-input p-3">
+                  <div className="text-[10px] font-mono font-semibold uppercase tracking-wider text-muted mb-1.5">
+                    {t(`skills.${skill}`)}
+                  </div>
                   {pct === null ? (
-                    <>
-                      <div className="text-xs text-muted italic">{t("placementTest.notEnoughAnswered")}</div>
-                      <div className="text-xs text-muted mt-0.5">{t(`skills.${skill}`)}</div>
-                    </>
+                    <div className="text-xs text-muted italic">{t("placementTest.notEnoughAnswered")}</div>
                   ) : (
                     <>
                       {entry?.level && <div className="font-display font-bold text-lg text-ink">{entry.level}</div>}
-                      <div className="text-xs text-muted mt-0.5">{t(`skills.${skill}`)}</div>
                       {entry?.cappedByGap ? (
                         <div className="text-[10px] text-muted mt-0.5 italic leading-snug">
                           {t("placementTest.gapCappedNote")}

@@ -132,7 +132,10 @@ function TodaysTasksList({ tasks }: { tasks: TodaysTask[] }) {
                 onClick={() => navigate(`${ROUTES.MODULES}?skill=${task.skill}&count=${Math.max(1, task.itemTarget - task.itemsCompletedToday)}`)}
                 className="shrink-0"
               >
-                {t("dashboardHome.practiceAction")}
+                <span className="flex items-center gap-1.5">
+                  {t("dashboardHome.practiceAction")}
+                  <ArrowRight size={16} strokeWidth={2.2} className="nudge-arrow" />
+                </span>
               </Button>
             )}
           </div>
@@ -274,6 +277,14 @@ function LearnerDashboard() {
   }
 
   const { firstName, startSkill, modules, todaysTasks, stats, inProgressPractice } = data;
+  const remainingToday = todaysTasks.filter((task) => !task.done).length;
+  const heroSubtitleKey =
+    stats.sessions === 0
+      ? "dashboardHome.subtitleFirstTime"
+      : remainingToday === 0
+        ? "dashboardHome.subtitleAllDoneToday"
+        : "dashboardHome.subtitleContinue";
+  const showStartNudge = stats.sessions === 0 || remainingToday > 0;
 
   return (
     <div className="flex flex-col gap-6 w-full">
@@ -283,7 +294,7 @@ function LearnerDashboard() {
         </div>
         <div className="relative z-10">
           <h2 className="font-display font-bold text-xl text-ink">{t("dashboardHome.welcomeBack", { name: firstName ?? "" })}</h2>
-          <p className="text-sm text-muted mt-0.5">{t("dashboardHome.subtitle")}</p>
+          <p className="text-sm text-muted mt-0.5">{t(heroSubtitleKey, { count: remainingToday })}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0 relative z-10 sm:mr-20">
           <Button variant="secondary" onClick={() => navigate(ROUTES.ROADMAP)}>
@@ -291,7 +302,12 @@ function LearnerDashboard() {
               <Map size={18} strokeWidth={1.8} /> {t("dashboardHome.viewRoadmap")}
             </span>
           </Button>
-          <Button onClick={() => navigate(`${ROUTES.MODULES}?skill=${startSkill}`)}>{t("dashboardHome.startPractice")}</Button>
+          <Button onClick={() => navigate(`${ROUTES.MODULES}?skill=${startSkill}`)}>
+            <span className="flex items-center gap-1.5">
+              {t("dashboardHome.startPractice")}
+              {showStartNudge && <ArrowRight size={18} strokeWidth={2.2} className="nudge-arrow" />}
+            </span>
+          </Button>
         </div>
       </div>
 
@@ -313,7 +329,9 @@ function LearnerDashboard() {
         </section>
 
         <section className="flex flex-col gap-3">
-          <h3 className="font-mono text-[11px] font-medium tracking-[.24em] uppercase text-muted">{t("dashboardHome.todaysTasksTitle")}</h3>
+          <h3 className="font-mono text-[11px] font-medium tracking-[.24em] uppercase text-muted">
+            {t(remainingToday === 0 ? "dashboardHome.todaysTasksAllDone" : "dashboardHome.todaysTasksTitleGo")}
+          </h3>
           <TodaysTasksList tasks={todaysTasks} />
         </section>
       </div>

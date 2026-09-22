@@ -13,6 +13,7 @@ import {
   PenLine,
   Clock,
   ListChecks,
+  ArrowRight,
 } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
 import { Button } from "@/components/Button";
@@ -293,7 +294,7 @@ function RoadmapTimeline({ milestones, daysSinceStart }: { milestones: RoadmapMi
   );
 }
 
-function RecommendedPractice({ practice }: { practice: RoadmapData["recommendedPractice"] }) {
+function RecommendedPractice({ practice, hasPracticed }: { practice: RoadmapData["recommendedPractice"]; hasPracticed: boolean }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -314,7 +315,10 @@ function RecommendedPractice({ practice }: { practice: RoadmapData["recommendedP
         </div>
       ))}
       <Button onClick={() => navigate(ROUTES.MODULES)} className="mt-2 w-full">
-        {t("recommendedPractice.startPractice")}
+        <span className="flex items-center justify-center gap-1.5">
+          {t("recommendedPractice.startPractice")}
+          {!hasPracticed && <ArrowRight size={16} strokeWidth={2.2} className="nudge-arrow" />}
+        </span>
       </Button>
     </div>
   );
@@ -534,7 +538,7 @@ export function Roadmap() {
           <RoadmapTimeline milestones={roadmap.milestones} daysSinceStart={daysSinceStart} />
         </div>
 
-        <RecommendedPractice practice={recommendedPractice} />
+        <RecommendedPractice practice={recommendedPractice} hasPracticed={accuracyPercent !== null} />
       </div>
 
       <DailyChallenge />

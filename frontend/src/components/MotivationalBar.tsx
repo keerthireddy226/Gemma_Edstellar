@@ -1,14 +1,33 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-const LINES = ["motivational.line1", "motivational.line2", "motivational.line3"];
+const LINES = [
+  "motivational.line1",
+  "motivational.line2",
+  "motivational.line3",
+  "motivational.line4",
+  "motivational.line5",
+  "motivational.line6",
+  "motivational.line7",
+  "motivational.line8",
+  "motivational.line9",
+];
+
+function pickNext(current: string): string {
+  if (LINES.length <= 1) return LINES[0];
+  let next = current;
+  while (next === current) {
+    next = LINES[Math.floor(Math.random() * LINES.length)];
+  }
+  return next;
+}
 
 export function MotivationalBar() {
   const [line, setLine] = useState(() => LINES[Math.floor(Math.random() * LINES.length)]);
   const { t } = useTranslation();
 
   useEffect(() => {
-    const interval = setInterval(() => setLine(LINES[Math.floor(Math.random() * LINES.length)]), 12000);
+    const interval = setInterval(() => setLine((current) => pickNext(current)), 12000);
     return () => clearInterval(interval);
   }, []);
 

@@ -317,14 +317,20 @@
   "motivational": {
     "line1": "15 minutos de práctica diaria superan a 2 horas una vez por semana.",
     "line2": "Hablar en voz alta — incluso contigo mismo/a — es el atajo más rápido hacia la fluidez.",
-    "line3": "Cada error en la práctica es uno menos en el examen."
+    "line3": "Cada error en la práctica es uno menos en el examen.",
+    "line4": "La constancia gana a la intensidad — un poco cada día se suma rápido.",
+    "line5": "No necesitas ser perfecto/a. Solo necesitas seguir intentándolo.",
+    "line6": "Todo experto fue alguna vez un principiante que no se rindió.",
+    "line7": "Pequeños pasos hoy, gran confianza mañana.",
+    "line8": "Practica hoy para que el día del examen se sienta normal.",
+    "line9": "El mejor momento para practicar fue ayer. El siguiente mejor momento es ahora."
   },
   "achievement": {
     "goalSetterTitle": "Meta Establecida",
     "goalSetterBody": "Estableciste tu nivel objetivo y tu plan de estudio."
   },
   "recommendedPractice": {
-    "title": "Práctica recomendada",
+    "title": "Elegido para ti",
     "startPractice": "Comenzar práctica",
     "estimatedMinutes": "~{{minutes}} min"
   },
@@ -365,10 +371,16 @@
   "dashboardHome": {
     "welcomeBack": "Bienvenido de nuevo, {{name}}",
     "subtitle": "Continúa tu práctica de inglés y desarrolla confianza en las cuatro habilidades.",
+    "subtitleFirstTime": "Todavía no has empezado a practicar — tu primera sesión solo toma unos minutos. ¡Vamos!",
+    "subtitleAllDoneToday": "Terminaste todo en tu lista de hoy — ¡buen trabajo! Vuelve mañana para mantener tu racha.",
+    "subtitleContinue_one": "Te queda {{count}} tarea para hoy — ¡vamos!",
+    "subtitleContinue_other": "Te quedan {{count}} tareas para hoy — ¡vamos!",
     "viewRoadmap": "Hoja de ruta",
     "startPractice": "Comenzar práctica",
     "overallProgressTitle": "Progreso general de práctica",
     "todaysTasksTitle": "Tareas de hoy",
+    "todaysTasksTitleGo": "Tareas de hoy — ¡Vamos!",
+    "todaysTasksAllDone": "Tareas de hoy — ¡Completadas!",
     "taskProgress": "{{done}}/{{target}} elementos hoy",
     "practiceAction": "Practicar",
     "statusNotStarted": "Sin empezar",

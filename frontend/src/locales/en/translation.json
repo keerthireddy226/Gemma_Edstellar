@@ -317,14 +317,20 @@
   "motivational": {
     "line1": "15 minutes of daily practice beats 2 hours once a week.",
     "line2": "Speaking out loud — even to yourself — is the fastest shortcut to fluency.",
-    "line3": "Every mistake in practice is one fewer in the exam."
+    "line3": "Every mistake in practice is one fewer in the exam.",
+    "line4": "Consistency beats intensity — a little every day adds up fast.",
+    "line5": "You don't need to be perfect. You just need to keep going.",
+    "line6": "Every expert was once a beginner who didn't quit.",
+    "line7": "Small steps today, big confidence tomorrow.",
+    "line8": "Practice today so exam day feels ordinary.",
+    "line9": "The best time to practice was yesterday. The next best time is now."
   },
   "achievement": {
     "goalSetterTitle": "Goal Setter",
     "goalSetterBody": "Set your target level and roadmap."
   },
   "recommendedPractice": {
-    "title": "Recommended Practice",
+    "title": "Picked for You",
     "startPractice": "Start practice",
     "estimatedMinutes": "~{{minutes}} min"
   },
@@ -365,10 +371,16 @@
   "dashboardHome": {
     "welcomeBack": "Welcome back, {{name}}",
     "subtitle": "Continue your English practice and build confidence across all four skills.",
+    "subtitleFirstTime": "You haven't started practicing yet — your first session only takes a few minutes. Let's go!",
+    "subtitleAllDoneToday": "You've finished everything on today's list — nice work! Come back tomorrow to keep your streak alive.",
+    "subtitleContinue_one": "{{count}} task left for today — let's go!",
+    "subtitleContinue_other": "{{count}} tasks left for today — let's go!",
     "viewRoadmap": "Roadmap",
     "startPractice": "Start Practice",
     "overallProgressTitle": "Overall Practice Progress",
     "todaysTasksTitle": "Today's Tasks",
+    "todaysTasksTitleGo": "Today's Tasks — Let's Go!",
+    "todaysTasksAllDone": "Today's Tasks — All Done!",
     "taskProgress": "{{done}}/{{target}} items today",
     "practiceAction": "Practice",
     "statusNotStarted": "Not started",
