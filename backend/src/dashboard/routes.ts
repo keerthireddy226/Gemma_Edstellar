@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { pool } from "../db.js";
 import { requireAuth, type AuthedRequest } from "../auth/middleware.js";
+import { isTrulyCorrect } from "../placement/fluencySignals.js";
+import { passThresholdForLevel } from "../placement/cefr.js";
 
 export const dashboardRouter = Router();
 
@@ -188,12 +190,38 @@ dashboardRouter.get("/", requireAuth, async (req: AuthedRequest, res, next) => {
     );
     const questionsCompleted = Number(questionsCompletedResult.rows[0].count);
 
+    // null (not 0) until there's at least one *graded* practice answer —
+    // same "no real evidence yet" reasoning as the placement skill
+    // breakdown: an accuracy of 0% before anything has been graded would
+    // misleadingly read as "you got everything wrong" rather than "you
+    // haven't practiced".
+    const accuracyResult = await pool.query(
+      `SELECT sc.content_score, sc.manner_scores, i.cefr_level, it.input_method
+       FROM attempts a
+       JOIN sessions s ON s.id = a.session_id
+       JOIN scores sc ON sc.attempt_id = a.id
+       JOIN items i ON i.id = a.item_id
+       JOIN item_types it ON it.id = i.item_type_id
+       WHERE s.user_id = $1 AND s.session_type = 'practice' AND sc.status = 'scored'`,
+      [req.user!.id],
+    );
+    const accuracyPercent =
+      accuracyResult.rows.length === 0
+        ? null
+        : Math.round(
+            (accuracyResult.rows.filter((r) =>
+              isTrulyCorrect(Number(r.content_score), r.cefr_level, r.input_method, r.manner_scores, passThresholdForLevel),
+            ).length /
+              accuracyResult.rows.length) *
+              100,
+          );
+
     res.json({
       firstName: userResult.rows[0]?.first_name ?? null,
       startSkill,
       modules,
       todaysTasks,
-      stats: { sessions, questionsCompleted, practiceMinutes, streakDays },
+      stats: { sessions, questionsCompleted, practiceMinutes, streakDays, accuracyPercent },
     });
   } catch (err) {
     next(err);

@@ -21,6 +21,9 @@ export interface DashboardStats {
   questionsCompleted: number;
   practiceMinutes: number;
   streakDays: number;
+  // null until at least one practice answer has been graded — see
+  // dashboard/routes.ts for why 0% isn't used as the "no data yet" value.
+  accuracyPercent: number | null;
 }
 
 export interface DashboardData {

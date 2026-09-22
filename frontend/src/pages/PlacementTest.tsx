@@ -285,21 +285,24 @@ export function PlacementTest() {
     <div className="fixed inset-0 bg-paper flex flex-col">
       <div className="h-1.5 w-full shrink-0" style={{ backgroundColor: `var(--color-${current.skills[0]})` }} />
 
-      <div className="flex items-center justify-between gap-3 px-5 py-3 shrink-0">
-        {remainingSeconds !== null ? (
-          <span
-            className={`flex items-center gap-1.5 text-sm font-mono font-bold rounded-pill px-3 py-1 border transition-colors ${
-              urgentTimer ? "text-error border-error/30 bg-error/10" : "text-navy-deep border-navy/20 bg-navy/10"
-            }`}
-          >
-            <Clock size={14} />
-            {String(Math.floor(remainingSeconds / 60)).padStart(1, "0")}:{String(remainingSeconds % 60).padStart(2, "0")}
-          </span>
-        ) : (
-          <span className="font-logo tracking-tight flex items-baseline gap-1.5">
-            <span className="font-bold text-base text-logo-primary">Spica</span>
-          </span>
-        )}
+      <div className="relative flex items-center justify-between gap-3 px-5 py-3 shrink-0">
+        <div className="flex items-center">
+          {remainingSeconds !== null && (
+            <span
+              className={`flex items-center gap-1.5 text-sm font-mono font-bold rounded-pill px-3 py-1 border transition-colors ${
+                urgentTimer ? "text-error border-error/30 bg-error/10" : "text-navy-deep border-navy/20 bg-navy/10"
+              }`}
+            >
+              <Clock size={14} />
+              {String(Math.floor(remainingSeconds / 60)).padStart(1, "0")}:{String(remainingSeconds % 60).padStart(2, "0")}
+            </span>
+          )}
+        </div>
+
+        <span className="absolute left-1/2 -translate-x-1/2 font-logo tracking-tight flex items-baseline gap-1.5">
+          <span className="font-bold text-base text-logo-primary">Spica</span>
+          <span className="italic text-xs text-logo-accent">by Edstellar</span>
+        </span>
 
         <div className="flex items-center gap-3">
           <span className="text-xs font-mono text-muted">

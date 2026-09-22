@@ -19,6 +19,7 @@ import { Button } from "@/components/Button";
 import { Mascot } from "@/components/Mascot";
 import { MotivationalBar } from "@/components/MotivationalBar";
 import { getRoadmap, type RoadmapData, type RoadmapMilestone } from "@/hooks/useRoadmap";
+import { getDashboard } from "@/hooks/useDashboard";
 import { meetsGoal, percentToCefr } from "@/lib/cefr";
 import { ApiError } from "@/lib/api";
 import { ProgressRing } from "@/components/ProgressRing";
@@ -112,7 +113,7 @@ function AchievementBanner() {
   );
 }
 
-function StatsRow({ progressPercent }: { progressPercent: number }) {
+function StatsRow({ progressPercent, accuracyPercent }: { progressPercent: number; accuracyPercent: number | null }) {
   const { t } = useTranslation();
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -149,10 +150,19 @@ function StatsRow({ progressPercent }: { progressPercent: number }) {
       <div className="bg-surface border border-rule rounded-card p-4">
         <div className="flex items-center justify-between mb-2.5">
           <span className="font-mono text-[10px] uppercase tracking-wider text-muted">{t("roadmap.accuracy")}</span>
-          <span className="text-sm leading-none">🔒</span>
+          {accuracyPercent === null && <span className="text-sm leading-none">🔒</span>}
         </div>
-        <div className="font-display font-bold text-2xl text-muted">—</div>
-        <div className="text-xs text-muted mt-0.5">{t("roadmap.practiceToUnlock")}</div>
+        {accuracyPercent === null ? (
+          <>
+            <div className="font-display font-bold text-2xl text-muted">—</div>
+            <div className="text-xs text-muted mt-0.5">{t("roadmap.practiceToUnlock")}</div>
+          </>
+        ) : (
+          <>
+            <div className="font-display font-bold text-2xl text-ink">{accuracyPercent}%</div>
+            <div className="text-xs text-muted mt-0.5">{t("roadmap.practiceAccuracy")}</div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -297,7 +307,7 @@ function RecommendedPractice({ practice }: { practice: RoadmapData["recommendedP
           <span className="h-5 w-5 rounded-full border-2 border-rule-strong shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold text-ink truncate">{item.name}</div>
-            <div className="text-xs text-muted truncate">
+            <div className="text-xs text-muted line-clamp-2 leading-snug">
               {t("recommendedPractice.estimatedMinutes", { minutes: Math.max(1, Math.round(item.estimatedSeconds / 60)) })} &middot; {item.questionInstruction}
             </div>
           </div>
@@ -445,6 +455,12 @@ export function Roadmap() {
   const [notReady, setNotReady] = useState<{ scheduledFor: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Practice-derived, not placement-derived — kept separate from `data` so
+  // a hiccup fetching it never blocks the rest of the page. Null both
+  // before this resolves and once it has if there's no graded practice
+  // yet; StatsRow can't tell those apart and doesn't need to (both show
+  // the same "not unlocked yet" state).
+  const [accuracyPercent, setAccuracyPercent] = useState<number | null>(null);
 
   useEffect(() => {
     getRoadmap()
@@ -458,6 +474,9 @@ export function Roadmap() {
         }
       })
       .finally(() => setLoading(false));
+    getDashboard()
+      .then((res) => setAccuracyPercent(res.stats.accuracyPercent))
+      .catch(() => {});
   }, [t]);
 
   if (loading) return <p className="text-sm text-muted">{t("roadmap.loading")}</p>;
@@ -501,7 +520,7 @@ export function Roadmap() {
 
       <AchievementBanner />
 
-      <StatsRow progressPercent={progressPercent} />
+      <StatsRow progressPercent={progressPercent} accuracyPercent={accuracyPercent} />
 
       <MotivationalBar />
 
