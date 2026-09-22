@@ -380,7 +380,18 @@
     "statsTimeValue": "{{minutes}} min",
     "statsStreak": "Série actuelle",
     "statsStreakValue_one": "{{count}} jour",
-    "statsStreakValue_other": "{{count}} jours"
+    "statsStreakValue_other": "{{count}} jours",
+    "continuePracticeTitle": "Reprenez où vous vous étiez arrêté(e)",
+    "continuePracticeBody": "{{skill}} — {{answered}} sur {{total}} répondues",
+    "achievementsTitle": "Réussites",
+    "badgeFirstSession": "Première séance",
+    "badgeFirstSessionHint": "Terminez une séance de pratique",
+    "badgeTenQuestions": "10 questions",
+    "badgeTenQuestionsHint": "Répondez à 10 questions d'entraînement",
+    "badgeStreak": "Série de 3 jours",
+    "badgeStreakHint": "Pratiquez 3 jours de suite",
+    "badgeSharp": "Tireur d'élite",
+    "badgeSharpHint": "Atteignez 80% de précision à l'entraînement"
   },
   "modules": {
     "title": "Modules de pratique",

@@ -136,8 +136,17 @@ export function Modules() {
       const res = await startPracticeSession(skill, count, itemTypeId);
       setSessionId(res.sessionId);
       setItems(res.items);
-      setIndex(0);
-      setAnswers({});
+      // Resuming an in-progress session returns every item with its own
+      // `attempted` flag — land on the first one that isn't, instead of
+      // always rewinding to index 0 (that used to make "Continue where you
+      // left off" on Overview show already-answered question 1 again).
+      const firstUnattempted = res.items.findIndex((item) => !item.attempted);
+      setIndex(firstUnattempted === -1 ? 0 : firstUnattempted);
+      setAnswers(
+        Object.fromEntries(
+          res.items.flatMap((item, i) => (item.attempted ? [[i, { responseText: item.responseText ?? "" }]] : [])),
+        ),
+      );
       setSummary(null);
     } catch {
       setError(t("modules.startError"));

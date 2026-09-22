@@ -148,16 +148,11 @@
 }
 
 html {
-  /* A single, global scale-up: every Tailwind text/spacing/max-width
-     utility (text-sm, p-8, max-w-xl, gap-4, etc.) is rem-based, so bumping
-     the root font-size makes every page — login, onboarding, placement
-     test, practice, dashboard, roadmap — noticeably bigger at once,
-     without hand-editing each page's classNames individually. Fixed-radius
-     tokens (--radius-card etc., defined in px above) and explicit pixel
-     icon sizes don't scale from this alone — icon sizes are bumped
-     separately in code.
-   */
-  font-size: 125%;
+  /* Root stays at the browser default (100%) — every Tailwind text/spacing
+     utility is rem-based, so this is the single place controlling the
+     app's overall scale. A prior 125% global bump was tried and reverted;
+     leave this at 100% rather than re-adjusting it again. */
+  font-size: 100%;
 }
 
 html,

@@ -380,7 +380,18 @@
     "statsTimeValue": "{{minutes}} నిమిషాలు",
     "statsStreak": "ప్రస్తుత స్ట్రీక్",
     "statsStreakValue_one": "{{count}} రోజు",
-    "statsStreakValue_other": "{{count}} రోజులు"
+    "statsStreakValue_other": "{{count}} రోజులు",
+    "continuePracticeTitle": "మీరు ఆపిన చోటు నుండి కొనసాగించండి",
+    "continuePracticeBody": "{{skill}} — {{total}}లో {{answered}} సమాధానం ఇచ్చారు",
+    "achievementsTitle": "విజయాలు",
+    "badgeFirstSession": "మొదటి సెషన్",
+    "badgeFirstSessionHint": "ఒక అభ్యాస సెషన్ పూర్తి చేయండి",
+    "badgeTenQuestions": "10 ప్రశ్నలు",
+    "badgeTenQuestionsHint": "10 అభ్యాస ప్రశ్నలకు సమాధానం ఇవ్వండి",
+    "badgeStreak": "3-రోజుల స్ట్రీక్",
+    "badgeStreakHint": "వరుసగా 3 రోజులు అభ్యాసం చేయండి",
+    "badgeSharp": "షార్ప్ షూటర్",
+    "badgeSharpHint": "80% అభ్యాస ఖచ్చితత్వం చేరుకోండి"
   },
   "modules": {
     "title": "అభ్యాస మాడ్యూల్స్",

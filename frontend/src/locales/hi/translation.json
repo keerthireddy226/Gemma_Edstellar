@@ -380,7 +380,18 @@
     "statsTimeValue": "{{minutes}} मिनट",
     "statsStreak": "वर्तमान स्ट्रीक",
     "statsStreakValue_one": "{{count}} दिन",
-    "statsStreakValue_other": "{{count}} दिन"
+    "statsStreakValue_other": "{{count}} दिन",
+    "continuePracticeTitle": "जहाँ आपने छोड़ा था वहीं से जारी रखें",
+    "continuePracticeBody": "{{skill}} — {{total}} में से {{answered}} जवाब दिए",
+    "achievementsTitle": "उपलब्धियाँ",
+    "badgeFirstSession": "पहला सत्र",
+    "badgeFirstSessionHint": "एक अभ्यास सत्र पूरा करें",
+    "badgeTenQuestions": "10 प्रश्न",
+    "badgeTenQuestionsHint": "10 अभ्यास प्रश्नों के उत्तर दें",
+    "badgeStreak": "3-दिन की स्ट्रीक",
+    "badgeStreakHint": "लगातार 3 दिन अभ्यास करें",
+    "badgeSharp": "शार्प शूटर",
+    "badgeSharpHint": "80% अभ्यास सटीकता तक पहुँचें"
   },
   "modules": {
     "title": "अभ्यास मॉड्यूल",

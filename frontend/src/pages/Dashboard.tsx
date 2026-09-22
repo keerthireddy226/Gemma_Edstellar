@@ -1,7 +1,22 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { CalendarCheck, ListChecks, Clock, Flame, Map, Check, Headphones, Mic, BookOpen, PenLine, ClipboardCheck } from "lucide-react";
+import {
+  CalendarCheck,
+  ListChecks,
+  Clock,
+  Flame,
+  Map,
+  Check,
+  Headphones,
+  Mic,
+  BookOpen,
+  PenLine,
+  ClipboardCheck,
+  ArrowRight,
+  Trophy,
+  Zap,
+} from "lucide-react";
 import { ROUTES } from "@/constants/routes";
 import { Button } from "@/components/Button";
 import { MotivationalBar } from "@/components/MotivationalBar";
@@ -14,6 +29,8 @@ import {
   type DashboardModule,
   type ModuleStatus,
   type TodaysTask,
+  type InProgressPractice,
+  type DashboardStats,
 } from "@/hooks/useDashboard";
 import { ApiError } from "@/lib/api";
 import { SKILL_TINT_CLASSES, SKILL_RING_COLOR } from "@/lib/skillTints";
@@ -125,6 +142,95 @@ function TodaysTasksList({ tasks }: { tasks: TodaysTask[] }) {
   );
 }
 
+// Surfaces an unfinished practice session at the top of the page — Modules
+// already resumes it correctly once you re-pick the same skill there, but
+// without this card the only way to discover it exists is to remember
+// which skill you were mid-way through and go click it again.
+function ContinuePracticeCard({ practice }: { practice: InProgressPractice }) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const Icon = SKILL_ICONS[practice.skill];
+
+  return (
+    <button
+      onClick={() => navigate(`${ROUTES.MODULES}?skill=${practice.skill}`)}
+      className="w-full flex items-center gap-4 bg-surface border border-accent/30 rounded-card px-5 py-4 text-left cursor-pointer hover:border-accent/60 transition-colors"
+    >
+      <span className={`h-11 w-11 rounded-input flex items-center justify-center shrink-0 ${SKILL_TINT_CLASSES[practice.skill]}`}>
+        <Icon size={22} strokeWidth={1.8} />
+      </span>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-bold text-ink">{t("dashboardHome.continuePracticeTitle")}</div>
+        <div className="text-xs text-muted">
+          {t("dashboardHome.continuePracticeBody", { skill: t(`skills.${practice.skill}`), answered: practice.answered, total: practice.total })}
+        </div>
+      </div>
+      <ArrowRight size={20} strokeWidth={1.8} className="text-accent shrink-0" />
+    </button>
+  );
+}
+
+// Milestone badges derived entirely from stats already on this response —
+// no extra query. Unlike a recent-activity feed, the locked state (a full
+// row of dimmed badges hinting what's unlockable) still looks intentional
+// on day one instead of reading as an empty list.
+function AchievementBadges({ stats }: { stats: DashboardStats }) {
+  const { t } = useTranslation();
+  const badges = [
+    {
+      key: "firstSession",
+      Icon: Trophy,
+      unlocked: stats.sessions >= 1,
+      title: t("dashboardHome.badgeFirstSession"),
+      hint: t("dashboardHome.badgeFirstSessionHint"),
+    },
+    {
+      key: "tenQuestions",
+      Icon: ListChecks,
+      unlocked: stats.questionsCompleted >= 10,
+      title: t("dashboardHome.badgeTenQuestions"),
+      hint: t("dashboardHome.badgeTenQuestionsHint"),
+    },
+    {
+      key: "streak",
+      Icon: Flame,
+      unlocked: stats.streakDays >= 3,
+      title: t("dashboardHome.badgeStreak"),
+      hint: t("dashboardHome.badgeStreakHint"),
+    },
+    {
+      key: "sharp",
+      Icon: Zap,
+      unlocked: stats.accuracyPercent !== null && stats.accuracyPercent >= 80,
+      title: t("dashboardHome.badgeSharp"),
+      hint: t("dashboardHome.badgeSharpHint"),
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {badges.map((b) => (
+        <div
+          key={b.key}
+          className={`flex flex-col items-center text-center gap-2 rounded-card border p-4 ${
+            b.unlocked ? "bg-success/10 border-success/30" : "bg-surface border-rule"
+          }`}
+        >
+          <span
+            className={`h-11 w-11 rounded-full flex items-center justify-center ${
+              b.unlocked ? "bg-success/20 text-success" : "bg-paper-warm text-muted"
+            }`}
+          >
+            <b.Icon size={22} strokeWidth={1.8} />
+          </span>
+          <div className={`text-xs font-bold ${b.unlocked ? "text-ink" : "text-muted"}`}>{b.title}</div>
+          {!b.unlocked && <div className="text-[11px] text-muted leading-snug">{b.hint}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function LearnerDashboard() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -167,7 +273,7 @@ function LearnerDashboard() {
     );
   }
 
-  const { firstName, startSkill, modules, todaysTasks, stats } = data;
+  const { firstName, startSkill, modules, todaysTasks, stats, inProgressPractice } = data;
 
   return (
     <div className="flex flex-col gap-6 w-full">
@@ -189,6 +295,8 @@ function LearnerDashboard() {
         </div>
       </div>
 
+      {inProgressPractice && <ContinuePracticeCard practice={inProgressPractice} />}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatTile icon={CalendarCheck} label={t("dashboardHome.statsSessions")} value={String(stats.sessions)} tint="bg-listening/15 text-listening" />
         <StatTile icon={ListChecks} label={t("dashboardHome.statsQuestions")} value={String(stats.questionsCompleted)} tint="bg-writing/15 text-writing" />
@@ -209,6 +317,11 @@ function LearnerDashboard() {
           <TodaysTasksList tasks={todaysTasks} />
         </section>
       </div>
+
+      <section className="flex flex-col gap-3">
+        <h3 className="font-mono text-[11px] font-medium tracking-[.24em] uppercase text-muted">{t("dashboardHome.achievementsTitle")}</h3>
+        <AchievementBadges stats={stats} />
+      </section>
     </div>
   );
 }

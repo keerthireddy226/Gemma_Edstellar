@@ -26,12 +26,19 @@ export interface DashboardStats {
   accuracyPercent: number | null;
 }
 
+export interface InProgressPractice {
+  skill: SkillTag;
+  answered: number;
+  total: number;
+}
+
 export interface DashboardData {
   firstName: string | null;
   startSkill: SkillTag;
   modules: DashboardModule[];
   todaysTasks: TodaysTask[];
   stats: DashboardStats;
+  inProgressPractice: InProgressPractice | null;
 }
 
 export function getDashboard(): Promise<DashboardData> {

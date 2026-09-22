@@ -186,10 +186,27 @@ practiceRouter.post("/session", requireAuth, async (req: AuthedRequest, res, nex
         [itemIds],
       );
       const byId = new Map(itemsResult.rows.map((r) => [r.id, r]));
+      // Which of these were already answered before the learner left —
+      // without this, resuming would silently rewind the on-screen
+      // question pointer back to the first item, even though nothing was
+      // actually lost server-side (same gap the GET /session/:id endpoint
+      // below already solves; mirrored here since Overview's new "Continue
+      // where you left off" card lands here, not on a session-id URL).
+      const attemptsResult = await pool.query(`SELECT item_id, response_text FROM attempts WHERE session_id = $1`, [
+        existing.rows[0].id,
+      ]);
+      const attemptByItem = new Map(attemptsResult.rows.map((r) => [r.item_id, r.response_text]));
       return res.json({
         sessionId: existing.rows[0].id,
         skill: body.skill,
-        items: itemIds.map((id) => byId.get(id)).filter(Boolean).map(toItemPayload),
+        items: itemIds
+          .map((id) => byId.get(id))
+          .filter(Boolean)
+          .map((row) => ({
+            ...toItemPayload(row!),
+            attempted: attemptByItem.has(row!.id),
+            responseText: attemptByItem.get(row!.id) ?? null,
+          })),
       });
     }
 

@@ -216,12 +216,34 @@ dashboardRouter.get("/", requireAuth, async (req: AuthedRequest, res, next) => {
               100,
           );
 
+    // "Continue where you left off" — an unfinished practice session, so
+    // Overview can offer a direct resume link instead of the learner only
+    // discovering it by re-picking the same skill in Modules (which itself
+    // already resumes correctly — see practice/routes.ts POST /session).
+    const inProgressResult = await pool.query(
+      `SELECT id, composition FROM sessions
+       WHERE user_id = $1 AND session_type = 'practice' AND completed_at IS NULL
+       ORDER BY started_at DESC LIMIT 1`,
+      [req.user!.id],
+    );
+    const inProgressRow = inProgressResult.rows[0];
+    let inProgressPractice: { skill: SkillTag; answered: number; total: number } | null = null;
+    if (inProgressRow) {
+      const answeredResult = await pool.query(`SELECT count(*) FROM attempts WHERE session_id = $1`, [inProgressRow.id]);
+      inProgressPractice = {
+        skill: inProgressRow.composition.skill,
+        answered: Number(answeredResult.rows[0].count),
+        total: (inProgressRow.composition.itemIds ?? []).length,
+      };
+    }
+
     res.json({
       firstName: userResult.rows[0]?.first_name ?? null,
       startSkill,
       modules,
       todaysTasks,
       stats: { sessions, questionsCompleted, practiceMinutes, streakDays, accuracyPercent },
+      inProgressPractice,
     });
   } catch (err) {
     next(err);

@@ -14,6 +14,7 @@ export interface TestItem {
   twoPhaseReadSeconds?: number | null;
   twoPhaseWriteSeconds?: number | null;
   attempted?: boolean;
+  responseText?: string | null;
 }
 
 export interface AttemptResult {
