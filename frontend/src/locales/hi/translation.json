@@ -295,6 +295,7 @@
   "nav": {
     "roadmap": "रोडमैप",
     "overview": "अवलोकन",
+    "progress": "प्रगति",
     "modules": "मॉड्यूल",
     "practiceTests": "अभ्यास परीक्षण",
     "tutor": "ट्यूटर",
@@ -404,6 +405,28 @@
     "badgeStreakHint": "लगातार 3 दिन अभ्यास करें",
     "badgeSharp": "शार्प शूटर",
     "badgeSharpHint": "80% अभ्यास सटीकता तक पहुँचें"
+  },
+  "progressPage": {
+    "title": "आपकी प्रगति",
+    "subtitle": "इस सप्ताह आपका दैनिक अभ्यास कैसा रहा।",
+    "loading": "आपकी प्रगति लोड हो रही है…",
+    "loadError": "आपकी प्रगति लोड नहीं हो सकी। कृपया फिर से कोशिश करें।",
+    "todaysReport": "आज की रिपोर्ट",
+    "questions": "प्रश्न",
+    "accuracy": "सटीकता",
+    "minutes": "मिनट",
+    "moreThanYesterday_one": "कल से {{count}} प्रश्न ज़्यादा",
+    "moreThanYesterday_other": "कल से {{count}} प्रश्न ज़्यादा",
+    "lessThanYesterday_one": "कल से {{count}} प्रश्न कम",
+    "lessThanYesterday_other": "कल से {{count}} प्रश्न कम",
+    "sameAsYesterday": "कल जितना ही — ऐसे ही जारी रखें",
+    "firstDayBack": "बढ़िया, आज आप फिर से अभ्यास कर रहे हैं!",
+    "dailyChartTitle": "पिछले 7 दिन",
+    "today": "आज",
+    "questionsThisWeek_one": "इस सप्ताह {{count}} प्रश्न",
+    "questionsThisWeek_other": "इस सप्ताह {{count}} प्रश्न",
+    "bestDay": "सबसे अच्छा दिन: {{day}}",
+    "bestDayBadge": "इस सप्ताह का सबसे अच्छा दिन"
   },
   "modules": {
     "title": "अभ्यास मॉड्यूल",

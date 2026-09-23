@@ -295,6 +295,7 @@
   "nav": {
     "roadmap": "రోడ్‌మ్యాప్",
     "overview": "అవలోకనం",
+    "progress": "పురోగతి",
     "modules": "మాడ్యూల్స్",
     "practiceTests": "అభ్యాస పరీక్షలు",
     "tutor": "ట్యూటర్",
@@ -404,6 +405,28 @@
     "badgeStreakHint": "వరుసగా 3 రోజులు అభ్యాసం చేయండి",
     "badgeSharp": "షార్ప్ షూటర్",
     "badgeSharpHint": "80% అభ్యాస ఖచ్చితత్వం చేరుకోండి"
+  },
+  "progressPage": {
+    "title": "మీ పురోగతి",
+    "subtitle": "ఈ వారం మీ రోజువారీ అభ్యాసం ఎలా సాగింది.",
+    "loading": "మీ పురోగతి లోడ్ అవుతోంది…",
+    "loadError": "మీ పురోగతిని లోడ్ చేయలేకపోయాము. దయచేసి మళ్ళీ ప్రయత్నించండి.",
+    "todaysReport": "ఈరోజు నివేదిక",
+    "questions": "ప్రశ్నలు",
+    "accuracy": "ఖచ్చితత్వం",
+    "minutes": "నిమిషాలు",
+    "moreThanYesterday_one": "నిన్నటి కంటే {{count}} ప్రశ్న ఎక్కువ",
+    "moreThanYesterday_other": "నిన్నటి కంటే {{count}} ప్రశ్నలు ఎక్కువ",
+    "lessThanYesterday_one": "నిన్నటి కంటే {{count}} ప్రశ్న తక్కువ",
+    "lessThanYesterday_other": "నిన్నటి కంటే {{count}} ప్రశ్నలు తక్కువ",
+    "sameAsYesterday": "నిన్నటిలాగే — ఇలాగే కొనసాగించండి",
+    "firstDayBack": "బాగుంది, ఈరోజు మళ్ళీ అభ్యాసం మొదలుపెట్టారు!",
+    "dailyChartTitle": "గత 7 రోజులు",
+    "today": "ఈరోజు",
+    "questionsThisWeek_one": "ఈ వారం {{count}} ప్రశ్న",
+    "questionsThisWeek_other": "ఈ వారం {{count}} ప్రశ్నలు",
+    "bestDay": "ఉత్తమ రోజు: {{day}}",
+    "bestDayBadge": "ఈ వారంలో ఉత్తమ రోజు"
   },
   "modules": {
     "title": "అభ్యాస మాడ్యూల్స్",

@@ -18,6 +18,7 @@ import { Placement } from "@/pages/Placement";
 import { PlacementTest } from "@/pages/PlacementTest";
 import { Roadmap } from "@/pages/Roadmap";
 import { Dashboard } from "@/pages/Dashboard";
+import { Progress } from "@/pages/Progress";
 import { Modules } from "@/pages/Modules";
 import { PracticeTests } from "@/pages/PracticeTests";
 import { Tutor } from "@/pages/Tutor";
@@ -85,6 +86,7 @@ function App() {
         >
           <Route path={ROUTES.ROADMAP} element={<Roadmap />} />
           <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
+          <Route path={ROUTES.PROGRESS} element={<Progress />} />
           <Route path={ROUTES.MODULES} element={<Modules />} />
           <Route path={ROUTES.PRACTICE_TESTS} element={<PracticeTests />} />
           <Route path={ROUTES.TUTOR} element={<Tutor />} />

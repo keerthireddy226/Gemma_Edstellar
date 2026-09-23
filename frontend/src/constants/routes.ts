@@ -14,6 +14,7 @@ export const ROUTES = {
   PLACEMENT_TEST: "/placement/test",
   ROADMAP: "/roadmap",
   DASHBOARD: "/dashboard",
+  PROGRESS: "/progress",
   MODULES: "/modules",
   PRACTICE_TESTS: "/practice-tests",
   TUTOR: "/tutor",

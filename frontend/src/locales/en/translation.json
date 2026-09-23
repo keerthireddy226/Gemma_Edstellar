@@ -295,6 +295,7 @@
   "nav": {
     "roadmap": "Roadmap",
     "overview": "Overview",
+    "progress": "Progress",
     "modules": "Modules",
     "practiceTests": "Practice Tests",
     "tutor": "Tutor",
@@ -404,6 +405,28 @@
     "badgeStreakHint": "Practice 3 days in a row",
     "badgeSharp": "Sharp Shooter",
     "badgeSharpHint": "Reach 80% practice accuracy"
+  },
+  "progressPage": {
+    "title": "Your Progress",
+    "subtitle": "How your daily practice has been trending this week.",
+    "loading": "Loading your progress…",
+    "loadError": "Couldn't load your progress. Please try again.",
+    "todaysReport": "Today's Report",
+    "questions": "Questions",
+    "accuracy": "Accuracy",
+    "minutes": "Minutes",
+    "moreThanYesterday_one": "{{count}} more question than yesterday",
+    "moreThanYesterday_other": "{{count}} more questions than yesterday",
+    "lessThanYesterday_one": "{{count}} fewer question than yesterday",
+    "lessThanYesterday_other": "{{count}} fewer questions than yesterday",
+    "sameAsYesterday": "Same as yesterday — keep it up",
+    "firstDayBack": "Nice, you're back at it today!",
+    "dailyChartTitle": "Last 7 Days",
+    "today": "Today",
+    "questionsThisWeek_one": "{{count}} question this week",
+    "questionsThisWeek_other": "{{count}} questions this week",
+    "bestDay": "Best day: {{day}}",
+    "bestDayBadge": "Best day this week"
   },
   "modules": {
     "title": "Practice Modules",

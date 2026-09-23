@@ -44,3 +44,26 @@ export interface DashboardData {
 export function getDashboard(): Promise<DashboardData> {
   return api("/dashboard");
 }
+
+export interface DailyStat {
+  date: string;
+  questionsCompleted: number;
+  // null on a day with no graded answers yet — same "no evidence yet"
+  // convention as DashboardStats.accuracyPercent.
+  accuracyPercent: number | null;
+  practiceMinutes: number;
+}
+
+export interface DailyProgress {
+  days: DailyStat[];
+  totalQuestions: number;
+  // Weighted across the whole week, not an average of each day's percent —
+  // see dashboard/routes.ts.
+  weekAccuracyPercent: number | null;
+  bestDay: DailyStat;
+  streakDays: number;
+}
+
+export function getDailyProgress(): Promise<DailyProgress> {
+  return api("/dashboard/daily");
+}

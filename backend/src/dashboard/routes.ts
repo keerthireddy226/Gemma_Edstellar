@@ -249,3 +249,103 @@ dashboardRouter.get("/", requireAuth, async (req: AuthedRequest, res, next) => {
     next(err);
   }
 });
+
+// Days including today, oldest first — matches how the streak/achievement
+// logic elsewhere already thinks in whole calendar days.
+const DAILY_HISTORY_DAYS = 7;
+
+dashboardRouter.get("/daily", requireAuth, async (req: AuthedRequest, res, next) => {
+  try {
+    // UTC-based, not local midnight — dayKey() below reads a Date's UTC
+    // calendar date (via toISOString), including for real attempt/session
+    // timestamps elsewhere in this function. Zeroing with local setHours
+    // and then keying with toISOString silently disagreed by a day in any
+    // timezone ahead of UTC (a whole day's attempts fell in no bucket at
+    // all — caught by a manual seed-and-verify test, not by tsc).
+    const since = new Date();
+    since.setUTCHours(0, 0, 0, 0);
+    since.setUTCDate(since.getUTCDate() - (DAILY_HISTORY_DAYS - 1));
+
+    // LEFT JOIN scores — an attempt still pending review has no scores row
+    // yet, but it should still count toward that day's questions-answered
+    // total, just not toward accuracy.
+    const attemptsResult = await pool.query(
+      `SELECT a.submitted_at, sc.status, sc.content_score, sc.manner_scores, i.cefr_level, it.input_method
+       FROM attempts a
+       JOIN sessions s ON s.id = a.session_id
+       JOIN items i ON i.id = a.item_id
+       JOIN item_types it ON it.id = i.item_type_id
+       LEFT JOIN scores sc ON sc.attempt_id = a.id
+       WHERE s.user_id = $1 AND s.session_type = 'practice' AND a.submitted_at >= $2`,
+      [req.user!.id, since],
+    );
+
+    const sessionsResult = await pool.query(
+      `SELECT started_at, completed_at FROM sessions
+       WHERE user_id = $1 AND session_type = 'practice' AND completed_at IS NOT NULL AND completed_at >= $2`,
+      [req.user!.id, since],
+    );
+
+    const byDay = new Map<string, { questions: number; correct: number; graded: number; minutes: number }>();
+    for (let i = 0; i < DAILY_HISTORY_DAYS; i++) {
+      const d = new Date(since);
+      d.setUTCDate(d.getUTCDate() + i);
+      byDay.set(dayKey(d), { questions: 0, correct: 0, graded: 0, minutes: 0 });
+    }
+
+    for (const row of attemptsResult.rows) {
+      const bucket = byDay.get(dayKey(new Date(row.submitted_at)));
+      if (!bucket) continue;
+      bucket.questions += 1;
+      if (row.status === "scored") {
+        bucket.graded += 1;
+        if (isTrulyCorrect(Number(row.content_score), row.cefr_level, row.input_method, row.manner_scores, passThresholdForLevel)) {
+          bucket.correct += 1;
+        }
+      }
+    }
+
+    for (const row of sessionsResult.rows) {
+      const bucket = byDay.get(dayKey(new Date(row.completed_at)));
+      if (!bucket) continue;
+      bucket.minutes += (new Date(row.completed_at).getTime() - new Date(row.started_at).getTime()) / 60_000;
+    }
+
+    const days = Array.from(byDay.entries()).map(([date, b]) => ({
+      date,
+      questionsCompleted: b.questions,
+      accuracyPercent: b.graded > 0 ? Math.round((b.correct / b.graded) * 100) : null,
+      practiceMinutes: Math.round(b.minutes),
+    }));
+
+    const totalQuestions = days.reduce((sum, d) => sum + d.questionsCompleted, 0);
+
+    // Weighted across the whole week (sum of corrects / sum of gradeds),
+    // not an average of each day's already-rounded percent — a 1-question
+    // day at 100% shouldn't count the same as a 20-question day at 80%.
+    let weekCorrect = 0;
+    let weekGraded = 0;
+    for (const b of byDay.values()) {
+      weekCorrect += b.correct;
+      weekGraded += b.graded;
+    }
+    const weekAccuracyPercent = weekGraded > 0 ? Math.round((weekCorrect / weekGraded) * 100) : null;
+
+    // Ties (including an all-zero week) resolve to the most recent day —
+    // "your best day was today" reads better than an arbitrary earlier tie.
+    const bestDay = days.reduce((best, d) => (d.questionsCompleted >= best.questionsCompleted ? d : best), days[0]);
+
+    // Same streak definition as GET / (dashboard overview) — computed over
+    // ALL completed practice sessions, not just this week, so a streak that
+    // started more than 7 days ago still reports its true length here.
+    const allCompletedSessionsResult = await pool.query(
+      `SELECT completed_at FROM sessions WHERE user_id = $1 AND session_type = 'practice' AND completed_at IS NOT NULL`,
+      [req.user!.id],
+    );
+    const streakDays = computeStreakDays(allCompletedSessionsResult.rows.map((r) => dayKey(new Date(r.completed_at))));
+
+    res.json({ days, totalQuestions, weekAccuracyPercent, bestDay, streakDays });
+  } catch (err) {
+    next(err);
+  }
+});

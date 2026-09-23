@@ -295,6 +295,7 @@
   "nav": {
     "roadmap": "Plan de Estudio",
     "overview": "Resumen",
+    "progress": "Progreso",
     "modules": "Módulos",
     "practiceTests": "Pruebas de práctica",
     "tutor": "Tutor",
@@ -404,6 +405,28 @@
     "badgeStreakHint": "Practica 3 días seguidos",
     "badgeSharp": "Puntería certera",
     "badgeSharpHint": "Alcanza 80% de precisión en la práctica"
+  },
+  "progressPage": {
+    "title": "Tu Progreso",
+    "subtitle": "Cómo ha ido tu práctica diaria esta semana.",
+    "loading": "Cargando tu progreso…",
+    "loadError": "No se pudo cargar tu progreso. Inténtalo de nuevo.",
+    "todaysReport": "Reporte de Hoy",
+    "questions": "Preguntas",
+    "accuracy": "Precisión",
+    "minutes": "Minutos",
+    "moreThanYesterday_one": "{{count}} pregunta más que ayer",
+    "moreThanYesterday_other": "{{count}} preguntas más que ayer",
+    "lessThanYesterday_one": "{{count}} pregunta menos que ayer",
+    "lessThanYesterday_other": "{{count}} preguntas menos que ayer",
+    "sameAsYesterday": "Igual que ayer — sigue así",
+    "firstDayBack": "¡Bien, hoy volviste a practicar!",
+    "dailyChartTitle": "Últimos 7 Días",
+    "today": "Hoy",
+    "questionsThisWeek_one": "{{count}} pregunta esta semana",
+    "questionsThisWeek_other": "{{count}} preguntas esta semana",
+    "bestDay": "Mejor día: {{day}}",
+    "bestDayBadge": "Mejor día de la semana"
   },
   "modules": {
     "title": "Módulos de práctica",

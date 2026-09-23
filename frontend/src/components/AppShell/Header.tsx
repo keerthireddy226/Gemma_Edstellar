@@ -10,6 +10,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 function useTitleKey(pathname: string): string {
   if (pathname === ROUTES.ROADMAP) return "nav.roadmap";
   if (pathname === ROUTES.DASHBOARD) return "nav.overview";
+  if (pathname === ROUTES.PROGRESS) return "nav.progress";
   if (pathname.startsWith(ROUTES.MODULES)) return "nav.modules";
   if (pathname.startsWith(ROUTES.PRACTICE_TESTS)) return "nav.practiceTests";
   if (pathname === ROUTES.TUTOR) return "nav.tutor";

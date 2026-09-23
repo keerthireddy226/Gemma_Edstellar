@@ -295,6 +295,7 @@
   "nav": {
     "roadmap": "Feuille de route",
     "overview": "Aperçu",
+    "progress": "Progrès",
     "modules": "Modules",
     "practiceTests": "Tests d'entraînement",
     "tutor": "Tuteur",
@@ -404,6 +405,28 @@
     "badgeStreakHint": "Pratiquez 3 jours de suite",
     "badgeSharp": "Tireur d'élite",
     "badgeSharpHint": "Atteignez 80% de précision à l'entraînement"
+  },
+  "progressPage": {
+    "title": "Vos Progrès",
+    "subtitle": "L'évolution de votre pratique quotidienne cette semaine.",
+    "loading": "Chargement de vos progrès…",
+    "loadError": "Impossible de charger vos progrès. Veuillez réessayer.",
+    "todaysReport": "Rapport du Jour",
+    "questions": "Questions",
+    "accuracy": "Précision",
+    "minutes": "Minutes",
+    "moreThanYesterday_one": "{{count}} question de plus qu'hier",
+    "moreThanYesterday_other": "{{count}} questions de plus qu'hier",
+    "lessThanYesterday_one": "{{count}} question de moins qu'hier",
+    "lessThanYesterday_other": "{{count}} questions de moins qu'hier",
+    "sameAsYesterday": "Comme hier — continuez ainsi",
+    "firstDayBack": "Content de vous revoir en pratique aujourd'hui !",
+    "dailyChartTitle": "7 Derniers Jours",
+    "today": "Aujourd'hui",
+    "questionsThisWeek_one": "{{count}} question cette semaine",
+    "questionsThisWeek_other": "{{count}} questions cette semaine",
+    "bestDay": "Meilleur jour : {{day}}",
+    "bestDayBadge": "Meilleur jour de la semaine"
   },
   "modules": {
     "title": "Modules de pratique",

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { LucideIcon } from "lucide-react";
-import { GraduationCap, LayoutDashboard, BookOpen, ChevronDown, Headphones, Mic, PenLine, MessageCircle, ClipboardList, User, Map } from "lucide-react";
+import { GraduationCap, LayoutDashboard, BookOpen, ChevronDown, Headphones, Mic, PenLine, MessageCircle, ClipboardList, User, Map, BarChart3 } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
 import { useHasPlacement } from "@/hooks/useHasPlacement";
 import type { SkillTag } from "@/hooks/useTestSession";
@@ -102,6 +102,14 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
             icon={LayoutDashboard}
             label={t("nav.overview")}
             isActive={location.pathname === ROUTES.DASHBOARD}
+            locked={locked}
+            onClick={onClose}
+          />
+          <NavEntry
+            to={ROUTES.PROGRESS}
+            icon={BarChart3}
+            label={t("nav.progress")}
+            isActive={location.pathname === ROUTES.PROGRESS}
             locked={locked}
             onClick={onClose}
           />
