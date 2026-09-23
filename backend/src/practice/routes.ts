@@ -12,6 +12,7 @@ import { scoreAudioFluency } from "../placement/geminiFluency.js";
 import { passThresholdForLevel } from "../placement/cefr.js";
 import { pickDifficultySpread } from "../placement/routes.js";
 import type { SkillTag } from "../placement/roadmap.js";
+import { withAudioUrls } from "../voice/itemAudio.js";
 
 export const practiceRouter = Router();
 
@@ -196,17 +197,18 @@ practiceRouter.post("/session", requireAuth, async (req: AuthedRequest, res, nex
         existing.rows[0].id,
       ]);
       const attemptByItem = new Map(attemptsResult.rows.map((r) => [r.item_id, r.response_text]));
+      const resumedItems = itemIds
+        .map((id) => byId.get(id))
+        .filter(Boolean)
+        .map((row) => ({
+          ...toItemPayload(row!),
+          attempted: attemptByItem.has(row!.id),
+          responseText: attemptByItem.get(row!.id) ?? null,
+        }));
       return res.json({
         sessionId: existing.rows[0].id,
         skill: body.skill,
-        items: itemIds
-          .map((id) => byId.get(id))
-          .filter(Boolean)
-          .map((row) => ({
-            ...toItemPayload(row!),
-            attempted: attemptByItem.has(row!.id),
-            responseText: attemptByItem.get(row!.id) ?? null,
-          })),
+        items: await withAudioUrls(req.user!.id, resumedItems),
       });
     }
 
@@ -221,7 +223,11 @@ practiceRouter.post("/session", requireAuth, async (req: AuthedRequest, res, nex
       [req.user!.id, JSON.stringify({ skill: body.skill, itemTypeId: body.itemTypeId ?? null, itemIds: items.map((i) => i.id) })],
     );
 
-    res.status(201).json({ sessionId: sessionResult.rows[0].id, skill: body.skill, items: items.map(toItemPayload) });
+    res.status(201).json({
+      sessionId: sessionResult.rows[0].id,
+      skill: body.skill,
+      items: await withAudioUrls(req.user!.id, items.map(toItemPayload)),
+    });
   } catch (err) {
     next(err);
   }
@@ -250,18 +256,20 @@ practiceRouter.get("/session/:sessionId", requireAuth, async (req: AuthedRequest
     ]);
     const attemptByItem = new Map(attemptsResult.rows.map((r) => [r.item_id, r.response_text]));
 
+    const sessionItems = itemIds
+      .map((id) => byId.get(id))
+      .filter(Boolean)
+      .map((row) => ({
+        ...toItemPayload(row!),
+        attempted: attemptByItem.has(row!.id),
+        responseText: attemptByItem.get(row!.id) ?? null,
+      }));
+
     res.json({
       sessionId: session.id,
       skill: session.composition?.skill ?? null,
       completed: !!session.completed_at,
-      items: itemIds
-        .map((id) => byId.get(id))
-        .filter(Boolean)
-        .map((row) => ({
-          ...toItemPayload(row!),
-          attempted: attemptByItem.has(row!.id),
-          responseText: attemptByItem.get(row!.id) ?? null,
-        })),
+      items: await withAudioUrls(req.user!.id, sessionItems),
     });
   } catch (err) {
     next(err);

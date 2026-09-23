@@ -8,6 +8,7 @@ import { getRoadmap } from "@/hooks/useRoadmap";
 import { getCurrentSession } from "@/hooks/useTestSession";
 import { Button } from "@/components/Button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { VoiceSection } from "@/components/VoiceSection";
 import { ROUTES } from "@/constants/routes";
 
 export function Placement() {
@@ -104,6 +105,12 @@ export function Placement() {
               </div>
             ))}
           </div>
+
+          {!isResuming && (
+            <div className="w-full bg-paper-warm rounded-input p-4 text-left">
+              <VoiceSection />
+            </div>
+          )}
 
           {!isResuming && (
             <label className="flex items-start gap-2.5 rounded-input border border-rule p-3.5 w-full text-left cursor-pointer">

@@ -308,7 +308,19 @@
   "comingSoon": {
     "practiceTestsBody": "Full practice tests are built in a later phase.",
     "tutorBody": "Coach Mode — a low-pressure practice chat — is built in a later phase.",
-    "profileBody": "Profile settings are built in a later phase."
+    "profileBody": "More profile settings are on the way — your voice preference below is ready now."
+  },
+  "profile": {
+    "voice": {
+      "title": "Voice",
+      "subtitle": "Choose which voice reads questions aloud during tests and practice.",
+      "loading": "Loading your voice preference…",
+      "female": "Female voice",
+      "male": "Male voice",
+      "preview": "Preview this voice",
+      "previewLine": "This is a preview of how questions will sound.",
+      "saved": "Saved — this voice will be used from now on."
+    }
   },
   "heroTagline": {
     "low": "Every plan starts at 0%. You're already past that.",

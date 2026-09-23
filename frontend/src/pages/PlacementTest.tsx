@@ -11,7 +11,8 @@ import {
   type TestItem,
   type SessionSummary,
 } from "@/hooks/useTestSession";
-import { useVoiceRecorder, blobToBase64, speak } from "@/hooks/useVoiceRecorder";
+import { useVoiceRecorder, blobToBase64 } from "@/hooks/useVoiceRecorder";
+import { playSpokenAudio } from "@/lib/playSpokenAudio";
 import {
   AUDIO_FIRST_TYPES,
   SKILL_BADGE_CLASS,
@@ -99,7 +100,7 @@ export function PlacementTest() {
   async function handlePlay() {
     if (!current) return;
     setPlaying(true);
-    await speak(getSpokenSegments(current));
+    await playSpokenAudio(current, getSpokenSegments(current));
     setPlaying(false);
     setHasPlayed(true);
   }

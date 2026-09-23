@@ -1,0 +1,105 @@
+// One-time/occasional batch job: generates real AI audio (male + female,
+// standard American accent) for every approved item that needs spoken
+// audio, via Google Cloud TTS. Run manually after adding new content, or
+// re-run with --force after a content edit that changes an item's spoken
+// text. Requires GOOGLE_TTS_API_KEY in backend/.env — without it,
+// synthesizeSpeech() returns null for everything and this just logs
+// skipped items and exits, same fail-closed behavior as the rest of the
+// app's optional third-party integrations.
+//
+// Usage: npm run generate-item-audio [-- --force]
+import "dotenv/config";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { pool } from "../src/db.js";
+import { synthesizeSpeech, type VoiceGender } from "../src/voice/googleTts.js";
+import { getSpokenSegments, AUDIO_FIRST_TYPES } from "../src/voice/spokenText.js";
+
+const VOICES: VoiceGender[] = ["male", "female"];
+const UPLOADS_DIR = path.join(process.cwd(), "uploads", "item-audio");
+const ACCENT = "en-US";
+// Free-tier-friendly pacing — this is a batch job, not a latency-sensitive
+// request path, so there's no reason to hammer the API.
+const DELAY_MS = 150;
+
+const force = process.argv.includes("--force");
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Rough MP3 duration estimate from the byte size at a fixed bitrate — good
+// enough for item_audio.duration_ms (not used for playback timing anywhere
+// yet), avoids pulling in an audio-parsing dependency for one estimate.
+const MP3_BITRATE_KBPS = 32; // Google TTS default MP3 encoding
+function estimateDurationMs(byteLength: number): number {
+  return Math.round((byteLength * 8) / MP3_BITRATE_KBPS);
+}
+
+async function main() {
+  if (!process.env.GOOGLE_TTS_API_KEY) {
+    console.error("GOOGLE_TTS_API_KEY is not set — nothing to generate. Add it to backend/.env and re-run.");
+    process.exit(1);
+  }
+
+  const itemTypeIds = Array.from(AUDIO_FIRST_TYPES);
+  const itemsResult = await pool.query(
+    `SELECT id, item_type_id, content FROM items WHERE status = 'approved' AND item_type_id = ANY($1::text[])`,
+    [itemTypeIds],
+  );
+  console.log(`Found ${itemsResult.rows.length} approved items needing spoken audio.`);
+
+  let generated = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  for (const item of itemsResult.rows) {
+    const text = getSpokenSegments(item.item_type_id, item.content as Record<string, unknown>).join(". ");
+    if (!text) {
+      console.warn(`Item ${item.id} (${item.item_type_id}): no spoken text found, skipping.`);
+      skipped++;
+      continue;
+    }
+
+    for (const voice of VOICES) {
+      if (!force) {
+        const existing = await pool.query(`SELECT 1 FROM item_audio WHERE item_id = $1 AND voice_id = $2`, [item.id, voice]);
+        if (existing.rows.length > 0) {
+          skipped++;
+          continue;
+        }
+      }
+
+      const speech = await synthesizeSpeech(text, voice);
+      if (!speech) {
+        console.error(`Item ${item.id} (${voice}): synthesis failed, skipping.`);
+        failed++;
+        continue;
+      }
+
+      const audioBuffer = Buffer.from(speech.audioBase64, "base64");
+      const voiceDir = path.join(UPLOADS_DIR, voice);
+      await mkdir(voiceDir, { recursive: true });
+      await writeFile(path.join(voiceDir, `${item.id}.mp3`), audioBuffer);
+      const uri = `/uploads/item-audio/${voice}/${item.id}.mp3`;
+
+      await pool.query(
+        `INSERT INTO item_audio (item_id, voice_id, accent, uri, duration_ms)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (item_id, voice_id) DO UPDATE SET uri = EXCLUDED.uri, duration_ms = EXCLUDED.duration_ms, accent = EXCLUDED.accent`,
+        [item.id, voice, ACCENT, uri, estimateDurationMs(audioBuffer.byteLength)],
+      );
+
+      generated++;
+      await sleep(DELAY_MS);
+    }
+  }
+
+  console.log(`Done. Generated ${generated}, skipped ${skipped} (already existed), failed ${failed}.`);
+  await pool.end();
+}
+
+main().catch((err) => {
+  console.error("generateItemAudio: fatal error:", err);
+  process.exit(1);
+});

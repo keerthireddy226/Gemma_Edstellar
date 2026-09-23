@@ -12,6 +12,10 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': 'http://localhost:4000',
+      // Backend-generated static files (e.g. item audio from
+      // generateItemAudio.ts) — served by Express's `express.static("uploads")`.
+      // A production deployment's reverse proxy needs the same route.
+      '/uploads': 'http://localhost:4000',
     },
   },
 })

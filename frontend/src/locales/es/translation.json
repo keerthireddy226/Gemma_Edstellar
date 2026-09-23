@@ -308,7 +308,19 @@
   "comingSoon": {
     "practiceTestsBody": "Las pruebas de práctica completas se construirán en una fase posterior.",
     "tutorBody": "Coach Mode — un chat de práctica de baja presión — se construirá en una fase posterior.",
-    "profileBody": "La configuración del perfil se construirá en una fase posterior."
+    "profileBody": "Más ajustes de perfil llegarán pronto — tu preferencia de voz abajo ya está lista."
+  },
+  "profile": {
+    "voice": {
+      "title": "Voz",
+      "subtitle": "Elige qué voz lee las preguntas en voz alta durante las pruebas y la práctica.",
+      "loading": "Cargando tu preferencia de voz…",
+      "female": "Voz femenina",
+      "male": "Voz masculina",
+      "preview": "Escuchar esta voz",
+      "previewLine": "Esta es una vista previa de cómo sonarán las preguntas.",
+      "saved": "Guardado — esta voz se usará a partir de ahora."
+    }
   },
   "heroTagline": {
     "low": "Todo plan comienza en 0%. Tú ya estás por delante de eso.",

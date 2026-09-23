@@ -1,7 +1,10 @@
 import { Router } from "express";
+import { z } from "zod";
 import { pool } from "../db.js";
 import { requireAuth, type AuthedRequest } from "../auth/middleware.js";
 import { onboardingSchema } from "./schemas.js";
+
+const voicePreferenceSchema = z.object({ preferredVoice: z.enum(["male", "female"]) });
 
 export const onboardingRouter = Router();
 
@@ -116,5 +119,18 @@ onboardingRouter.post("/complete", requireAuth, async (req: AuthedRequest, res, 
     next(err);
   } finally {
     client.release();
+  }
+});
+
+onboardingRouter.patch("/voice-preference", requireAuth, async (req: AuthedRequest, res, next) => {
+  try {
+    const body = voicePreferenceSchema.parse(req.body);
+    await pool.query(`UPDATE participant_profiles SET preferred_voice = $1, updated_at = now() WHERE user_id = $2`, [
+      body.preferredVoice,
+      req.user!.id,
+    ]);
+    res.status(204).send();
+  } catch (err) {
+    next(err);
   }
 });

@@ -22,6 +22,7 @@ import {
   type CefrLevel,
 } from "./cefr.js";
 import { buildRoadmap, type AccessDuration, type SkillTag } from "./roadmap.js";
+import { withAudioUrls } from "../voice/itemAudio.js";
 
 const ALL_SKILLS: SkillTag[] = ["listening", "speaking", "reading", "writing"];
 
@@ -292,7 +293,7 @@ placementRouter.post("/schedule-later", requireAuth, scheduleLaterLimiter, async
 // to resume a session (page refresh, POST /session reuse) and by GET
 // /session/:id. The last entry is the still-unanswered current question
 // unless the session is complete.
-async function buildHistoryResponse(sessionId: string, composition: AdaptiveComposition, completed: boolean) {
+async function buildHistoryResponse(userId: string, sessionId: string, composition: AdaptiveComposition, completed: boolean) {
   const itemIds = composition.history;
   const itemsResult = await pool.query(
     `SELECT i.id, i.item_type_id, i.content, it.skills, it.input_method, it.instruction_text, it.question_instruction, it.timer_seconds, it.two_phase_read_seconds, it.two_phase_write_seconds
@@ -306,17 +307,19 @@ async function buildHistoryResponse(sessionId: string, composition: AdaptiveComp
   ]);
   const attemptByItem = new Map(attemptsResult.rows.map((r) => [r.item_id, r.response_text]));
 
+  const items = itemIds
+    .map((id) => byId.get(id))
+    .filter(Boolean)
+    .map((row) => ({
+      ...toItemPayload(row!),
+      attempted: attemptByItem.has(row!.id),
+      responseText: attemptByItem.get(row!.id) ?? null,
+    }));
+
   return {
     sessionId,
     completed,
-    items: itemIds
-      .map((id) => byId.get(id))
-      .filter(Boolean)
-      .map((row) => ({
-        ...toItemPayload(row!),
-        attempted: attemptByItem.has(row!.id),
-        responseText: attemptByItem.get(row!.id) ?? null,
-      })),
+    items: await withAudioUrls(userId, items),
   };
 }
 
@@ -339,7 +342,7 @@ placementRouter.post("/session", requireAuth, async (req: AuthedRequest, res, ne
     // abandoned (no attempts are lost — those stay in the attempts table
     // regardless) and a fresh adaptive session starts instead.
     if (existing.rows[0] && Array.isArray(existing.rows[0].composition?.history)) {
-      const response = await buildHistoryResponse(existing.rows[0].id, existing.rows[0].composition, false);
+      const response = await buildHistoryResponse(req.user!.id, existing.rows[0].id, existing.rows[0].composition, false);
       return res.json(response);
     }
     if (existing.rows[0]) {
@@ -361,7 +364,10 @@ placementRouter.post("/session", requireAuth, async (req: AuthedRequest, res, ne
       [req.user!.id, JSON.stringify(composition)],
     );
 
-    res.status(201).json({ sessionId: sessionResult.rows[0].id, items: [toItemPayload(first.item)] });
+    res.status(201).json({
+      sessionId: sessionResult.rows[0].id,
+      items: await withAudioUrls(req.user!.id, [toItemPayload(first.item)]),
+    });
   } catch (err) {
     next(err);
   }
@@ -405,7 +411,7 @@ placementRouter.get("/session/:sessionId", requireAuth, async (req: AuthedReques
       return res.status(410).json({ error: "session_predates_adaptive_engine" });
     }
 
-    const response = await buildHistoryResponse(session.id, session.composition, !!session.completed_at);
+    const response = await buildHistoryResponse(req.user!.id, session.id, session.composition, !!session.completed_at);
     res.json(response);
   } catch (err) {
     next(err);
@@ -581,7 +587,7 @@ placementRouter.post("/session/:sessionId/attempts", requireAuth, async (req: Au
       correct: grade.status === "scored" ? wasCorrect : grade.correct,
       // null means there's nothing left to ask — the frontend should call
       // /complete once it sees this instead of waiting on a fixed count.
-      nextItem: nextItem ? toItemPayload(nextItem) : null,
+      nextItem: nextItem ? (await withAudioUrls(req.user!.id, [toItemPayload(nextItem)]))[0] : null,
     });
   } catch (err) {
     next(err);

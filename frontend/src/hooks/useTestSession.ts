@@ -15,6 +15,11 @@ export interface TestItem {
   twoPhaseWriteSeconds?: number | null;
   attempted?: boolean;
   responseText?: string | null;
+  // Pre-generated AI voice audio for this item in the learner's preferred
+  // voice, or null if it hasn't been batch-generated yet (see backend/
+  // scripts/generateItemAudio.ts) — playSpokenAudio() falls back to browser
+  // TTS whenever this is null.
+  audioUrl?: string | null;
 }
 
 export interface AttemptResult {

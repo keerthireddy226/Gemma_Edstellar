@@ -24,10 +24,16 @@ export interface OnboardingAnswers {
   consentGiven: boolean;
 }
 
-export function getOnboardingProfile(): Promise<{ onboarding_complete: boolean } | null> {
+export type PreferredVoice = "male" | "female";
+
+export function getOnboardingProfile(): Promise<{ onboarding_complete: boolean; preferred_voice: PreferredVoice | null } | null> {
   return api("/onboarding/profile");
 }
 
 export function submitOnboarding(answers: OnboardingAnswers): Promise<void> {
   return api("/onboarding/complete", { method: "POST", body: JSON.stringify(answers) });
+}
+
+export function updateVoicePreference(preferredVoice: PreferredVoice): Promise<void> {
+  return api("/onboarding/voice-preference", { method: "PATCH", body: JSON.stringify({ preferredVoice }) });
 }

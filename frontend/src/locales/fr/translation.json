@@ -308,7 +308,19 @@
   "comingSoon": {
     "practiceTestsBody": "Les tests d'entraînement complets seront construits lors d'une phase ultérieure.",
     "tutorBody": "Coach Mode — un chat d'entraînement sans pression — sera construit lors d'une phase ultérieure.",
-    "profileBody": "Les paramètres du profil seront construits lors d'une phase ultérieure."
+    "profileBody": "D'autres réglages de profil arrivent bientôt — votre préférence de voix ci-dessous est déjà disponible."
+  },
+  "profile": {
+    "voice": {
+      "title": "Voix",
+      "subtitle": "Choisissez la voix qui lit les questions à voix haute pendant les tests et la pratique.",
+      "loading": "Chargement de votre préférence de voix…",
+      "female": "Voix féminine",
+      "male": "Voix masculine",
+      "preview": "Écouter cette voix",
+      "previewLine": "Voici un aperçu de la façon dont les questions seront lues.",
+      "saved": "Enregistré — cette voix sera utilisée à partir de maintenant."
+    }
   },
   "heroTagline": {
     "low": "Chaque plan commence à 0 %. Vous avez déjà dépassé ce stade.",
