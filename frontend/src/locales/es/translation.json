@@ -312,11 +312,12 @@
   },
   "tutor": {
     "subtitle": "Una conversación de práctica sin presión con tu coach de IA.",
-    "sampleAgent1": "¡Hola! ¿Listo para practicar una conversación cotidiana? Cuéntame cómo va tu día.",
-    "sampleLearner1": "Bien, fui a trabajar y luego almorcé con un amigo.",
-    "sampleAgent2": "¡Qué bien! ¿De qué hablaron durante el almuerzo?",
-    "inputPlaceholder": "Escribe o habla tu respuesta…",
-    "comingSoon": "El Modo Coach llegará en una fase posterior — esto es una vista previa."
+    "inputPlaceholder": "Escribe tu respuesta…",
+    "loading": "Iniciando tu conversación…",
+    "typing": "Escribiendo…",
+    "sendError": "Algo salió mal al enviar eso. Por favor, inténtalo de nuevo.",
+    "newConversation": "Nueva conversación",
+    "newConversationConfirm": "¿Iniciar una nueva conversación? Tu conversación actual terminará."
   },
   "profile": {
     "account": {

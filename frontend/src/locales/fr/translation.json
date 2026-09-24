@@ -312,11 +312,12 @@
   },
   "tutor": {
     "subtitle": "Une conversation d'entraînement sans pression avec votre coach IA.",
-    "sampleAgent1": "Salut ! Prêt à pratiquer une conversation quotidienne ? Raconte-moi ta journée.",
-    "sampleLearner1": "C'était bien, je suis allé travailler puis j'ai déjeuné avec un ami.",
-    "sampleAgent2": "Super ! De quoi avez-vous parlé pendant le déjeuner ?",
-    "inputPlaceholder": "Tapez ou dites votre réponse…",
-    "comingSoon": "Le Mode Coach arrive dans une phase ultérieure — ceci est un aperçu."
+    "inputPlaceholder": "Tapez votre réponse…",
+    "loading": "Démarrage de votre conversation…",
+    "typing": "En train d'écrire…",
+    "sendError": "Une erreur s'est produite lors de l'envoi. Veuillez réessayer.",
+    "newConversation": "Nouvelle conversation",
+    "newConversationConfirm": "Démarrer une nouvelle conversation ? Votre conversation actuelle se terminera."
   },
   "profile": {
     "account": {

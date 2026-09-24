@@ -13,6 +13,7 @@ import { roadmapRouter } from "./roadmap/routes.js";
 import { dashboardRouter } from "./dashboard/routes.js";
 import { practiceRouter } from "./practice/routes.js";
 import { voiceRouter } from "./voice/routes.js";
+import { coachRouter } from "./coach/routes.js";
 
 const app = express();
 
@@ -44,6 +45,7 @@ app.use("/api/roadmap", roadmapRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/practice", practiceRouter);
 app.use("/api/voice", voiceRouter);
+app.use("/api/coach", coachRouter);
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof ZodError) {

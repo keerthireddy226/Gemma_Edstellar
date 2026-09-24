@@ -312,11 +312,12 @@
   },
   "tutor": {
     "subtitle": "A low-pressure practice conversation with your AI coach.",
-    "sampleAgent1": "Hi! Ready to practice some everyday conversation? Tell me about your day so far.",
-    "sampleLearner1": "It was good, I went to work and then had lunch with a friend.",
-    "sampleAgent2": "Nice! What did you two talk about over lunch?",
-    "inputPlaceholder": "Type or speak your reply…",
-    "comingSoon": "Coach Mode is coming in a later phase — this is a preview of what it'll look like."
+    "inputPlaceholder": "Type your reply…",
+    "loading": "Starting your conversation…",
+    "typing": "Typing…",
+    "sendError": "Something went wrong sending that. Please try again.",
+    "newConversation": "New conversation",
+    "newConversationConfirm": "Start a new conversation? Your current one will end."
   },
   "profile": {
     "account": {
