@@ -26,8 +26,9 @@ export function startPracticeSession(
   skill: SkillTag,
   count?: number,
   itemTypeId?: string,
+  voiceCheckId?: string,
 ): Promise<{ sessionId: string; skill: SkillTag; items: TestItem[] }> {
-  return api("/practice/session", { method: "POST", body: JSON.stringify({ skill, count, itemTypeId }) });
+  return api("/practice/session", { method: "POST", body: JSON.stringify({ skill, count, itemTypeId, voiceCheckId }) });
 }
 
 export function submitPracticeAttempt(

@@ -1,11 +1,11 @@
 // One-time/occasional batch job: generates real AI audio (male + female,
 // standard American accent) for every approved item that needs spoken
-// audio, via Google Cloud TTS. Run manually after adding new content, or
-// re-run with --force after a content edit that changes an item's spoken
-// text. Requires GOOGLE_TTS_API_KEY in backend/.env — without it,
-// synthesizeSpeech() returns null for everything and this just logs
-// skipped items and exits, same fail-closed behavior as the rest of the
-// app's optional third-party integrations.
+// audio, via Google Cloud Text-to-Speech. Requires GOOGLE_TTS_API_KEY in
+// backend/.env — without it, synthesizeSpeech() returns null for
+// everything and this just logs skipped items and exits, same fail-closed
+// behavior as the rest of the app's optional third-party integrations. Run
+// manually after adding new content, or re-run with --force after a
+// content edit that changes an item's spoken text.
 //
 // Usage: npm run generate-item-audio [-- --force]
 import "dotenv/config";
@@ -18,23 +18,8 @@ import { getSpokenSegments, AUDIO_FIRST_TYPES } from "../src/voice/spokenText.js
 const VOICES: VoiceGender[] = ["male", "female"];
 const UPLOADS_DIR = path.join(process.cwd(), "uploads", "item-audio");
 const ACCENT = "en-US";
-// Free-tier-friendly pacing — this is a batch job, not a latency-sensitive
-// request path, so there's no reason to hammer the API.
-const DELAY_MS = 150;
 
 const force = process.argv.includes("--force");
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-// Rough MP3 duration estimate from the byte size at a fixed bitrate — good
-// enough for item_audio.duration_ms (not used for playback timing anywhere
-// yet), avoids pulling in an audio-parsing dependency for one estimate.
-const MP3_BITRATE_KBPS = 32; // Google TTS default MP3 encoding
-function estimateDurationMs(byteLength: number): number {
-  return Math.round((byteLength * 8) / MP3_BITRATE_KBPS);
-}
 
 async function main() {
   if (!process.env.GOOGLE_TTS_API_KEY) {
@@ -77,21 +62,20 @@ async function main() {
         continue;
       }
 
-      const audioBuffer = Buffer.from(speech.audioBase64, "base64");
       const voiceDir = path.join(UPLOADS_DIR, voice);
       await mkdir(voiceDir, { recursive: true });
-      await writeFile(path.join(voiceDir, `${item.id}.mp3`), audioBuffer);
+      await writeFile(path.join(voiceDir, `${item.id}.mp3`), speech.audioBuffer);
       const uri = `/uploads/item-audio/${voice}/${item.id}.mp3`;
 
       await pool.query(
         `INSERT INTO item_audio (item_id, voice_id, accent, uri, duration_ms)
          VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (item_id, voice_id) DO UPDATE SET uri = EXCLUDED.uri, duration_ms = EXCLUDED.duration_ms, accent = EXCLUDED.accent`,
-        [item.id, voice, ACCENT, uri, estimateDurationMs(audioBuffer.byteLength)],
+        [item.id, voice, ACCENT, uri, speech.durationMs],
       );
 
       generated++;
-      await sleep(DELAY_MS);
+      console.log(`Generated ${item.id} (${voice}), ${speech.durationMs}ms.`);
     }
   }
 

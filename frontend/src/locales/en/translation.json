@@ -320,6 +320,51 @@
       "preview": "Preview this voice",
       "previewLine": "This is a preview of how questions will sound.",
       "saved": "Saved — this voice will be used from now on."
+    },
+    "identityCheck": {
+      "title": "Identity Check",
+      "subtitle": "A voice check confirms it's really you taking each test.",
+      "loading": "Checking your enrollment status…",
+      "enrolled": "Enrolled",
+      "notEnrolled": "Not enrolled yet",
+      "enroll": "Set up",
+      "reenroll": "Re-enroll"
+    }
+  },
+  "voiceCheck": {
+    "enrollmentConsent": {
+      "title": "Set up your Voice Check",
+      "subtitle": "This is separate from voice recording for scoring — please read before continuing.",
+      "body": "To help confirm it's really you taking each test — not someone else on your behalf — we'll create a \"voiceprint\": a short list of numbers that captures the unique shape of your voice. This is not a recording you can listen back to, and it is never used to grade or score your answers.\n\nBefore every mock test, module session, or practice test, you'll be asked to record a short phrase. We compare it to this voiceprint. If it doesn't look like a strong match, nothing is blocked — it's simply flagged for a staff member to review later.\n\nYour voiceprint is stored securely and used only for this purpose. You can ask us to delete it at any time. If you decline, you can still use the app — sessions just won't be checked against your identity.",
+      "checkboxLabel": "I understand and agree to set up Voice Check.",
+      "submit": "Continue",
+      "decline": "Not now"
+    },
+    "enroll": {
+      "title": "Record your voice sample"
+    },
+    "verify": {
+      "title": "Quick voice check",
+      "subtitle": {
+        "placement": "This is a quick check before your mock test starts.",
+        "practice": "This is a quick check before your practice session starts.",
+        "practice_test": "This is a quick check before your practice test starts."
+      },
+      "mismatchError": "Your voice didn't match. Please try again.",
+      "noSpeechError": "We couldn't hear anything. Please try again.",
+      "success": "Voice matched",
+      "proceed": "Proceed to test"
+    },
+    "record": {
+      "instruction": "Tap the microphone and read the sentence below aloud, then tap again to stop.",
+      "phraseEnroll": "My voice is my identity for this test.",
+      "phraseVerify": "I am ready to start my test today.",
+      "start": "Tap to record",
+      "recording": "Recording…",
+      "saving": "Saving your voice sample…",
+      "verifying": "Verifying your voice…",
+      "error": "Something went wrong. You can try again, or skip for now.",
+      "skip": "Skip for now"
     }
   },
   "heroTagline": {

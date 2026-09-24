@@ -12,6 +12,7 @@ export const ROUTES = {
   ONBOARDING: "/onboarding",
   PLACEMENT: "/placement",
   PLACEMENT_TEST: "/placement/test",
+  VOICE_ENROLLMENT: "/voice-enrollment",
   ROADMAP: "/roadmap",
   DASHBOARD: "/dashboard",
   PROGRESS: "/progress",

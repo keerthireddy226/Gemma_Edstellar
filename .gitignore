@@ -6,3 +6,7 @@ build/
 *.log
 .DS_Store
 backend/uploads/
+# Downloaded on demand by `npm run setup-voice-model` (backend/scripts/
+# download-speaker-model.sh) — a ~28MB pre-trained model file, not source,
+# same reasoning as not committing node_modules.
+backend/models/

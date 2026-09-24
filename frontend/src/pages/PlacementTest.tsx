@@ -6,6 +6,7 @@ import { ROUTES } from "@/constants/routes";
 import { Button } from "@/components/Button";
 import {
   startSession,
+  getCurrentSession,
   submitAttempt,
   completeSession,
   type TestItem,
@@ -13,6 +14,8 @@ import {
 } from "@/hooks/useTestSession";
 import { useVoiceRecorder, blobToBase64 } from "@/hooks/useVoiceRecorder";
 import { playSpokenAudio } from "@/lib/playSpokenAudio";
+import { VoiceCheck } from "@/components/VoiceCheck";
+import { getVoiceEnrollmentStatus } from "@/hooks/useVoiceCheck";
 import {
   AUDIO_FIRST_TYPES,
   SKILL_BADGE_CLASS,
@@ -50,16 +53,56 @@ export function PlacementTest() {
   const [recordingDurationMs, setRecordingDurationMs] = useState<number | null>(null);
   const [summary, setSummary] = useState<SessionSummary | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
+  // null = not yet checked; the whole session-loading effect below waits on
+  // this, so the item bank isn't fetched until the check completes (or the
+  // learner already has one on file / it's skipped after an error).
+  const [voiceCheckId, setVoiceCheckId] = useState<string | undefined>(undefined);
+  const [voiceChecked, setVoiceChecked] = useState(false);
+  // Placement.tsx already checks this before sending the learner here, but
+  // that only holds if they actually clicked through it — a direct URL,
+  // browser back/forward, or a page refresh lands here without ever going
+  // through that gate. Checking again here (redirecting to enroll first,
+  // with consent, if needed) makes the two-step "enroll once, then verify
+  // every time" flow robust no matter how this page was reached.
+  const [voiceEnrolled, setVoiceEnrolled] = useState<boolean | null>(null);
+  // Whether this page load is resuming a session that was already started
+  // (and already verified) earlier — a plain refresh on question 1 lands
+  // here too, and re-running Voice Check on every reload would be pointless
+  // friction: nobody new could take over mid-test just from a page reload.
+  // Only a genuinely fresh session start (no in-progress session at all)
+  // still gates on verifying first.
+  const [alreadyInProgress, setAlreadyInProgress] = useState<boolean | null>(null);
 
   useEffect(() => {
-    startSession()
+    getVoiceEnrollmentStatus()
+      .then((res) => {
+        if (!res.enrolled) {
+          navigate(ROUTES.VOICE_ENROLLMENT, { state: { next: ROUTES.PLACEMENT_TEST }, replace: true });
+        } else {
+          setVoiceEnrolled(true);
+        }
+      })
+      .catch(() => setVoiceEnrolled(true)); // fails open — a lookup hiccup never blocks the test itself
+  }, [navigate]);
+
+  useEffect(() => {
+    getCurrentSession()
+      .then((res) => setAlreadyInProgress(res.inProgress))
+      .catch(() => setAlreadyInProgress(false));
+  }, []);
+
+  const readyToLoadSession = alreadyInProgress === true || voiceChecked;
+
+  useEffect(() => {
+    if (alreadyInProgress === null || !readyToLoadSession) return;
+    startSession(voiceCheckId)
       .then((res) => {
         setSessionId(res.sessionId);
         setItems(res.items);
       })
       .catch(() => setError(t("placementTest.loadError")))
       .finally(() => setLoading(false));
-  }, [t]);
+  }, [t, alreadyInProgress, readyToLoadSession, voiceCheckId]);
 
   const current = items[items.length - 1];
   const needsAudioFirst = current ? AUDIO_FIRST_TYPES.has(current.itemTypeId) : false;
@@ -169,6 +212,32 @@ export function PlacementTest() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  // Waiting on the enrollment-status lookup (or already redirecting away to
+  // enroll) or the in-progress-session peek — never render the verify step
+  // before we actually know either of those.
+  if (voiceEnrolled === null || alreadyInProgress === null) {
+    return (
+      <div className="app-surface min-h-screen flex items-center justify-center px-4">
+        <p className="text-sm text-muted">{t("placementTest.loading")}</p>
+      </div>
+    );
+  }
+
+  if (!readyToLoadSession) {
+    return (
+      <div className="app-surface min-h-screen flex items-center justify-center px-4">
+        <VoiceCheck
+          mode="verify"
+          purpose="placement"
+          onComplete={(result) => {
+            setVoiceCheckId(result.voiceCheckId);
+            setVoiceChecked(true);
+          }}
+        />
+      </div>
+    );
   }
 
   if (loading) {

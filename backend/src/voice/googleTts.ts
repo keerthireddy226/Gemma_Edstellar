@@ -10,18 +10,19 @@
 
 export type VoiceGender = "male" | "female";
 
-// Chosen from Google's en-US Neural2 voice set: clear, standard American
-// accent, one male and one female. Not stored per item_audio row — that
-// table's voice_id column is the gender label ('male'/'female'), which is
-// what the rest of the app (preferred_voice, item-serving joins) keys on.
+// Google's en-US Neural2 voice set: clear, standard American accent, one
+// male and one female. Not stored per item_audio row — that table's
+// voice_id column is the gender label ('male'/'female'), which is what the
+// rest of the app (preferred_voice, item-serving joins) keys on.
 const VOICE_NAME: Record<VoiceGender, string> = {
   male: "en-US-Neural2-D",
   female: "en-US-Neural2-F",
 };
 
 export interface SynthesizedSpeech {
-  audioBase64: string;
+  audioBuffer: Buffer;
   mimeType: string;
+  durationMs: number | null;
 }
 
 export async function synthesizeSpeech(text: string, voice: VoiceGender): Promise<SynthesizedSpeech | null> {
@@ -43,7 +44,13 @@ export async function synthesizeSpeech(text: string, voice: VoiceGender): Promis
     }
     const json = (await res.json()) as { audioContent?: string };
     if (!json.audioContent) return null;
-    return { audioBase64: json.audioContent, mimeType: "audio/mpeg" };
+    const audioBuffer = Buffer.from(json.audioContent, "base64");
+    // Google doesn't return an exact duration — estimated from the MP3's
+    // byte size at its default encoding bitrate (good enough; nothing reads
+    // this for playback timing today, only item_audio.duration_ms).
+    const MP3_BITRATE_KBPS = 32;
+    const durationMs = Math.round((audioBuffer.byteLength * 8) / MP3_BITRATE_KBPS);
+    return { audioBuffer, mimeType: "audio/mpeg", durationMs };
   } catch (err) {
     console.error("synthesizeSpeech: request failed:", err);
     return null;

@@ -23,6 +23,23 @@ import {
 } from "./cefr.js";
 import { buildRoadmap, type AccessDuration, type SkillTag } from "./roadmap.js";
 import { withAudioUrls } from "../voice/itemAudio.js";
+import { z } from "zod";
+
+const startSessionBodySchema = z.object({ voiceCheckId: z.string().uuid().optional() });
+
+// Correlates a Voice Check done right before session start with the
+// session it gated — the check itself has no session yet when it runs
+// (POST /voice/verify happens before this endpoint), so this backfills it
+// once the real session exists. Silently a no-op if voiceCheckId is
+// missing/invalid/already claimed — never blocks session creation over it.
+async function correlateVoiceCheck(userId: string, voiceCheckId: string | undefined, sessionId: string): Promise<void> {
+  if (!voiceCheckId) return;
+  await pool.query(`UPDATE voice_check_results SET session_id = $1 WHERE id = $2 AND user_id = $3 AND session_id IS NULL`, [
+    sessionId,
+    voiceCheckId,
+    userId,
+  ]);
+}
 
 const ALL_SKILLS: SkillTag[] = ["listening", "speaking", "reading", "writing"];
 
@@ -329,6 +346,7 @@ async function buildHistoryResponse(userId: string, sessionId: string, compositi
 // test.
 placementRouter.post("/session", requireAuth, async (req: AuthedRequest, res, next) => {
   try {
+    const { voiceCheckId } = startSessionBodySchema.parse(req.body ?? {});
     const existing = await pool.query(
       `SELECT id, composition FROM sessions
        WHERE user_id = $1 AND session_type = 'placement' AND completed_at IS NULL
@@ -342,6 +360,7 @@ placementRouter.post("/session", requireAuth, async (req: AuthedRequest, res, ne
     // abandoned (no attempts are lost — those stay in the attempts table
     // regardless) and a fresh adaptive session starts instead.
     if (existing.rows[0] && Array.isArray(existing.rows[0].composition?.history)) {
+      await correlateVoiceCheck(req.user!.id, voiceCheckId, existing.rows[0].id);
       const response = await buildHistoryResponse(req.user!.id, existing.rows[0].id, existing.rows[0].composition, false);
       return res.json(response);
     }
@@ -363,6 +382,8 @@ placementRouter.post("/session", requireAuth, async (req: AuthedRequest, res, ne
        VALUES ($1, 'placement', 'exam', $2) RETURNING id`,
       [req.user!.id, JSON.stringify(composition)],
     );
+
+    await correlateVoiceCheck(req.user!.id, voiceCheckId, sessionResult.rows[0].id);
 
     res.status(201).json({
       sessionId: sessionResult.rows[0].id,

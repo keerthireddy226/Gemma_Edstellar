@@ -38,7 +38,20 @@ const startSessionSchema = z.object({
   // spreading across every type that carries the skill — used by a single
   // "Today's Tasks" row so clicking one task practices just that exercise.
   itemTypeId: z.string().optional(),
+  voiceCheckId: z.string().uuid().optional(),
 });
+
+// Correlates a Voice Check done right before session start with the
+// session it gated — mirrors the identical helper in placement/routes.ts
+// (the check itself has no session yet when it runs).
+async function correlateVoiceCheck(userId: string, voiceCheckId: string | undefined, sessionId: string): Promise<void> {
+  if (!voiceCheckId) return;
+  await pool.query(`UPDATE voice_check_results SET session_id = $1 WHERE id = $2 AND user_id = $3 AND session_id IS NULL`, [
+    sessionId,
+    voiceCheckId,
+    userId,
+  ]);
+}
 
 function toItemPayload(row: {
   id: string;
@@ -205,6 +218,7 @@ practiceRouter.post("/session", requireAuth, async (req: AuthedRequest, res, nex
           attempted: attemptByItem.has(row!.id),
           responseText: attemptByItem.get(row!.id) ?? null,
         }));
+      await correlateVoiceCheck(req.user!.id, body.voiceCheckId, existing.rows[0].id);
       return res.json({
         sessionId: existing.rows[0].id,
         skill: body.skill,
@@ -222,6 +236,8 @@ practiceRouter.post("/session", requireAuth, async (req: AuthedRequest, res, nex
        VALUES ($1, 'practice', 'coach', $2) RETURNING id`,
       [req.user!.id, JSON.stringify({ skill: body.skill, itemTypeId: body.itemTypeId ?? null, itemIds: items.map((i) => i.id) })],
     );
+
+    await correlateVoiceCheck(req.user!.id, body.voiceCheckId, sessionResult.rows[0].id);
 
     res.status(201).json({
       sessionId: sessionResult.rows[0].id,

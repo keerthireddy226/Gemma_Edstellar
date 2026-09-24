@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Volume2, Mic, Square, CheckCircle2, ArrowLeft, Clock, Headphones, BookOpen, PenLine } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
@@ -15,6 +15,8 @@ import {
 import type { TestItem, SkillTag } from "@/hooks/useTestSession";
 import { useVoiceRecorder, blobToBase64 } from "@/hooks/useVoiceRecorder";
 import { playSpokenAudio } from "@/lib/playSpokenAudio";
+import { VoiceCheck } from "@/components/VoiceCheck";
+import { getVoiceEnrollmentStatus } from "@/hooks/useVoiceCheck";
 import {
   AUDIO_FIRST_TYPES,
   SKILL_BADGE_CLASS,
@@ -180,6 +182,7 @@ function TypePicker({ skill, starting, onBack, onSelect }: { skill: SkillTag; st
 export function Modules() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { recording, start: startRecording, stop: stopRecording } = useVoiceRecorder();
 
@@ -188,6 +191,25 @@ export function Modules() {
   // A skill picked but no type chosen yet — shows TypePicker instead of
   // starting a session immediately.
   const [pickerSkill, setPickerSkill] = useState<SkillTag | null>(null);
+  // A start requested (from the auto-start effect or TypePicker) but not
+  // yet actually begun — the Voice Check gate below renders while this is
+  // set, and only calls the real handleStart once it completes.
+  const [pendingStart, setPendingStart] = useState<{ skill: SkillTag; count?: number; itemTypeId?: string } | null>(null);
+  // Same robustness fix as PlacementTest.tsx: if there's no enrollment on
+  // file yet when a start is actually requested, redirect to enroll (with
+  // consent) first, rather than only ever showing the verify step — this
+  // page has no upstream "Placement.tsx"-style gate of its own to rely on.
+  const [voiceEnrolled, setVoiceEnrolled] = useState<boolean | null>(null);
+  useEffect(() => {
+    getVoiceEnrollmentStatus()
+      .then((res) => setVoiceEnrolled(res.enrolled))
+      .catch(() => setVoiceEnrolled(true));
+  }, []);
+  useEffect(() => {
+    if (pendingStart && voiceEnrolled === false) {
+      navigate(ROUTES.VOICE_ENROLLMENT, { state: { next: `${location.pathname}${location.search}` } });
+    }
+  }, [pendingStart, voiceEnrolled, navigate, location.pathname, location.search]);
 
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [items, setItems] = useState<TestItem[]>([]);
@@ -220,11 +242,11 @@ export function Modules() {
       .finally(() => setLoadingAvailability(false));
   }, []);
 
-  async function handleStart(skill: SkillTag, count?: number, itemTypeId?: string) {
+  async function handleStart(skill: SkillTag, count?: number, itemTypeId?: string, voiceCheckId?: string) {
     setStarting(true);
     setError(null);
     try {
-      const res = await startPracticeSession(skill, count, itemTypeId);
+      const res = await startPracticeSession(skill, count, itemTypeId, voiceCheckId);
       setSessionId(res.sessionId);
       setItems(res.items);
       // Resuming an in-progress session returns every item with its own
@@ -268,7 +290,7 @@ export function Modules() {
     if (skill === "listening" || skill === "speaking" || skill === "reading" || skill === "writing") {
       autoStarted.current = true;
       if (itemTypeId) {
-        handleStart(skill, count ? Number(count) : undefined, itemTypeId);
+        setPendingStart({ skill, count: count ? Number(count) : undefined, itemTypeId });
       } else {
         setPickerSkill(skill);
       }
@@ -422,13 +444,32 @@ export function Modules() {
   // No active or just-finished session — show the skill picker, or the
   // type picker if a skill's already been chosen but no specific type yet.
   if (!sessionId && !starting) {
+    // A start was requested but we don't know enrollment status yet, or
+    // we're about to redirect to enroll (per the effect above) — show
+    // nothing rather than flash the picker screens behind it.
+    if (pendingStart && !voiceEnrolled) {
+      return null;
+    }
+    if (pendingStart && voiceEnrolled) {
+      return (
+        <VoiceCheck
+          mode="verify"
+          purpose="practice"
+          onComplete={(result) => {
+            const { skill, count, itemTypeId } = pendingStart;
+            setPendingStart(null);
+            handleStart(skill, count, itemTypeId, result.voiceCheckId);
+          }}
+        />
+      );
+    }
     if (pickerSkill) {
       return (
         <TypePicker
           skill={pickerSkill}
           starting={starting}
           onBack={() => setPickerSkill(null)}
-          onSelect={(typeId) => handleStart(pickerSkill, undefined, typeId)}
+          onSelect={(typeId) => setPendingStart({ skill: pickerSkill, itemTypeId: typeId })}
         />
       );
     }

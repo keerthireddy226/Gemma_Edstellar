@@ -6,9 +6,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { scheduleLater } from "@/hooks/usePlacement";
 import { getRoadmap } from "@/hooks/useRoadmap";
 import { getCurrentSession } from "@/hooks/useTestSession";
+import { getVoiceEnrollmentStatus } from "@/hooks/useVoiceCheck";
+import { VoiceSection } from "@/components/VoiceSection";
 import { Button } from "@/components/Button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { VoiceSection } from "@/components/VoiceSection";
 import { ROUTES } from "@/constants/routes";
 
 export function Placement() {
@@ -24,6 +25,24 @@ export function Placement() {
   // then either "not started" or the number of questions already shown in
   // an existing, unfinished session (leaving early doesn't lose it).
   const [resumeQuestionsShown, setResumeQuestionsShown] = useState<number | null>(null);
+  // Whether Voice Check enrollment already exists for this learner — null
+  // while unknown. Defaults to true (skip the gate) on a lookup failure so
+  // a technical hiccup here never blocks someone from reaching their test.
+  const [voiceEnrolled, setVoiceEnrolled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    getVoiceEnrollmentStatus()
+      .then((res) => setVoiceEnrolled(res.enrolled))
+      .catch(() => setVoiceEnrolled(true));
+  }, []);
+
+  function goToPlacementTest() {
+    if (voiceEnrolled === false) {
+      navigate(ROUTES.VOICE_ENROLLMENT, { state: { next: ROUTES.PLACEMENT_TEST } });
+    } else {
+      navigate(ROUTES.PLACEMENT_TEST);
+    }
+  }
 
   // Landing here after already completing the test (e.g. via browser back,
   // or a direct link) should skip straight to the roadmap rather than offer
@@ -80,7 +99,7 @@ export function Placement() {
   if (checkingPlacement || resumeQuestionsShown === null) return null;
 
   return (
-    <div className="app-surface min-h-screen flex items-center justify-center px-4 py-10">
+    <div className="app-surface min-h-screen overflow-y-auto flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-2xl flex flex-col gap-4">
         <div className="bg-surface border border-rule rounded-card p-8 flex flex-col gap-6 items-center text-center">
           <div className="h-14 w-14 rounded-full bg-navy flex items-center justify-center">
@@ -106,37 +125,27 @@ export function Placement() {
             ))}
           </div>
 
-          {!isResuming && (
-            <div className="w-full bg-paper-warm rounded-input p-4 text-left">
-              <VoiceSection />
-            </div>
-          )}
+          <div className="w-full bg-paper-warm rounded-input p-4 text-left">
+            <VoiceSection />
+          </div>
 
-          {!isResuming && (
-            <label className="flex items-start gap-2.5 rounded-input border border-rule p-3.5 w-full text-left cursor-pointer">
-              <input
-                type="checkbox"
-                checked={instructionsAcknowledged}
-                onChange={(e) => setInstructionsAcknowledged(e.target.checked)}
-                className="mt-0.5 accent-navy"
-              />
-              <span className="text-sm text-ink">{t("placement.instructions.checkboxLabel")}</span>
-            </label>
-          )}
+          <label className="flex items-start gap-2.5 rounded-input border border-rule p-3.5 w-full text-left cursor-pointer">
+            <input
+              type="checkbox"
+              checked={instructionsAcknowledged}
+              onChange={(e) => setInstructionsAcknowledged(e.target.checked)}
+              className="mt-0.5 accent-navy"
+            />
+            <span className="text-sm text-ink">{t("placement.instructions.checkboxLabel")}</span>
+          </label>
 
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            {isResuming ? (
-              <Button onClick={() => navigate(ROUTES.PLACEMENT_TEST)}>{t("placement.resume.continue")}</Button>
-            ) : (
-              <>
-                <Button onClick={() => navigate(ROUTES.PLACEMENT_TEST)} disabled={!instructionsAcknowledged}>
-                  {t("placement.instructions.begin")}
-                </Button>
-                <Button variant="secondary" onClick={handleScheduleLater}>
-                  {submitting ? t("placement.scheduling") : scheduleSent ? t("placement.scheduleSent") : t("placement.scheduleLater")}
-                </Button>
-              </>
-            )}
+            <Button onClick={goToPlacementTest} disabled={!instructionsAcknowledged}>
+              {isResuming ? t("placement.resume.continue") : t("placement.instructions.begin")}
+            </Button>
+            <Button variant="secondary" onClick={handleScheduleLater}>
+              {submitting ? t("placement.scheduling") : scheduleSent ? t("placement.scheduleSent") : t("placement.scheduleLater")}
+            </Button>
           </div>
 
           {error && <p className="text-sm text-error">{error}</p>}

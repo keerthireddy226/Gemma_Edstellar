@@ -16,6 +16,7 @@ import { Button } from "@/components/Button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ROUTES } from "@/constants/routes";
 import { getRoadmap } from "@/hooks/useRoadmap";
+import { getVoiceEnrollmentStatus } from "@/hooks/useVoiceCheck";
 
 /* ------------------------------------------------------------------ */
 /* Shared step chrome + small controls, local to this page            */
@@ -276,6 +277,20 @@ export function Onboarding() {
         accessDuration: form.accessDuration,
         consentGiven: true,
       });
+      // Voice Check enrollment happens right here, before the placement
+      // intro page — so it's not immediately followed by the verify
+      // recording once the learner reaches the test (that felt like two
+      // recordings back to back). This way the intro page sits between them.
+      try {
+        const { enrolled } = await getVoiceEnrollmentStatus();
+        if (!enrolled) {
+          navigate(ROUTES.VOICE_ENROLLMENT, { state: { next: ROUTES.PLACEMENT }, replace: true });
+          return;
+        }
+      } catch {
+        // Lookup hiccup — fall through to Placement as normal rather than
+        // blocking onboarding completion on it.
+      }
       navigate(ROUTES.PLACEMENT, { replace: true });
     } catch {
       setError(t("onboarding.wizard.consent.error"));
