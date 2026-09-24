@@ -278,6 +278,7 @@
     "streakDays_one": "{{count}} jour",
     "streakDays_other": "{{count}} jours",
     "startStreakToday": "Commencez votre série aujourd'hui.",
+    "keepStreakGoing": "Continuez comme ça !",
     "today": "Aujourd'hui",
     "practicedSoFar": "pratiqué jusqu'à présent",
     "accuracy": "Précision",
@@ -305,12 +306,26 @@
     "openMenu": "Ouvrir le menu",
     "toggleTheme": "Changer de thème"
   },
-  "comingSoon": {
-    "practiceTestsBody": "Les tests d'entraînement complets seront construits lors d'une phase ultérieure.",
-    "tutorBody": "Coach Mode — un chat d'entraînement sans pression — sera construit lors d'une phase ultérieure.",
-    "profileBody": "D'autres réglages de profil arrivent bientôt — votre préférence de voix ci-dessous est déjà disponible."
+  "practiceTests": {
+    "subtitle": "Des tests d'entraînement complets et chronométrés, calqués sur les formats d'examen réels.",
+    "comingSoon": "Bientôt disponible"
+  },
+  "tutor": {
+    "subtitle": "Une conversation d'entraînement sans pression avec votre coach IA.",
+    "sampleAgent1": "Salut ! Prêt à pratiquer une conversation quotidienne ? Raconte-moi ta journée.",
+    "sampleLearner1": "C'était bien, je suis allé travailler puis j'ai déjeuné avec un ami.",
+    "sampleAgent2": "Super ! De quoi avez-vous parlé pendant le déjeuner ?",
+    "inputPlaceholder": "Tapez ou dites votre réponse…",
+    "comingSoon": "Le Mode Coach arrive dans une phase ultérieure — ceci est un aperçu."
   },
   "profile": {
+    "account": {
+      "unnamed": "Votre compte",
+      "individual": "Individuel"
+    },
+    "language": {
+      "title": "Langue"
+    },
     "voice": {
       "title": "Voix",
       "subtitle": "Choisissez la voix qui lit les questions à voix haute pendant les tests et la pratique.",
@@ -320,6 +335,41 @@
       "preview": "Écouter cette voix",
       "previewLine": "Voici un aperçu de la façon dont les questions seront lues.",
       "saved": "Enregistré — cette voix sera utilisée à partir de maintenant."
+    },
+    "plan": {
+      "title": "Objectif d'Examen",
+      "loading": "Chargement de votre plan…",
+      "notSet": "Non défini",
+      "exam": "Examen",
+      "currentToGoal": "Actuel → Objectif",
+      "examDateLabel": "Date de l'Examen",
+      "accessDaysLeft": "Jours d'Accès Restants"
+    },
+    "personalInfo": {
+      "title": "Informations Personnelles",
+      "edit": "Modifier",
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "email": "Adresse E-mail",
+      "accountType": "Type de Compte",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…",
+      "cancel": "Annuler"
+    },
+    "preferences": {
+      "title": "Préférences",
+      "spokenPrompts": {
+        "title": "Invites Audio Parlées",
+        "subtitle": "Lire les invites d'écoute à voix haute pendant l'entraînement."
+      },
+      "weeklyReports": {
+        "title": "Rapports de Progression Hebdomadaires",
+        "subtitle": "Recevez un résumé de votre activité d'entraînement par e-mail."
+      },
+      "strictTimer": {
+        "title": "Mode Minuteur Strict",
+        "subtitle": "Désactiver la pause pendant les exercices chronométrés."
+      }
     },
     "identityCheck": {
       "title": "Vérification d'Identité",
@@ -332,6 +382,7 @@
     }
   },
   "voiceCheck": {
+    "back": "Retour",
     "enrollmentConsent": {
       "title": "Configurez votre Vérification Vocale",
       "subtitle": "Ceci est distinct de l'enregistrement vocal pour la notation — veuillez lire avant de continuer.",
@@ -500,6 +551,12 @@
     "practiceAgain": "Pratiquer à nouveau",
     "backToDashboard": "Retour au tableau de bord",
     "startReading": "Commencer la lecture",
-    "passageHidden": "Le passage est maintenant masqué — réécrivez-le avec vos propres mots."
+    "passageHidden": "Le passage est maintenant masqué — réécrivez-le avec vos propres mots.",
+    "backToTypes": "Retour aux types de questions",
+    "pickUnitTitle": "Choisissez une unité à pratiquer.",
+    "unitComplete": "Toutes les séries terminées",
+    "setsProgress": "{{done}} sur {{total}} séries terminées",
+    "backToUnits": "Retour aux unités",
+    "setCompleted": "Terminé"
   }
 }

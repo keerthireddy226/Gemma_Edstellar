@@ -18,8 +18,29 @@ export interface SkillAvailability {
   remaining: number;
 }
 
+export interface PracticeUnit {
+  id: string;
+  name: string;
+  setCount: number;
+  completedCount: number;
+}
+
+export interface PracticeSet {
+  id: string;
+  name: string;
+  completed: boolean;
+}
+
 export function getAvailability(): Promise<{ availability: SkillAvailability[] }> {
   return api("/practice/availability");
+}
+
+export function getUnits(itemTypeId: string): Promise<{ units: PracticeUnit[] }> {
+  return api(`/practice/units?itemTypeId=${encodeURIComponent(itemTypeId)}`);
+}
+
+export function getSets(unitId: string): Promise<{ sets: PracticeSet[] }> {
+  return api(`/practice/units/${unitId}/sets`);
 }
 
 export function startPracticeSession(
@@ -27,8 +48,9 @@ export function startPracticeSession(
   count?: number,
   itemTypeId?: string,
   voiceCheckId?: string,
+  setId?: string,
 ): Promise<{ sessionId: string; skill: SkillTag; items: TestItem[] }> {
-  return api("/practice/session", { method: "POST", body: JSON.stringify({ skill, count, itemTypeId, voiceCheckId }) });
+  return api("/practice/session", { method: "POST", body: JSON.stringify({ skill, count, itemTypeId, voiceCheckId, setId }) });
 }
 
 export function submitPracticeAttempt(

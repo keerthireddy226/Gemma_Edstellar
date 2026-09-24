@@ -9,7 +9,11 @@ const VOICES: PreferredVoice[] = ["female", "male"];
 // Shared between the Profile page (change it anytime) and the mock test's
 // start screen (pick it before your very first test) — same radio-card
 // picker, same save-on-select behavior, just embedded in two places.
-export function VoiceSection() {
+// hideTitle: Profile renders its own colored icon+title header above this
+// (matching the rest of that page's section headers) — PlacementTest's
+// inline usage still wants this component's own title, so the default
+// keeps showing it.
+export function VoiceSection({ hideTitle }: { hideTitle?: boolean } = {}) {
   const { t } = useTranslation();
   const [selected, setSelected] = useState<PreferredVoice | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,8 +54,8 @@ export function VoiceSection() {
 
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="font-mono text-[11px] font-medium tracking-[.24em] uppercase text-muted">{t("profile.voice.title")}</h3>
-      <p className="text-sm text-muted -mt-1">{t("profile.voice.subtitle")}</p>
+      {!hideTitle && <h3 className="font-mono text-[11px] font-medium tracking-[.24em] uppercase text-muted">{t("profile.voice.title")}</h3>}
+      <p className={`text-sm text-muted ${hideTitle ? "" : "-mt-1"}`}>{t("profile.voice.subtitle")}</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {VOICES.map((voice) => {
           const isSelected = selected === voice;

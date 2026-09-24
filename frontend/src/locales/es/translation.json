@@ -278,6 +278,7 @@
     "streakDays_one": "{{count}} día",
     "streakDays_other": "{{count}} días",
     "startStreakToday": "Comienza tu racha hoy.",
+    "keepStreakGoing": "¡Sigue así!",
     "today": "Hoy",
     "practicedSoFar": "practicado hasta ahora",
     "accuracy": "Precisión",
@@ -305,12 +306,26 @@
     "openMenu": "Abrir menú",
     "toggleTheme": "Cambiar tema"
   },
-  "comingSoon": {
-    "practiceTestsBody": "Las pruebas de práctica completas se construirán en una fase posterior.",
-    "tutorBody": "Coach Mode — un chat de práctica de baja presión — se construirá en una fase posterior.",
-    "profileBody": "Más ajustes de perfil llegarán pronto — tu preferencia de voz abajo ya está lista."
+  "practiceTests": {
+    "subtitle": "Pruebas de práctica completas y cronometradas, basadas en los formatos reales de los exámenes.",
+    "comingSoon": "Próximamente"
+  },
+  "tutor": {
+    "subtitle": "Una conversación de práctica sin presión con tu coach de IA.",
+    "sampleAgent1": "¡Hola! ¿Listo para practicar una conversación cotidiana? Cuéntame cómo va tu día.",
+    "sampleLearner1": "Bien, fui a trabajar y luego almorcé con un amigo.",
+    "sampleAgent2": "¡Qué bien! ¿De qué hablaron durante el almuerzo?",
+    "inputPlaceholder": "Escribe o habla tu respuesta…",
+    "comingSoon": "El Modo Coach llegará en una fase posterior — esto es una vista previa."
   },
   "profile": {
+    "account": {
+      "unnamed": "Tu cuenta",
+      "individual": "Individual"
+    },
+    "language": {
+      "title": "Idioma"
+    },
     "voice": {
       "title": "Voz",
       "subtitle": "Elige qué voz lee las preguntas en voz alta durante las pruebas y la práctica.",
@@ -320,6 +335,41 @@
       "preview": "Escuchar esta voz",
       "previewLine": "Esta es una vista previa de cómo sonarán las preguntas.",
       "saved": "Guardado — esta voz se usará a partir de ahora."
+    },
+    "plan": {
+      "title": "Meta del Examen",
+      "loading": "Cargando tu plan…",
+      "notSet": "No establecido",
+      "exam": "Examen",
+      "currentToGoal": "Actual → Meta",
+      "examDateLabel": "Fecha del Examen",
+      "accessDaysLeft": "Días de Acceso Restantes"
+    },
+    "personalInfo": {
+      "title": "Información Personal",
+      "edit": "Editar",
+      "firstName": "Nombre",
+      "lastName": "Apellido",
+      "email": "Correo Electrónico",
+      "accountType": "Tipo de Cuenta",
+      "save": "Guardar",
+      "saving": "Guardando…",
+      "cancel": "Cancelar"
+    },
+    "preferences": {
+      "title": "Preferencias",
+      "spokenPrompts": {
+        "title": "Indicaciones de Audio Habladas",
+        "subtitle": "Lee en voz alta las indicaciones de escucha durante la práctica."
+      },
+      "weeklyReports": {
+        "title": "Informes Semanales de Progreso",
+        "subtitle": "Recibe un resumen de tu actividad de práctica por correo electrónico."
+      },
+      "strictTimer": {
+        "title": "Modo de Temporizador Estricto",
+        "subtitle": "Deshabilita la pausa durante los ejercicios cronometrados."
+      }
     },
     "identityCheck": {
       "title": "Verificación de Identidad",
@@ -332,6 +382,7 @@
     }
   },
   "voiceCheck": {
+    "back": "Atrás",
     "enrollmentConsent": {
       "title": "Configura tu Verificación de Voz",
       "subtitle": "Esto es independiente de la grabación de voz para calificación — por favor lee antes de continuar.",
@@ -500,6 +551,12 @@
     "practiceAgain": "Practicar de nuevo",
     "backToDashboard": "Volver al panel",
     "startReading": "Comenzar a leer",
-    "passageHidden": "El pasaje ahora está oculto — reescríbelo con tus propias palabras."
+    "passageHidden": "El pasaje ahora está oculto — reescríbelo con tus propias palabras.",
+    "backToTypes": "Volver a los tipos de preguntas",
+    "pickUnitTitle": "Elige una unidad para practicar.",
+    "unitComplete": "Todos los sets completados",
+    "setsProgress": "{{done}} de {{total}} sets completados",
+    "backToUnits": "Volver a las unidades",
+    "setCompleted": "Completado"
   }
 }

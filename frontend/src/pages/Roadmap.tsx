@@ -114,7 +114,15 @@ function AchievementBanner() {
   );
 }
 
-function StatsRow({ progressPercent, accuracyPercent }: { progressPercent: number; accuracyPercent: number | null }) {
+function StatsRow({
+  progressPercent,
+  accuracyPercent,
+  streakDays,
+}: {
+  progressPercent: number;
+  accuracyPercent: number | null;
+  streakDays: number;
+}) {
   const { t } = useTranslation();
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -134,8 +142,10 @@ function StatsRow({ progressPercent, accuracyPercent }: { progressPercent: numbe
         </svg>
         <div>
           <div className="font-mono text-[10px] uppercase tracking-wider text-muted mb-1">{t("roadmap.streak")}</div>
-          <div className="font-display font-bold text-2xl text-navy-deep">{t("roadmap.streakDays", { count: 0 })}</div>
-          <div className="text-xs text-muted mt-0.5 italic truncate">{t("roadmap.startStreakToday")}</div>
+          <div className="font-display font-bold text-2xl text-navy-deep">{t("roadmap.streakDays", { count: streakDays })}</div>
+          <div className="text-xs text-muted mt-0.5 italic truncate">
+            {streakDays > 0 ? t("roadmap.keepStreakGoing") : t("roadmap.startStreakToday")}
+          </div>
         </div>
       </div>
 
@@ -465,6 +475,10 @@ export function Roadmap() {
   // yet; StatsRow can't tell those apart and doesn't need to (both show
   // the same "not unlocked yet" state).
   const [accuracyPercent, setAccuracyPercent] = useState<number | null>(null);
+  // Same source of truth Overview's stat tile reads (GET /dashboard),
+  // previously fetched here too but silently discarded — this page's
+  // streak card was hardcoded to 0 regardless of the real value.
+  const [streakDays, setStreakDays] = useState(0);
 
   useEffect(() => {
     getRoadmap()
@@ -479,7 +493,10 @@ export function Roadmap() {
       })
       .finally(() => setLoading(false));
     getDashboard()
-      .then((res) => setAccuracyPercent(res.stats.accuracyPercent))
+      .then((res) => {
+        setAccuracyPercent(res.stats.accuracyPercent);
+        setStreakDays(res.stats.streakDays);
+      })
       .catch(() => {});
   }, [t]);
 
@@ -524,7 +541,7 @@ export function Roadmap() {
 
       <AchievementBanner />
 
-      <StatsRow progressPercent={progressPercent} accuracyPercent={accuracyPercent} />
+      <StatsRow progressPercent={progressPercent} accuracyPercent={accuracyPercent} streakDays={streakDays} />
 
       <MotivationalBar />
 

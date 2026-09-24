@@ -5,6 +5,7 @@ import { requireAuth, type AuthedRequest } from "../auth/middleware.js";
 import { onboardingSchema } from "./schemas.js";
 
 const voicePreferenceSchema = z.object({ preferredVoice: z.enum(["male", "female"]) });
+const preferencesSchema = z.object({ spokenPromptsEnabled: z.boolean() });
 
 export const onboardingRouter = Router();
 
@@ -127,6 +128,19 @@ onboardingRouter.patch("/voice-preference", requireAuth, async (req: AuthedReque
     const body = voicePreferenceSchema.parse(req.body);
     await pool.query(`UPDATE participant_profiles SET preferred_voice = $1, updated_at = now() WHERE user_id = $2`, [
       body.preferredVoice,
+      req.user!.id,
+    ]);
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+});
+
+onboardingRouter.patch("/preferences", requireAuth, async (req: AuthedRequest, res, next) => {
+  try {
+    const body = preferencesSchema.parse(req.body);
+    await pool.query(`UPDATE participant_profiles SET spoken_prompts_enabled = $1, updated_at = now() WHERE user_id = $2`, [
+      body.spokenPromptsEnabled,
       req.user!.id,
     ]);
     res.status(204).send();

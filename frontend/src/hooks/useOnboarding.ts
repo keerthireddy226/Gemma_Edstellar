@@ -26,8 +26,33 @@ export interface OnboardingAnswers {
 
 export type PreferredVoice = "male" | "female";
 
-export function getOnboardingProfile(): Promise<{ onboarding_complete: boolean; preferred_voice: PreferredVoice | null } | null> {
+// Backend does `SELECT *` from participant_profiles — widened here to the
+// fields Profile actually displays (exam goal, score target, exam date),
+// rather than the narrower shape this used to declare.
+export interface OnboardingProfile {
+  onboarding_complete: boolean;
+  preferred_voice: PreferredVoice | null;
+  exam_preference: ExamPreference | null;
+  goal_level: GoalLevel | null;
+  score_target: string | null;
+  exam_date: string | null;
+  daily_minutes_preference: number | null;
+  spoken_prompts_enabled: boolean;
+}
+
+export function getOnboardingProfile(): Promise<OnboardingProfile | null> {
   return api("/onboarding/profile");
+}
+
+// Real, persisted preference — genuinely saved and reloaded, unlike the
+// other two toggles shown alongside it in Profile (Weekly Progress Reports,
+// Strict Timer Mode), which have no backend behind them yet and stay
+// disabled/"coming soon". Not yet wired into the session UI's own
+// play-audio decision (see AUDIO_FIRST_TYPES in testItemDisplay.ts) —
+// saving/loading the setting is real, changing practice behavior from it
+// is a follow-up.
+export function updateSpokenPromptsPreference(spokenPromptsEnabled: boolean): Promise<void> {
+  return api("/onboarding/preferences", { method: "PATCH", body: JSON.stringify({ spokenPromptsEnabled }) });
 }
 
 export function submitOnboarding(answers: OnboardingAnswers): Promise<void> {

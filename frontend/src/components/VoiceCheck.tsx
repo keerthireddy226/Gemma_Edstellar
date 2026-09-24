@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Mic, Square, CheckCircle2 } from "lucide-react";
+import { Mic, Square, CheckCircle2, ArrowLeft } from "lucide-react";
 import { useVoiceRecorder, blobToBase64 } from "@/hooks/useVoiceRecorder";
 import { enrollVoice, verifyVoice, type VoiceCheckPurpose } from "@/hooks/useVoiceCheck";
 import { Button } from "@/components/Button";
@@ -9,6 +9,11 @@ interface VoiceCheckProps {
   mode: "enroll" | "verify";
   purpose?: VoiceCheckPurpose;
   onComplete: (result: { voiceCheckId?: string }) => void;
+  // Optional — when provided, shows a "Back" link above the recorder so the
+  // learner can bail out to wherever they came from instead of being forced
+  // through the check. Omitted entirely where there's nowhere sensible to
+  // go back to (e.g. the placement test's own verify step).
+  onBack?: () => void;
 }
 
 // Shared enroll/verify recorder. In verify mode, onComplete only fires once
@@ -16,7 +21,7 @@ interface VoiceCheckProps {
 // audio blocks in place with an inline error and lets the learner re-record.
 // A genuine technical failure (network error, etc.) is the one case that
 // still offers a "Skip for now" escape, since re-recording can't fix that.
-export function VoiceCheck({ mode, purpose, onComplete }: VoiceCheckProps) {
+export function VoiceCheck({ mode, purpose, onComplete, onBack }: VoiceCheckProps) {
   const { t } = useTranslation();
   const { recording, start, stop } = useVoiceRecorder();
   const [submitting, setSubmitting] = useState(false);
@@ -76,6 +81,15 @@ export function VoiceCheck({ mode, purpose, onComplete }: VoiceCheckProps) {
 
   return (
     <div className="w-full max-w-md mx-auto flex flex-col items-center gap-5 text-center">
+      {onBack && (
+        <button
+          onClick={onBack}
+          disabled={submitting}
+          className="flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink transition-colors cursor-pointer self-start disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <ArrowLeft size={16} strokeWidth={1.8} /> {t("voiceCheck.back")}
+        </button>
+      )}
       <div>
         <h2 className="font-display font-bold text-xl text-ink">
           {mode === "enroll" ? t("voiceCheck.enroll.title") : t("voiceCheck.verify.title")}

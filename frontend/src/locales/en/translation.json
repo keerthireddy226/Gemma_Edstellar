@@ -278,6 +278,7 @@
     "streakDays_one": "{{count}} day",
     "streakDays_other": "{{count}} days",
     "startStreakToday": "Start your streak today.",
+    "keepStreakGoing": "Keep it going!",
     "today": "Today",
     "practicedSoFar": "practiced so far",
     "accuracy": "Accuracy",
@@ -305,12 +306,26 @@
     "openMenu": "Open menu",
     "toggleTheme": "Toggle theme"
   },
-  "comingSoon": {
-    "practiceTestsBody": "Full practice tests are built in a later phase.",
-    "tutorBody": "Coach Mode — a low-pressure practice chat — is built in a later phase.",
-    "profileBody": "More profile settings are on the way — your voice preference below is ready now."
+  "practiceTests": {
+    "subtitle": "Full-length, timed practice tests modeled after real exam formats.",
+    "comingSoon": "Coming soon"
+  },
+  "tutor": {
+    "subtitle": "A low-pressure practice conversation with your AI coach.",
+    "sampleAgent1": "Hi! Ready to practice some everyday conversation? Tell me about your day so far.",
+    "sampleLearner1": "It was good, I went to work and then had lunch with a friend.",
+    "sampleAgent2": "Nice! What did you two talk about over lunch?",
+    "inputPlaceholder": "Type or speak your reply…",
+    "comingSoon": "Coach Mode is coming in a later phase — this is a preview of what it'll look like."
   },
   "profile": {
+    "account": {
+      "unnamed": "Your account",
+      "individual": "Individual"
+    },
+    "language": {
+      "title": "Language"
+    },
     "voice": {
       "title": "Voice",
       "subtitle": "Choose which voice reads questions aloud during tests and practice.",
@@ -320,6 +335,41 @@
       "preview": "Preview this voice",
       "previewLine": "This is a preview of how questions will sound.",
       "saved": "Saved — this voice will be used from now on."
+    },
+    "plan": {
+      "title": "Exam Goal",
+      "loading": "Loading your plan…",
+      "notSet": "Not set",
+      "exam": "Exam",
+      "currentToGoal": "Current → Goal",
+      "examDateLabel": "Exam Date",
+      "accessDaysLeft": "Access Days Left"
+    },
+    "personalInfo": {
+      "title": "Personal Information",
+      "edit": "Edit",
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "email": "Email Address",
+      "accountType": "Account Type",
+      "save": "Save",
+      "saving": "Saving…",
+      "cancel": "Cancel"
+    },
+    "preferences": {
+      "title": "Preferences",
+      "spokenPrompts": {
+        "title": "Spoken Audio Prompts",
+        "subtitle": "Read listening prompts aloud during practice."
+      },
+      "weeklyReports": {
+        "title": "Weekly Progress Reports",
+        "subtitle": "Receive a summary of your practice activity by email."
+      },
+      "strictTimer": {
+        "title": "Strict Timer Mode",
+        "subtitle": "Disable pausing during timed practice items."
+      }
     },
     "identityCheck": {
       "title": "Identity Check",
@@ -332,6 +382,7 @@
     }
   },
   "voiceCheck": {
+    "back": "Back",
     "enrollmentConsent": {
       "title": "Set up your Voice Check",
       "subtitle": "This is separate from voice recording for scoring — please read before continuing.",
@@ -500,6 +551,12 @@
     "practiceAgain": "Practice again",
     "backToDashboard": "Back to Dashboard",
     "startReading": "Start Reading",
-    "passageHidden": "The passage is now hidden — rewrite it in your own words."
+    "passageHidden": "The passage is now hidden — rewrite it in your own words.",
+    "backToTypes": "Back to question types",
+    "pickUnitTitle": "Pick a unit to practice.",
+    "unitComplete": "All sets complete",
+    "setsProgress": "{{done}} of {{total}} sets done",
+    "backToUnits": "Back to units",
+    "setCompleted": "Completed"
   }
 }

@@ -4,11 +4,13 @@ import rateLimit from "express-rate-limit";
 import { pool } from "../db.js";
 import { generateToken, hashToken, SESSION_COOKIE } from "./tokens.js";
 import { sendPasswordResetEmail, sendVerificationEmail } from "./mailer.js";
+import { requireAuth, type AuthedRequest } from "./middleware.js";
 import {
   forgotPasswordSchema,
   loginSchema,
   resetPasswordSchema,
   signupSchema,
+  updateNameSchema,
   verifyEmailSchema,
 } from "./schemas.js";
 
@@ -194,6 +196,22 @@ authRouter.get("/me", async (req, res, next) => {
       firstName: user.first_name,
       lastName: user.last_name,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// First/last name are the only account fields Profile lets someone edit —
+// email is tied to login/verification and isn't editable here.
+authRouter.patch("/me", requireAuth, async (req: AuthedRequest, res, next) => {
+  try {
+    const body = updateNameSchema.parse(req.body);
+    await pool.query(`UPDATE users SET first_name = $1, last_name = $2, updated_at = now() WHERE id = $3`, [
+      body.firstName,
+      body.lastName,
+      req.user!.id,
+    ]);
+    res.status(204).send();
   } catch (err) {
     next(err);
   }

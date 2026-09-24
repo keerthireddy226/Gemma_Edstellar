@@ -9,6 +9,11 @@ export const signupSchema = z.object({
   lastName: z.string().min(1),
 });
 
+export const updateNameSchema = z.object({
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+});
+
 // A login portal names which role(s) it accepts — a plain list, even when
 // there's only one — so a portal like /admin/login can accept either
 // 'admin' or 'super_admin' without a different check shape.

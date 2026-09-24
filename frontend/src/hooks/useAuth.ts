@@ -82,7 +82,19 @@ export function useAuthState() {
     return api<{ role: Role }>("/auth/verify-email", { method: "POST", body: JSON.stringify({ token }) });
   }, []);
 
-  return { ...state, login, signup, logout, forgotPassword, resetPassword, verifyEmail, refresh };
+  // The only account fields Profile lets someone edit — re-fetches /me
+  // afterward so every place showing the name (here, the sidebar initials,
+  // Profile's header) updates from the same source instead of guessing at
+  // the new value locally.
+  const updateName = useCallback(
+    async (firstName: string, lastName: string) => {
+      await api("/auth/me", { method: "PATCH", body: JSON.stringify({ firstName, lastName }) });
+      await refresh();
+    },
+    [refresh],
+  );
+
+  return { ...state, login, signup, logout, forgotPassword, resetPassword, verifyEmail, updateName, refresh };
 }
 
 export const AuthContext = createContext<ReturnType<typeof useAuthState> | null>(null);

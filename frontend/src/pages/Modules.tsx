@@ -1,16 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Volume2, Mic, Square, CheckCircle2, ArrowLeft, Clock, Headphones, BookOpen, PenLine } from "lucide-react";
+import { Volume2, Mic, Square, CheckCircle2, ArrowLeft, Clock, Headphones, BookOpen, PenLine, ChevronRight } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
 import { Button } from "@/components/Button";
+import { ProgressRing } from "@/components/ProgressRing";
+import { SKILL_TINT_CLASSES, SKILL_RING_COLOR } from "@/lib/skillTints";
 import {
   getAvailability,
+  getUnits,
+  getSets,
   startPracticeSession,
   submitPracticeAttempt,
   completePracticeSession,
   type PracticeSummary,
   type SkillAvailability,
+  type PracticeUnit,
+  type PracticeSet,
 } from "@/hooks/usePracticeSession";
 import type { TestItem, SkillTag } from "@/hooks/useTestSession";
 import { useVoiceRecorder, blobToBase64 } from "@/hooks/useVoiceRecorder";
@@ -32,6 +38,13 @@ const SKILL_ICONS: Record<SkillTag, typeof Headphones> = {
   speaking: Mic,
   reading: BookOpen,
   writing: PenLine,
+};
+
+const SKILL_EMOJI: Record<SkillTag, string> = {
+  listening: "🎧",
+  speaking: "🗣️",
+  reading: "📖",
+  writing: "✍️",
 };
 
 // Which question types show up under each skill's type picker — verified
@@ -69,6 +82,39 @@ const SKILL_TYPES: Record<SkillTag, string[]> = {
   writing: ["dictation", "email_writing", "passage_reconstruction", "sentence_completion", "summary_and_opinion", "typing"],
 };
 
+// Unit names are "A1 - Beginner", "B1 - Intermediate", etc. — colors the
+// leading CEFR code as a visual difficulty ramp (green -> amber -> orange),
+// reusing the same per-skill color tokens elsewhere in the app rather than
+// inventing a new palette just for this.
+const CEFR_TINT_CLASSES: Record<string, string> = {
+  A1: "bg-listening/15 text-listening",
+  A2: "bg-reading/15 text-reading",
+  B1: "bg-speaking/15 text-speaking",
+  B2: "bg-speaking/25 text-navy-deep",
+  C1: "bg-writing/20 text-writing",
+  C2: "bg-writing/30 text-navy-deep",
+};
+
+function cefrTint(unitName: string): string {
+  const code = unitName.match(/^[ABC][12]/)?.[0];
+  return (code && CEFR_TINT_CLASSES[code]) || "bg-paper text-navy-deep";
+}
+
+// A little growth motif (sprout -> tree) matching the difficulty ramp above.
+const CEFR_EMOJI: Record<string, string> = {
+  A1: "🥉",
+  A2: "🥈",
+  B1: "🥇",
+  B2: "🥇",
+  C1: "💎",
+  C2: "💎",
+};
+
+function cefrEmoji(unitName: string): string {
+  const code = unitName.match(/^[ABC][12]/)?.[0];
+  return (code && CEFR_EMOJI[code]) || "📘";
+}
+
 interface CachedAnswer {
   responseText: string;
   audioBase64?: string;
@@ -102,23 +148,32 @@ function SkillPicker({
       ) : (
         <div className="flex flex-col gap-3">
           {(availability ?? []).map(({ skill, remaining, total }) => {
-            const Icon = SKILL_ICONS[skill];
             const exhausted = remaining === 0;
+            const percent = total > 0 ? Math.round(((total - remaining) / total) * 100) : 0;
             return (
-              <div key={skill} className="flex items-center gap-3 bg-surface border border-rule rounded-card px-4 py-3.5">
-                <span className="h-10 w-10 rounded-input bg-paper flex items-center justify-center shrink-0">
-                  <Icon size={22} strokeWidth={1.8} className="text-navy-deep" />
-                </span>
+              <button
+                key={skill}
+                onClick={() => !exhausted && onStart(skill)}
+                disabled={starting || exhausted}
+                className="group text-left flex items-center gap-4 bg-surface border border-rule rounded-card px-4 py-4 transition-all cursor-pointer hover:border-rule-strong hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-14px_rgba(0,0,0,0.28)] disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
+              >
+                <ProgressRing percent={percent} size={52} strokeWidth={4} colorClass={SKILL_RING_COLOR[skill]}>
+                  <span
+                    className={`h-9 w-9 rounded-2xl flex items-center justify-center text-lg transition-transform group-hover:scale-110 ${SKILL_TINT_CLASSES[skill]}`}
+                  >
+                    {SKILL_EMOJI[skill]}
+                  </span>
+                </ProgressRing>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-ink">{t(`skills.${skill}`)}</div>
+                  <div className="font-display font-bold text-lg text-ink">{t(`skills.${skill}`)}</div>
                   <div className="text-xs text-muted">
                     {exhausted ? t("modules.allDone") : t("modules.remainingItems", { count: remaining, total })}
                   </div>
                 </div>
-                <Button onClick={() => onStart(skill)} disabled={starting || exhausted} className="shrink-0">
-                  {t("modules.start")}
-                </Button>
-              </div>
+                {!exhausted && (
+                  <ChevronRight size={20} className="text-muted shrink-0 transition-transform group-hover:translate-x-1" />
+                )}
+              </button>
             );
           })}
         </div>
@@ -147,8 +202,8 @@ function TypePicker({ skill, starting, onBack, onSelect }: { skill: SkillTag; st
       </button>
 
       <div className="flex items-center gap-3">
-        <span className="h-11 w-11 rounded-input bg-paper flex items-center justify-center shrink-0">
-          <Icon size={22} strokeWidth={1.8} className="text-navy-deep" />
+        <span className={`h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 text-2xl ${SKILL_TINT_CLASSES[skill]}`}>
+          {SKILL_EMOJI[skill]}
         </span>
         <div>
           <h1 className="font-display font-bold text-xl text-ink">{t(`skills.${skill}`)} Practice</h1>
@@ -165,16 +220,137 @@ function TypePicker({ skill, starting, onBack, onSelect }: { skill: SkillTag; st
               key={typeId}
               onClick={() => onSelect(typeId)}
               disabled={starting}
-              className="text-left bg-surface border border-rule rounded-card p-4 hover:border-rule-strong transition-colors cursor-pointer flex flex-col gap-2.5 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="group text-left bg-surface border border-rule rounded-card p-4 transition-all cursor-pointer flex flex-col gap-3 disabled:opacity-60 disabled:cursor-not-allowed hover:border-rule-strong hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-14px_rgba(0,0,0,0.28)]"
             >
-              <span className="h-8 w-8 rounded-input bg-paper flex items-center justify-center shrink-0">
-                <Icon size={16} strokeWidth={1.8} className="text-navy-deep" />
+              <span
+                className={`h-11 w-11 rounded-2xl flex items-center justify-center shrink-0 text-xl transition-transform group-hover:scale-110 ${SKILL_TINT_CLASSES[skill]}`}
+              >
+                <Icon size={20} strokeWidth={2} />
               </span>
               <span className="font-display font-semibold text-sm text-ink">{meta.name}</span>
             </button>
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// Shown after picking a type, if that type has any units — one card per
+// unit with its set count. Types with no units at all skip straight past
+// this (see the fetch effect in Modules() below) and keep the old
+// count-based session start unchanged.
+function UnitPicker({
+  units,
+  loading,
+  onBack,
+  onSelect,
+}: {
+  units: PracticeUnit[];
+  loading: boolean;
+  onBack: () => void;
+  onSelect: (unit: PracticeUnit) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="max-w-2xl mx-auto flex flex-col gap-4">
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink transition-colors cursor-pointer self-start"
+      >
+        <ArrowLeft size={16} strokeWidth={1.8} /> {t("modules.backToTypes")}
+      </button>
+      <h1 className="font-display font-bold text-xl text-ink">{t("modules.pickUnitTitle")}</h1>
+      {loading ? (
+        <p className="text-sm text-muted">{t("modules.loadingAvailability")}</p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {units.map((unit) => {
+            const percent = unit.setCount > 0 ? Math.round((unit.completedCount / unit.setCount) * 100) : 0;
+            const done = unit.setCount > 0 && unit.completedCount === unit.setCount;
+            return (
+              <button
+                key={unit.id}
+                onClick={() => onSelect(unit)}
+                className="group text-left flex items-center gap-4 bg-surface border border-rule rounded-card px-4 py-4 transition-all cursor-pointer hover:border-rule-strong hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-14px_rgba(0,0,0,0.28)]"
+              >
+                <ProgressRing percent={percent} size={52} strokeWidth={4} colorClass={done ? "text-success" : "text-navy"}>
+                  <span
+                    className={`h-9 w-9 rounded-2xl flex items-center justify-center text-lg transition-transform group-hover:scale-110 ${cefrTint(unit.name)}`}
+                  >
+                    {done ? <CheckCircle2 size={18} /> : cefrEmoji(unit.name)}
+                  </span>
+                </ProgressRing>
+                <div className="flex-1 min-w-0">
+                  <div className="font-display font-bold text-base text-ink">{unit.name}</div>
+                  <div className="text-xs text-muted">
+                    {done ? t("modules.unitComplete") : t("modules.setsProgress", { done: unit.completedCount, total: unit.setCount })}
+                  </div>
+                </div>
+                <ChevronRight size={20} className="text-muted shrink-0 transition-transform group-hover:translate-x-1" />
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Shown after picking a unit — one card per set, with a checkmark if this
+// learner already completed it. Selecting a set starts a fixed, ordered
+// mini-lesson (POST /practice/session with setId) instead of the old
+// spread/adaptive sample.
+function SetPicker({
+  unitName,
+  sets,
+  loading,
+  onBack,
+  onSelect,
+}: {
+  unitName: string;
+  sets: PracticeSet[];
+  loading: boolean;
+  onBack: () => void;
+  onSelect: (setId: string) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="max-w-2xl mx-auto flex flex-col gap-4">
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink transition-colors cursor-pointer self-start"
+      >
+        <ArrowLeft size={16} strokeWidth={1.8} /> {t("modules.backToUnits")}
+      </button>
+      <h1 className="font-display font-bold text-xl text-ink">{unitName}</h1>
+      {loading ? (
+        <p className="text-sm text-muted">{t("modules.loadingAvailability")}</p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {sets.map((set, i) => (
+            <button
+              key={set.id}
+              onClick={() => onSelect(set.id)}
+              className="group text-left flex items-center gap-4 bg-surface border border-rule rounded-card px-4 py-4 transition-all cursor-pointer hover:border-rule-strong hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-14px_rgba(0,0,0,0.28)]"
+            >
+              <span
+                className={`h-10 w-10 rounded-2xl flex items-center justify-center shrink-0 font-display font-bold text-base transition-transform group-hover:scale-110 ${
+                  set.completed ? "bg-success/15 text-success" : "bg-accent/15 text-accent"
+                }`}
+              >
+                {set.completed ? <CheckCircle2 size={20} /> : i + 1}
+              </span>
+              <span className="flex-1 text-base font-semibold text-ink">{set.name}</span>
+              {set.completed ? (
+                <span className="text-xs font-semibold text-success shrink-0">{t("modules.setCompleted")}</span>
+              ) : (
+                <ChevronRight size={20} className="text-muted shrink-0 transition-transform group-hover:translate-x-1" />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -191,10 +367,74 @@ export function Modules() {
   // A skill picked but no type chosen yet — shows TypePicker instead of
   // starting a session immediately.
   const [pickerSkill, setPickerSkill] = useState<SkillTag | null>(null);
-  // A start requested (from the auto-start effect or TypePicker) but not
-  // yet actually begun — the Voice Check gate below renders while this is
-  // set, and only calls the real handleStart once it completes.
-  const [pendingStart, setPendingStart] = useState<{ skill: SkillTag; count?: number; itemTypeId?: string } | null>(null);
+  // A type picked — shows UnitPicker next, unless that type turns out to
+  // have no units at all, in which case the fetch effect below skips
+  // straight to the old count-based pendingStart automatically.
+  const [pickerType, setPickerType] = useState<{ skill: SkillTag; itemTypeId: string } | null>(null);
+  const [units, setUnits] = useState<PracticeUnit[]>([]);
+  const [loadingUnits, setLoadingUnits] = useState(false);
+  // A unit picked — shows SetPicker next.
+  const [pickerUnit, setPickerUnit] = useState<{ skill: SkillTag; itemTypeId: string; unitId: string; unitName: string } | null>(
+    null,
+  );
+  const [sets, setSets] = useState<PracticeSet[]>([]);
+  const [loadingSets, setLoadingSets] = useState(false);
+  // A start requested (from the auto-start effect, TypePicker's no-units
+  // fallback, or SetPicker) but not yet actually begun — the Voice Check
+  // gate below renders while this is set, and only calls the real
+  // handleStart once it completes.
+  const [pendingStart, setPendingStart] = useState<{ skill: SkillTag; count?: number; itemTypeId?: string; setId?: string } | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (!pickerType) return;
+    let cancelled = false;
+    setLoadingUnits(true);
+    getUnits(pickerType.itemTypeId)
+      .then((res) => {
+        if (cancelled) return;
+        if (res.units.length === 0) {
+          // No units authored for this type yet — fall straight back to the
+          // old count-based session start, same as before this feature.
+          setPendingStart({ skill: pickerType.skill, itemTypeId: pickerType.itemTypeId });
+          setPickerType(null);
+        } else {
+          setUnits(res.units);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPendingStart({ skill: pickerType.skill, itemTypeId: pickerType.itemTypeId });
+          setPickerType(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingUnits(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pickerType]);
+
+  useEffect(() => {
+    if (!pickerUnit) return;
+    let cancelled = false;
+    setLoadingSets(true);
+    getSets(pickerUnit.unitId)
+      .then((res) => {
+        if (!cancelled) setSets(res.sets);
+      })
+      .catch(() => {
+        if (!cancelled) setSets([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingSets(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pickerUnit]);
   // Same robustness fix as PlacementTest.tsx: if there's no enrollment on
   // file yet when a start is actually requested, redirect to enroll (with
   // consent) first, rather than only ever showing the verify step — this
@@ -242,11 +482,11 @@ export function Modules() {
       .finally(() => setLoadingAvailability(false));
   }, []);
 
-  async function handleStart(skill: SkillTag, count?: number, itemTypeId?: string, voiceCheckId?: string) {
+  async function handleStart(skill: SkillTag, count?: number, itemTypeId?: string, voiceCheckId?: string, setId?: string) {
     setStarting(true);
     setError(null);
     try {
-      const res = await startPracticeSession(skill, count, itemTypeId, voiceCheckId);
+      const res = await startPracticeSession(skill, count, itemTypeId, voiceCheckId, setId);
       setSessionId(res.sessionId);
       setItems(res.items);
       // Resuming an in-progress session returns every item with its own
@@ -276,27 +516,46 @@ export function Modules() {
   // Tasks" row passes ?type= too (and optionally ?count=) to skip straight
   // into that one exercise type instead.
   //
-  // Guarded with a ref (not just the empty dep array) because StrictMode's
-  // dev-mode double-invoke otherwise fires this twice back to back — two
-  // concurrent POST /practice/session calls race before the first one's
-  // session row commits, so the second one's "resume in-progress session"
-  // check misses it and a duplicate session gets created instead of resumed.
-  const autoStarted = useRef(false);
+  // Re-runs whenever the URL's query string actually changes — not just on
+  // first mount — since the Sidebar's skill links navigate to this same
+  // route (no remount) and previously left the type picker stuck showing
+  // whichever skill was active on first load. Guarded by comparing against
+  // the last-processed query string (not a plain "have I ever run" flag)
+  // so StrictMode's dev-mode double-invoke — which fires twice back to back
+  // with the *same* query string — still only acts once (two concurrent
+  // POST /practice/session calls would otherwise race before the first
+  // one's session row commits, creating a duplicate session instead of
+  // resuming it), while a genuine navigation to a different query string
+  // still goes through.
+  const lastAutoStart = useRef<string | null>(null);
   useEffect(() => {
-    if (autoStarted.current) return;
+    const raw = searchParams.toString();
+    if (lastAutoStart.current === raw) return;
+    lastAutoStart.current = raw;
     const skill = searchParams.get("skill");
     const count = searchParams.get("count");
     const itemTypeId = searchParams.get("type");
     if (skill === "listening" || skill === "speaking" || skill === "reading" || skill === "writing") {
-      autoStarted.current = true;
+      // A Sidebar skill link always wins over whatever this page was
+      // showing before — including an active session — since attempts are
+      // saved per item as they're submitted, so nothing is lost by leaving
+      // one in progress (it resumes later the same way a page refresh
+      // already resumes it). Without this reset, the render logic below
+      // never looks at the URL again once a session/picker is active, so
+      // clicking a different skill silently did nothing until a refresh.
+      setSessionId(null);
+      setItems([]);
+      setSummary(null);
+      setPickerType(null);
+      setPickerUnit(null);
       if (itemTypeId) {
         setPendingStart({ skill, count: count ? Number(count) : undefined, itemTypeId });
       } else {
+        setPendingStart(null);
         setPickerSkill(skill);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams]);
 
   const current = items[index];
   const needsAudioFirst = current ? AUDIO_FIRST_TYPES.has(current.itemTypeId) : false;
@@ -455,13 +714,28 @@ export function Modules() {
         <VoiceCheck
           mode="verify"
           purpose="practice"
+          onBack={() => setPendingStart(null)}
           onComplete={(result) => {
-            const { skill, count, itemTypeId } = pendingStart;
+            const { skill, count, itemTypeId, setId } = pendingStart;
             setPendingStart(null);
-            handleStart(skill, count, itemTypeId, result.voiceCheckId);
+            handleStart(skill, count, itemTypeId, result.voiceCheckId, setId);
           }}
         />
       );
+    }
+    if (pickerUnit) {
+      return (
+        <SetPicker
+          unitName={pickerUnit.unitName}
+          sets={sets}
+          loading={loadingSets}
+          onBack={() => setPickerUnit(null)}
+          onSelect={(setId) => setPendingStart({ skill: pickerUnit.skill, itemTypeId: pickerUnit.itemTypeId, setId })}
+        />
+      );
+    }
+    if (pickerType) {
+      return <UnitPicker units={units} loading={loadingUnits} onBack={() => setPickerType(null)} onSelect={(unit) => setPickerUnit({ ...pickerType, unitId: unit.id, unitName: unit.name })} />;
     }
     if (pickerSkill) {
       return (
@@ -469,7 +743,7 @@ export function Modules() {
           skill={pickerSkill}
           starting={starting}
           onBack={() => setPickerSkill(null)}
-          onSelect={(typeId) => setPendingStart({ skill: pickerSkill, itemTypeId: typeId })}
+          onSelect={(typeId) => setPickerType({ skill: pickerSkill, itemTypeId: typeId })}
         />
       );
     }

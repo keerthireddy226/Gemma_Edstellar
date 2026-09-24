@@ -38,6 +38,9 @@ const startSessionSchema = z.object({
   // spreading across every type that carries the skill — used by a single
   // "Today's Tasks" row so clicking one task practices just that exercise.
   itemTypeId: z.string().optional(),
+  // When set, the session is exactly this Set's items, in authored order —
+  // a fixed lesson, not a spread/adaptive sample. Takes priority over count.
+  setId: z.string().uuid().optional(),
   voiceCheckId: z.string().uuid().optional(),
 });
 
@@ -146,6 +149,74 @@ async function selectPracticeItems(userId: string, skill: SkillTag, count: numbe
   return selected;
 }
 
+// A Set's items, in the order they were authored — a fixed mini-lesson,
+// unlike selectPracticeItems' spread/adaptive sampling. Ordered by the
+// explicit set_order column, not created_at: a single multi-row seed INSERT
+// resolves now() once for the whole statement, so every item in a set gets
+// an identical timestamp with no defined tie-break order.
+async function selectSetItems(setId: string) {
+  const result = await pool.query(
+    `SELECT i.id, i.item_type_id, i.content, it.input_method, it.instruction_text, it.question_instruction, it.timer_seconds, it.two_phase_read_seconds, it.two_phase_write_seconds
+     FROM items i JOIN item_types it ON it.id = i.item_type_id
+     WHERE i.set_id = $1 AND i.status = 'approved'
+     ORDER BY i.set_order ASC NULLS LAST, i.created_at ASC`,
+    [setId],
+  );
+  return result.rows;
+}
+
+// Units for one item type, each with how many sets it contains and how many
+// of those this learner has already completed — feeds the Modules
+// UnitPicker step (a real progress ring, not just a bare count).
+practiceRouter.get("/units", requireAuth, async (req: AuthedRequest, res, next) => {
+  try {
+    const itemTypeId = req.query.itemTypeId;
+    if (typeof itemTypeId !== "string") return res.status(400).json({ error: "itemTypeId_required" });
+    const result = await pool.query(
+      `SELECT u.id, u.name, u.order_index, count(s.id)::int AS set_count,
+         count(*) FILTER (
+           WHERE EXISTS (
+             SELECT 1 FROM sessions se
+             WHERE se.user_id = $2 AND se.session_type = 'practice' AND se.completed_at IS NOT NULL
+               AND se.composition->>'setId' = s.id::text
+           )
+         )::int AS completed_count
+       FROM units u LEFT JOIN sets s ON s.unit_id = u.id
+       WHERE u.item_type_id = $1
+       GROUP BY u.id
+       ORDER BY u.order_index`,
+      [itemTypeId, req.user!.id],
+    );
+    res.json({
+      units: result.rows.map((r) => ({ id: r.id, name: r.name, setCount: r.set_count, completedCount: r.completed_count })),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Sets within one unit, each annotated with whether this learner already
+// has a completed session for it — feeds the Modules SetPicker step.
+practiceRouter.get("/units/:unitId/sets", requireAuth, async (req: AuthedRequest, res, next) => {
+  try {
+    const result = await pool.query(
+      `SELECT s.id, s.name, s.order_index,
+         EXISTS (
+           SELECT 1 FROM sessions se
+           WHERE se.user_id = $2 AND se.session_type = 'practice' AND se.completed_at IS NOT NULL
+             AND se.composition->>'setId' = s.id::text
+         ) AS completed
+       FROM sets s
+       WHERE s.unit_id = $1
+       ORDER BY s.order_index`,
+      [req.params.unitId, req.user!.id],
+    );
+    res.json({ sets: result.rows.map((r) => ({ id: r.id, name: r.name, completed: r.completed })) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Per-skill total/remaining unattempted counts in the practice pool — lets
 // the Modules skill picker and the Dashboard's Today's Plan card show real
 // content depth instead of assuming a bottomless supply.
@@ -183,13 +254,21 @@ practiceRouter.post("/session", requireAuth, async (req: AuthedRequest, res, nex
     const body = startSessionSchema.parse(req.body);
     const count = body.count ?? (body.itemTypeId ? DEFAULT_TASK_ITEMS : DEFAULT_ITEMS);
 
+    // A Set-based session matches purely on setId (already fully specific —
+    // one type, one unit, one set) rather than skill/itemTypeId, which stay
+    // reserved for the older count-based path.
     const existing = await pool.query(
-      `SELECT id, composition FROM sessions
-       WHERE user_id = $1 AND session_type = 'practice' AND completed_at IS NULL
-         AND composition->>'skill' = $2
-         AND composition->>'itemTypeId' IS NOT DISTINCT FROM $3
-       ORDER BY started_at DESC LIMIT 1`,
-      [req.user!.id, body.skill, body.itemTypeId ?? null],
+      body.setId
+        ? `SELECT id, composition FROM sessions
+           WHERE user_id = $1 AND session_type = 'practice' AND completed_at IS NULL
+             AND composition->>'setId' = $2
+           ORDER BY started_at DESC LIMIT 1`
+        : `SELECT id, composition FROM sessions
+           WHERE user_id = $1 AND session_type = 'practice' AND completed_at IS NULL
+             AND composition->>'skill' = $2
+             AND composition->>'itemTypeId' IS NOT DISTINCT FROM $3
+           ORDER BY started_at DESC LIMIT 1`,
+      body.setId ? [req.user!.id, body.setId] : [req.user!.id, body.skill, body.itemTypeId ?? null],
     );
     if (existing.rows[0]) {
       const itemIds: string[] = existing.rows[0].composition?.itemIds ?? [];
@@ -226,7 +305,9 @@ practiceRouter.post("/session", requireAuth, async (req: AuthedRequest, res, nex
       });
     }
 
-    const items = await selectPracticeItems(req.user!.id, body.skill, count, body.itemTypeId);
+    const items = body.setId
+      ? await selectSetItems(body.setId)
+      : await selectPracticeItems(req.user!.id, body.skill, count, body.itemTypeId);
     if (items.length === 0) {
       return res.status(404).json({ error: "no_practice_items_available" });
     }
@@ -234,7 +315,15 @@ practiceRouter.post("/session", requireAuth, async (req: AuthedRequest, res, nex
     const sessionResult = await pool.query(
       `INSERT INTO sessions (user_id, session_type, mode, composition)
        VALUES ($1, 'practice', 'coach', $2) RETURNING id`,
-      [req.user!.id, JSON.stringify({ skill: body.skill, itemTypeId: body.itemTypeId ?? null, itemIds: items.map((i) => i.id) })],
+      [
+        req.user!.id,
+        JSON.stringify({
+          skill: body.skill,
+          itemTypeId: body.itemTypeId ?? null,
+          setId: body.setId ?? null,
+          itemIds: items.map((i) => i.id),
+        }),
+      ],
     );
 
     await correlateVoiceCheck(req.user!.id, body.voiceCheckId, sessionResult.rows[0].id);

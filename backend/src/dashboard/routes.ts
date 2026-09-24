@@ -115,6 +115,7 @@ dashboardRouter.get("/", requireAuth, async (req: AuthedRequest, res, next) => {
            JOIN sessions s ON s.id = a.session_id
            JOIN items i ON i.id = a.item_id
            WHERE s.user_id = $1 AND s.session_type = 'practice' AND i.item_type_id = it.id
+             AND (a.response_text IS NOT NULL OR a.response_uri IS NOT NULL)
          ) AS practiced
        FROM item_types it`,
       [req.user!.id],
@@ -147,7 +148,8 @@ dashboardRouter.get("/", requireAuth, async (req: AuthedRequest, res, next) => {
        JOIN sessions s ON s.id = a.session_id
        JOIN items i ON i.id = a.item_id
        JOIN item_types it ON it.id = i.item_type_id
-       WHERE s.user_id = $1 AND s.session_type = 'practice' AND a.submitted_at >= date_trunc('day', now())`,
+       WHERE s.user_id = $1 AND s.session_type = 'practice' AND a.submitted_at >= date_trunc('day', now())
+         AND (a.response_text IS NOT NULL OR a.response_uri IS NOT NULL)`,
       [req.user!.id],
     );
 
@@ -183,9 +185,15 @@ dashboardRouter.get("/", requireAuth, async (req: AuthedRequest, res, next) => {
     );
     const streakDays = computeStreakDays(completedSessionsResult.rows.map((r) => dayKey(new Date(r.completed_at))));
 
+    // A skip still submits an attempts row (so the item isn't offered
+    // again), but it isn't genuine practice — excluded here (and everywhere
+    // else in this file that counts "completed"/"answered" attempts) so
+    // skipping through a session doesn't inflate these stats the same as
+    // actually answering.
     const questionsCompletedResult = await pool.query(
       `SELECT count(*) FROM attempts a JOIN sessions s ON s.id = a.session_id
-       WHERE s.user_id = $1 AND s.session_type = 'practice'`,
+       WHERE s.user_id = $1 AND s.session_type = 'practice'
+         AND (a.response_text IS NOT NULL OR a.response_uri IS NOT NULL)`,
       [req.user!.id],
     );
     const questionsCompleted = Number(questionsCompletedResult.rows[0].count);
@@ -229,7 +237,10 @@ dashboardRouter.get("/", requireAuth, async (req: AuthedRequest, res, next) => {
     const inProgressRow = inProgressResult.rows[0];
     let inProgressPractice: { skill: SkillTag; answered: number; total: number } | null = null;
     if (inProgressRow) {
-      const answeredResult = await pool.query(`SELECT count(*) FROM attempts WHERE session_id = $1`, [inProgressRow.id]);
+      const answeredResult = await pool.query(
+        `SELECT count(*) FROM attempts WHERE session_id = $1 AND (response_text IS NOT NULL OR response_uri IS NOT NULL)`,
+        [inProgressRow.id],
+      );
       inProgressPractice = {
         skill: inProgressRow.composition.skill,
         answered: Number(answeredResult.rows[0].count),
@@ -276,7 +287,8 @@ dashboardRouter.get("/daily", requireAuth, async (req: AuthedRequest, res, next)
        JOIN items i ON i.id = a.item_id
        JOIN item_types it ON it.id = i.item_type_id
        LEFT JOIN scores sc ON sc.attempt_id = a.id
-       WHERE s.user_id = $1 AND s.session_type = 'practice' AND a.submitted_at >= $2`,
+       WHERE s.user_id = $1 AND s.session_type = 'practice' AND a.submitted_at >= $2
+         AND (a.response_text IS NOT NULL OR a.response_uri IS NOT NULL)`,
       [req.user!.id, since],
     );
 
