@@ -1,4 +1,4 @@
-import type { TestItem } from "@/hooks/useTestSession";
+import type { TestItem } from "@/api/testSession";
 
 // These are heard, not read — showing the source text on screen would let a
 // learner just read it back instead of actually listening. Dictation is
@@ -16,17 +16,8 @@ export const AUDIO_FIRST_TYPES = new Set([
 
 // Tailwind can't resolve a dynamic `text-${skill}` class at build time — it
 // only picks up classes that appear as literal strings somewhere in source,
-// so the mapping has to be spelled out.
-export const SKILL_TEXT_CLASS: Record<string, string> = {
-  listening: "text-listening",
-  speaking: "text-speaking",
-  reading: "text-reading",
-  writing: "text-writing",
-};
-
-// Same four colors as SKILL_TEXT_CLASS, as a filled pill badge instead of
-// plain text — used where the skill(s) a question tests need to be
-// unmistakable at a glance, not just a small label.
+// so this filled pill badge (used where the skill(s) a question tests need
+// to be unmistakable at a glance) spells the mapping out directly.
 export const SKILL_BADGE_CLASS: Record<string, string> = {
   listening: "bg-listening/15 border-listening/40 text-listening",
   speaking: "bg-speaking/15 border-speaking/40 text-speaking",

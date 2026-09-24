@@ -3,7 +3,7 @@ import { api } from "@/lib/api";
 
 export type Role = "learner" | "org_admin" | "admin" | "super_admin";
 
-export type AuthUser = {
+type AuthUser = {
   id: string;
   email: string;
   role: Role;

@@ -1,9 +1,6 @@
-// Voice Check — speaker identity verification. See speakerVerification.ts
-// for how the matching itself works. This file is deliberately simple:
-// enroll once, verify before every session. A real mismatch or unreadable
-// audio blocks (the learner has to re-record); only a missing/failed
-// enrollment — a setup gap, not something re-recording fixes — lets them
-// through anyway.
+// Voice Check routes: enroll once, verify before every session. A real
+// mismatch/unreadable audio blocks (re-record); only a missing/failed
+// enrollment (a setup gap, not fixable by re-recording) lets it through.
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -129,10 +126,7 @@ voiceRouter.post("/verify", requireAuth, voiceCheckLimiter, async (req: AuthedRe
     const sampleUri = `/uploads/voice-check/${fileName}`;
     await writeFile(path.join(CHECK_UPLOADS_DIR, fileName), audioBuffer);
 
-    // No enrollment on file, or it previously failed — a setup gap, not the
-    // learner's fault (there's no voiceprint to check against at all), so
-    // this specific case still lets them through rather than blocking on a
-    // problem they can't fix by re-recording.
+    // No/failed enrollment — no voiceprint to check against, so let them through.
     if (!enrollment || enrollment.status !== "enrolled") {
       const result = await pool.query(
         `INSERT INTO voice_check_results (user_id, purpose, decision, sample_uri, flagged_for_review)

@@ -71,9 +71,9 @@ function setSessionCookie(res: import("express").Response, token: string) {
 }
 
 authRouter.post("/signup", signupLimiter, async (req, res, next) => {
-  const body = signupSchema.parse(req.body);
   const client = await pool.connect();
   try {
+    const body = signupSchema.parse(req.body);
     await client.query("BEGIN");
 
     const tenant = await client.query(

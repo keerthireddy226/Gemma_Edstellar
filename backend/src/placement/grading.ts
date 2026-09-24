@@ -1,19 +1,9 @@
 import { gradeWithAI, scoreTypingAccuracy, AI_GRADED_TYPES } from "./aiGrading.js";
 import { passThresholdForLevel } from "./cefr.js";
 
-// Exact-text grading for items that have a definite correct answer, and
-// rubric-based AI grading (via Claude) for everything else — open-ended
-// writing, and every spoken type, judged from its transcript. Claude's API
-// has no audio input, so spoken answers are graded on the words only, same
-// as the written types — see aiGrading.ts for that trade-off in detail.
-//
-// A non-match on passage_reconstruction's legacy exact-answer path is
-// deliberately "pending", not "wrong" — see the case below.
-//
-// `score` is the real 0-1 grade; `correct` is score >= that item's own
-// level's pass bar (see passThresholdForLevel — C2 demands far more than
-// A1 does), kept around because the client-facing attempt response has
-// always returned a boolean and nothing depends on changing that.
+// Exact-text grading for items with a definite answer, plus rubric-based AI
+// grading (via aiGrading.ts, Gemini) for everything else, from transcript
+// only. `correct` is score >= that item's level's pass bar (passThresholdForLevel).
 export type GradeResult = {
   status: "scored" | "pending" | "failed";
   correct: boolean | null;
@@ -44,10 +34,7 @@ async function aiResult(
   responseText: string,
 ): Promise<GradeResult> {
   const ai = await gradeWithAI(itemTypeId, content, answerSet, cefrLevel, minWords, responseText);
-  // A real answer was given and grading was actually attempted — a null
-  // result here means the AI call itself broke, not that there was nothing
-  // to grade. Recorded as "failed" so it isn't confused with a genuinely
-  // unanswered question.
+  // A null result here means the AI call broke, not that nothing was graded — recorded as "failed", not "pending".
   if (!ai) return { status: "failed", correct: null, score: null, method: "ai-text" };
   return {
     status: "scored",
@@ -86,9 +73,7 @@ export async function gradeAttempt(
       if (!Array.isArray(accepted) || accepted.length === 0) return PENDING;
       return exactResult(accepted.some((a) => typeof a === "string" && normalize(a) === given));
     }
-    // Multiple-choice types — the client submits the selected option's
-    // index (as a string, e.g. "1"), exact/unambiguous to grade unlike
-    // free-text matching.
+    // Multiple-choice: client submits the option's index as a string (e.g. "1") — exact to grade.
     case "response_selection":
     case "reading_comprehension": {
       const correctIndex = set.correctIndex;

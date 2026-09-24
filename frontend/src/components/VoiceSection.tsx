@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Volume2, Check } from "lucide-react";
 import { speak } from "@/hooks/useVoiceRecorder";
-import { getOnboardingProfile, updateVoicePreference, type PreferredVoice } from "@/hooks/useOnboarding";
+import { getOnboardingProfile, updateVoicePreference, type PreferredVoice } from "@/api/onboarding";
 
 const VOICES: PreferredVoice[] = ["female", "male"];
 

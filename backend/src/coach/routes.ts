@@ -82,16 +82,25 @@ coachRouter.post("/session/:sessionId/end", requireAuth, async (req: AuthedReque
 });
 
 coachRouter.post("/session/:sessionId/messages", requireAuth, coachMessageLimiter, async (req: AuthedRequest, res, next) => {
+  const client = await pool.connect();
   try {
     const body = sendMessageSchema.parse(req.body);
+    await client.query("BEGIN");
 
-    const sessionResult = await pool.query(
-      `SELECT id FROM sessions WHERE id = $1 AND user_id = $2 AND session_type = 'coach' AND completed_at IS NULL`,
+    // Locks the session row for the rest of this transaction, so a
+    // double-click or a second tab sending at the same moment serializes
+    // instead of both computing the same turn_index (see the coach_turns
+    // unique index, added as a backstop for the same race).
+    const sessionResult = await client.query(
+      `SELECT id FROM sessions WHERE id = $1 AND user_id = $2 AND session_type = 'coach' AND completed_at IS NULL FOR UPDATE`,
       [req.params.sessionId, req.user!.id],
     );
-    if (!sessionResult.rows[0]) return res.status(404).json({ error: "session_not_found" });
+    if (!sessionResult.rows[0]) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "session_not_found" });
+    }
 
-    const existingTurnsResult = await pool.query(
+    const existingTurnsResult = await client.query(
       `SELECT turn_index, speaker, transcript FROM coach_turns WHERE session_id = $1 ORDER BY turn_index ASC`,
       [req.params.sessionId],
     );
@@ -99,7 +108,7 @@ coachRouter.post("/session/:sessionId/messages", requireAuth, coachMessageLimite
     const history: CoachTurn[] = existingTurnsResult.rows.map((r) => ({ speaker: r.speaker, transcript: r.transcript }));
     history.push({ speaker: "learner", transcript: body.text });
 
-    await pool.query(`INSERT INTO coach_turns (session_id, turn_index, speaker, transcript) VALUES ($1, $2, 'learner', $3)`, [
+    await client.query(`INSERT INTO coach_turns (session_id, turn_index, speaker, transcript) VALUES ($1, $2, 'learner', $3)`, [
       req.params.sessionId,
       nextIndex,
       body.text,
@@ -111,14 +120,18 @@ coachRouter.post("/session/:sessionId/messages", requireAuth, coachMessageLimite
     const reply =
       (await getCoachReply(history)) ?? "Sorry, I'm having trouble replying right now — please try again in a moment.";
 
-    await pool.query(`INSERT INTO coach_turns (session_id, turn_index, speaker, transcript) VALUES ($1, $2, 'agent', $3)`, [
+    await client.query(`INSERT INTO coach_turns (session_id, turn_index, speaker, transcript) VALUES ($1, $2, 'agent', $3)`, [
       req.params.sessionId,
       nextIndex + 1,
       reply,
     ]);
 
+    await client.query("COMMIT");
     res.status(201).json({ reply });
   } catch (err) {
+    await client.query("ROLLBACK");
     next(err);
+  } finally {
+    client.release();
   }
 });

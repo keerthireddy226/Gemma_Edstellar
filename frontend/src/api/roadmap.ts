@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import type { CefrLevel, SkillTag } from "@/hooks/useTestSession";
+import type { CefrLevel, SkillTag } from "@/api/testSession";
 
 export interface RoadmapMilestone {
   level: CefrLevel;

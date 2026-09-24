@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Send, RotateCcw } from "lucide-react";
 import { Mascot } from "@/components/Mascot";
 import { Button } from "@/components/Button";
-import { startCoachSession, sendCoachMessage, endCoachSession, type CoachTurn } from "@/hooks/useCoach";
+import { startCoachSession, sendCoachMessage, endCoachSession, type CoachTurn } from "@/api/coach";
 
 // A real, working conversation with Gemini (see backend/src/coach/coachGemini.ts)
 // — not a preview. Persisted via the sessions/coach_turns tables (both
@@ -43,6 +43,10 @@ export function Tutor() {
       const res = await sendCoachMessage(sessionId, message);
       setTurns((prev) => [...prev, { speaker: "agent", text: res.reply }]);
     } catch {
+      // The optimistic learner turn above was never actually persisted —
+      // drop it (and restore the text) rather than leave it looking sent.
+      setTurns((prev) => prev.slice(0, -1));
+      setText(message);
       setError(t("tutor.sendError"));
     } finally {
       setSending(false);

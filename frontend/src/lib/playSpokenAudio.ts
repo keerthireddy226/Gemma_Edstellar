@@ -1,5 +1,5 @@
 import { speak } from "@/hooks/useVoiceRecorder";
-import type { TestItem } from "@/hooks/useTestSession";
+import type { TestItem } from "@/api/testSession";
 
 // Prefers real pre-generated AI voice audio (item.audioUrl) over the
 // browser's speechSynthesis — falls back to speak(segments) whenever

@@ -1,27 +1,17 @@
 import { useCallback, useRef, useState } from "react";
 
-export interface RecordingResult {
+interface RecordingResult {
   blob: Blob | null;
   mimeType: string;
   transcript: string;
-  // Only set when SpeechRecognition itself reported an error (its raw
-  // `event.error` string — e.g. "network", "not-allowed", "service-not-
-  // allowed", "no-speech"). SpeechRecognition is a completely separate
-  // pipeline from the audio recording — it streams the mic to the
-  // browser's own speech service over the network — so it can fail for
-  // reasons that have nothing to do with the recording itself (most
-  // commonly a blocked/unreachable network on a locked-down machine). Null
-  // means either it succeeded, or the browser doesn't support it at all.
+  // SpeechRecognition's raw error (e.g. "network", "no-speech") — a separate pipeline from the recording itself, so it can fail independently (most commonly a blocked network).
   recognitionError: string | null;
   // Wall-clock length of the recording. Used server-side for a free speech-
   // rate (words-per-minute) signal — see fluencySignals.ts.
   durationMs: number;
 }
 
-// Live transcription is a progressive enhancement — SpeechRecognition is
-// Chrome/Edge-only today, so on browsers without it the recording still
-// works, it just comes back with an empty transcript (submitted with only
-// the audio, which the backend already treats as "pending review").
+// Live transcription is a progressive enhancement (Chrome/Edge-only) — elsewhere the recording still works, just with an empty transcript.
 export function useVoiceRecorder() {
   const [recording, setRecording] = useState(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -62,14 +52,7 @@ export function useVoiceRecorder() {
         transcriptRef.current = text.trim();
       };
       recognition.onerror = (event: any) => {
-        // "no-speech" just means the recognizer genuinely heard nothing —
-        // that's the ordinary silent-mic case already handled elsewhere,
-        // not a failure of the recognizer itself. Anything else (most
-        // commonly "network" — this API streams audio to the browser's own
-        // speech service over the internet, so it fails outright on a
-        // blocked/unreachable network, independent of the recording, mic,
-        // or volume all being fine) gets surfaced so the UI can tell the
-        // two apart instead of showing the same generic message for both.
+        // "no-speech" is the ordinary silent-mic case (handled elsewhere); anything else (usually "network") is a real recognizer failure, surfaced separately.
         if (event?.error && event.error !== "no-speech") {
           recognitionErrorRef.current = event.error;
         }
@@ -84,13 +67,9 @@ export function useVoiceRecorder() {
   const stop = useCallback((): Promise<RecordingResult> => {
     return new Promise((resolve) => {
       const recorder = recorderRef.current;
-      if (!recorder) {
-        resolve({ blob: null, mimeType: "", transcript: "", recognitionError: null, durationMs: 0 });
-        return;
-      }
-      recorder.onstop = () => {
-        const mimeType = recorder.mimeType;
-        const blob = new Blob(chunksRef.current, { type: mimeType });
+      const finish = () => {
+        const mimeType = recorder?.mimeType ?? "";
+        const blob = recorder ? new Blob(chunksRef.current, { type: mimeType }) : null;
         streamRef.current?.getTracks().forEach((t) => t.stop());
         try {
           recognitionRef.current?.stop();
@@ -106,6 +85,15 @@ export function useVoiceRecorder() {
           durationMs: Date.now() - startedAtRef.current,
         });
       };
+      // MediaRecorder.stop() throws if it's already inactive — the track
+      // ending on its own (permission revoked, mic unplugged mid-recording)
+      // stops it before this is ever called, and there's nothing left to
+      // request a stop for, so just finalize with whatever was captured.
+      if (!recorder || recorder.state === "inactive") {
+        finish();
+        return;
+      }
+      recorder.onstop = finish;
       recorder.stop();
     });
   }, []);

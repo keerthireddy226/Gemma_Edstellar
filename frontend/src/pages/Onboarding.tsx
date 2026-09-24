@@ -11,12 +11,12 @@ import {
   type ExamReason,
   type GoalLevel,
   type OnboardingAnswers,
-} from "@/hooks/useOnboarding";
+} from "@/api/onboarding";
 import { Button } from "@/components/Button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ROUTES } from "@/constants/routes";
-import { getRoadmap } from "@/hooks/useRoadmap";
-import { getVoiceEnrollmentStatus } from "@/hooks/useVoiceCheck";
+import { getRoadmap } from "@/api/roadmap";
+import { getVoiceEnrollmentStatus } from "@/api/voiceCheck";
 
 /* ------------------------------------------------------------------ */
 /* Shared step chrome + small controls, local to this page            */
@@ -265,18 +265,10 @@ export function Onboarding() {
     setError(null);
     setSubmitting(true);
     try {
-      await submitOnboarding({
-        ...form,
-        examPreference: form.examPreference,
-        goalLevel: form.goalLevel,
-        examReason: form.examReason,
-        hasAppliedForExam: form.hasAppliedForExam,
-        targetPrepDays: form.targetPrepDays,
-        pastAttemptsStatus: form.pastAttemptsStatus,
-        dailyMinutesPreference: form.dailyMinutesPreference,
-        accessDuration: form.accessDuration,
-        consentGiven: true,
-      });
+      // The guard above already confirmed every nullable field is filled in —
+      // TS just can't carry that narrowing through a spread, so this cast
+      // stands in for re-listing all 8 fields individually.
+      await submitOnboarding({ ...(form as OnboardingAnswers), consentGiven: true });
       // Voice Check enrollment happens right here, before the placement
       // intro page — so it's not immediately followed by the verify
       // recording once the learner reaches the test (that felt like two

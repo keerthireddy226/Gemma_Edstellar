@@ -1,4 +1,4 @@
-import type { SkillTag } from "@/hooks/useTestSession";
+import type { SkillTag } from "@/api/testSession";
 
 export const SKILL_TINT_CLASSES: Record<SkillTag, string> = {
   listening: "bg-listening/15 text-listening",

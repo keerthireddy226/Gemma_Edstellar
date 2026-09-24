@@ -2,42 +2,28 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Mic, Square, CheckCircle2, ArrowLeft } from "lucide-react";
 import { useVoiceRecorder, blobToBase64 } from "@/hooks/useVoiceRecorder";
-import { enrollVoice, verifyVoice, type VoiceCheckPurpose } from "@/hooks/useVoiceCheck";
+import { enrollVoice, verifyVoice, type VoiceCheckPurpose } from "@/api/voiceCheck";
 import { Button } from "@/components/Button";
 
 interface VoiceCheckProps {
   mode: "enroll" | "verify";
   purpose?: VoiceCheckPurpose;
   onComplete: (result: { voiceCheckId?: string }) => void;
-  // Optional — when provided, shows a "Back" link above the recorder so the
-  // learner can bail out to wherever they came from instead of being forced
-  // through the check. Omitted entirely where there's nowhere sensible to
-  // go back to (e.g. the placement test's own verify step).
+  // Shows a "Back" link when provided; omitted where there's nowhere to go back to (e.g. placement's verify step).
   onBack?: () => void;
 }
 
-// Shared enroll/verify recorder. In verify mode, onComplete only fires once
-// the backend actually confirms a match — a real mismatch or unreadable
-// audio blocks in place with an inline error and lets the learner re-record.
-// A genuine technical failure (network error, etc.) is the one case that
-// still offers a "Skip for now" escape, since re-recording can't fix that.
+// onComplete only fires on a confirmed match; a mismatch blocks in place for re-recording (only a technical failure offers "Skip").
 export function VoiceCheck({ mode, purpose, onComplete, onBack }: VoiceCheckProps) {
   const { t } = useTranslation();
   const { recording, start, stop } = useVoiceRecorder();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Set only on a genuine mismatch/no-speech decision from a real verify
-  // call — distinct from `error` (a technical failure), since this blocks
-  // and asks for a re-record rather than offering a skip.
+  // A genuine mismatch/no-speech decision (vs. `error`, a technical failure) — blocks and asks for a re-record.
   const [verifyBlocked, setVerifyBlocked] = useState<string | null>(null);
-  // Some callers keep this component mounted alongside other content after
-  // a successful verify (e.g. next to the voice picker on the same page)
-  // rather than unmounting it right away — this replaces the recorder with
-  // a plain confirmation instead of leaving "Verifying..." showing forever.
+  // True once verified, so a component kept mounted (e.g. beside the voice picker) shows a confirmation, not a stuck "Verifying...".
   const [verified, setVerified] = useState(false);
-  // Holds the verify result until the learner explicitly taps "Proceed to
-  // test" — a match is confirmed and shown, but advancing is still a
-  // deliberate action rather than automatic.
+  // Holds the verify result until the learner taps "Proceed to test" — advancing stays a deliberate action.
   const [pendingVoiceCheckId, setPendingVoiceCheckId] = useState<string | undefined>(undefined);
 
   async function handleSubmit(blob: Blob, mimeType: string) {
@@ -112,9 +98,7 @@ export function VoiceCheck({ mode, purpose, onComplete, onBack }: VoiceCheckProp
         </div>
       ) : (
         <>
-          {/* A different phrase from enrollment's — reading back the exact
-              same sentence every time would let a recording of the
-              enrollment itself pass verification trivially. */}
+          {/* Different phrase from enrollment's, so a recording of it can't trivially pass verification. */}
           <p className="w-full bg-paper-warm rounded-card border-l-4 border-navy p-4 text-lg font-semibold text-ink leading-snug">
             &ldquo;{t(mode === "enroll" ? "voiceCheck.record.phraseEnroll" : "voiceCheck.record.phraseVerify")}&rdquo;
           </p>
@@ -147,9 +131,7 @@ export function VoiceCheck({ mode, purpose, onComplete, onBack }: VoiceCheckProp
             <span className="text-sm text-muted">{t("voiceCheck.record.start")}</span>
           )}
 
-          {/* A blocked verify — no skip offered here, unlike the
-              technical-error case below, since this is the actual gate:
-              re-record until it matches. */}
+          {/* No skip here (unlike the technical-error case below) — this is the real gate, re-record until it matches. */}
           {verifyBlocked && <p className="text-sm text-error">{verifyBlocked}</p>}
         </>
       )}

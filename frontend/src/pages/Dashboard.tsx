@@ -31,10 +31,10 @@ import {
   type TodaysTask,
   type InProgressPractice,
   type DashboardStats,
-} from "@/hooks/useDashboard";
+} from "@/api/dashboard";
 import { ApiError } from "@/lib/api";
 import { SKILL_TINT_CLASSES, SKILL_RING_COLOR } from "@/lib/skillTints";
-import type { SkillTag } from "@/hooks/useTestSession";
+import type { SkillTag } from "@/api/testSession";
 
 const SKILL_ICONS: Record<SkillTag, typeof Headphones> = {
   listening: Headphones,
@@ -63,9 +63,7 @@ function StatTile({ icon: Icon, label, value, tint }: { icon: typeof Headphones;
   );
 }
 
-// One row per skill inside a single bordered list, rather than four separate
-// cards — reads as one organized panel instead of a scattered grid, and
-// stays visually distinct from the Roadmap page's ring-chart skill breakdown.
+// One bordered list of rows, not four separate cards — distinct from Roadmap's ring-chart breakdown.
 function SkillProgressList({ modules }: { modules: DashboardModule[] }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -97,10 +95,7 @@ function SkillProgressList({ modules }: { modules: DashboardModule[] }) {
   );
 }
 
-// One row per skill — has the learner practiced it TODAY specifically? A
-// daily habit checklist across all four skills, distinct from the Roadmap
-// page's "Recommended Practice" (exercise types within just the weakest
-// skill, tracked all-time rather than per-day).
+// Daily habit checklist (practiced today?), distinct from Roadmap's all-time "Recommended Practice".
 function TodaysTasksList({ tasks }: { tasks: TodaysTask[] }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -145,10 +140,7 @@ function TodaysTasksList({ tasks }: { tasks: TodaysTask[] }) {
   );
 }
 
-// Surfaces an unfinished practice session at the top of the page — Modules
-// already resumes it correctly once you re-pick the same skill there, but
-// without this card the only way to discover it exists is to remember
-// which skill you were mid-way through and go click it again.
+// Surfaces an unfinished practice session so the learner doesn't have to remember which skill they left off on.
 function ContinuePracticeCard({ practice }: { practice: InProgressPractice }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -173,10 +165,7 @@ function ContinuePracticeCard({ practice }: { practice: InProgressPractice }) {
   );
 }
 
-// Milestone badges derived entirely from stats already on this response —
-// no extra query. Unlike a recent-activity feed, the locked state (a full
-// row of dimmed badges hinting what's unlockable) still looks intentional
-// on day one instead of reading as an empty list.
+// Badges derived from existing stats (no extra query) — dimmed/locked state still looks intentional on day one.
 function AchievementBadges({ stats }: { stats: DashboardStats }) {
   const { t } = useTranslation();
   const badges = [

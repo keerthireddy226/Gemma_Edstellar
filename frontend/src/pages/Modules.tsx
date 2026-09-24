@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Volume2, Mic, Square, CheckCircle2, ArrowLeft, Clock, Headphones, BookOpen, PenLine, ChevronRight } from "lucide-react";
+import { Volume2, Mic, CheckCircle2, ArrowLeft, Clock, Headphones, BookOpen, PenLine, ChevronRight } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
 import { Button } from "@/components/Button";
 import { ProgressRing } from "@/components/ProgressRing";
@@ -17,21 +17,24 @@ import {
   type SkillAvailability,
   type PracticeUnit,
   type PracticeSet,
-} from "@/hooks/usePracticeSession";
-import type { TestItem, SkillTag } from "@/hooks/useTestSession";
+} from "@/api/practiceSession";
+import type { TestItem, SkillTag } from "@/api/testSession";
 import { useVoiceRecorder, blobToBase64 } from "@/hooks/useVoiceRecorder";
 import { playSpokenAudio } from "@/lib/playSpokenAudio";
 import { VoiceCheck } from "@/components/VoiceCheck";
-import { getVoiceEnrollmentStatus } from "@/hooks/useVoiceCheck";
+import { getVoiceEnrollmentStatus } from "@/api/voiceCheck";
+import { AnswerInputControl } from "@/components/AnswerInputControl";
 import {
   AUDIO_FIRST_TYPES,
   SKILL_BADGE_CLASS,
   ITEM_TYPE_META,
   getSpokenSegments,
   getVisibleText,
-  getOptions,
   getPassageAndQuestion,
 } from "@/lib/testItemDisplay";
+
+// Fallback reading time for a two-phase item with no server-set duration.
+const DEFAULT_TWO_PHASE_READ_SECONDS = 30;
 
 const SKILL_ICONS: Record<SkillTag, typeof Headphones> = {
   listening: Headphones,
@@ -47,11 +50,7 @@ const SKILL_EMOJI: Record<SkillTag, string> = {
   writing: "✍️",
 };
 
-// Which question types show up under each skill's type picker — verified
-// directly against item_types.skills in the database (not every type's
-// skills tag matches ITEM_TYPE_META's, e.g. open_questions is speaking-only
-// in the DB), so this is spelled out explicitly per skill rather than
-// derived from ITEM_TYPE_META.skills.
+// Spelled out per skill rather than derived from ITEM_TYPE_META.skills — that doesn't always match item_types.skills in the DB (e.g. open_questions is speaking-only there).
 const SKILL_TYPES: Record<SkillTag, string[]> = {
   listening: [
     "conversations",
@@ -82,10 +81,7 @@ const SKILL_TYPES: Record<SkillTag, string[]> = {
   writing: ["dictation", "email_writing", "passage_reconstruction", "sentence_completion", "summary_and_opinion", "typing"],
 };
 
-// Unit names are "A1 - Beginner", "B1 - Intermediate", etc. — colors the
-// leading CEFR code as a visual difficulty ramp (green -> amber -> orange),
-// reusing the same per-skill color tokens elsewhere in the app rather than
-// inventing a new palette just for this.
+// Colors the CEFR code in a unit name ("A1 - Beginner") as a difficulty ramp, reusing existing per-skill color tokens.
 const CEFR_TINT_CLASSES: Record<string, string> = {
   A1: "bg-listening/15 text-listening",
   A2: "bg-reading/15 text-reading",
@@ -182,11 +178,7 @@ function SkillPicker({
   );
 }
 
-// Shown after picking a skill — one card per question type in that skill,
-// each starting a practice session scoped to just that type (via the
-// existing itemTypeId param POST /practice/session already supports).
-// Reuses whatever content already exists for now; this is the navigation
-// layer only, not the separate Modules-only question bank planned later.
+// One card per question type in the picked skill; navigation layer only, reuses existing content.
 function TypePicker({ skill, starting, onBack, onSelect }: { skill: SkillTag; starting: boolean; onBack: () => void; onSelect: (typeId: string) => void }) {
   const { t } = useTranslation();
   const Icon = SKILL_ICONS[skill];
@@ -236,10 +228,7 @@ function TypePicker({ skill, starting, onBack, onSelect }: { skill: SkillTag; st
   );
 }
 
-// Shown after picking a type, if that type has any units — one card per
-// unit with its set count. Types with no units at all skip straight past
-// this (see the fetch effect in Modules() below) and keep the old
-// count-based session start unchanged.
+// Shown only if the picked type has units — types without any skip straight to the old count-based start.
 function UnitPicker({
   units,
   loading,
@@ -474,6 +463,7 @@ export function Modules() {
   // "two-phase" items (Passage Reconstruction): show the passage, then hide
   // it and switch to a blank textarea — testing recall, not copying.
   const [twoPhaseStage, setTwoPhaseStage] = useState<"idle" | "reading" | "writing">("idle");
+  const twoPhaseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     getAvailability()
@@ -508,25 +498,11 @@ export function Modules() {
     }
   }
 
-  // Arriving from the Dashboard's "Start Practice" button (or a Sidebar
-  // skill link) passes ?skill= alone — that shows the type picker rather
-  // than auto-starting, since a skill by itself no longer implies "all
-  // types mixed together" (matches the reference practice portal: pick a
-  // skill, then pick one specific question type). Arriving from a "Today's
-  // Tasks" row passes ?type= too (and optionally ?count=) to skip straight
-  // into that one exercise type instead.
-  //
-  // Re-runs whenever the URL's query string actually changes — not just on
-  // first mount — since the Sidebar's skill links navigate to this same
-  // route (no remount) and previously left the type picker stuck showing
-  // whichever skill was active on first load. Guarded by comparing against
-  // the last-processed query string (not a plain "have I ever run" flag)
-  // so StrictMode's dev-mode double-invoke — which fires twice back to back
-  // with the *same* query string — still only acts once (two concurrent
-  // POST /practice/session calls would otherwise race before the first
-  // one's session row commits, creating a duplicate session instead of
-  // resuming it), while a genuine navigation to a different query string
-  // still goes through.
+  // ?skill= alone shows the type picker; ?skill=+?type= (from Today's Tasks)
+  // skips straight to that type. Re-runs on any URL change, not just mount —
+  // guarded by the last-processed query string so StrictMode's double-invoke
+  // only acts once, but a genuine navigation (e.g. a Sidebar skill link)
+  // still goes through, fixing a bug where it got stuck on the first skill.
   const lastAutoStart = useRef<string | null>(null);
   useEffect(() => {
     const raw = searchParams.toString();
@@ -536,13 +512,7 @@ export function Modules() {
     const count = searchParams.get("count");
     const itemTypeId = searchParams.get("type");
     if (skill === "listening" || skill === "speaking" || skill === "reading" || skill === "writing") {
-      // A Sidebar skill link always wins over whatever this page was
-      // showing before — including an active session — since attempts are
-      // saved per item as they're submitted, so nothing is lost by leaving
-      // one in progress (it resumes later the same way a page refresh
-      // already resumes it). Without this reset, the render logic below
-      // never looks at the URL again once a session/picker is active, so
-      // clicking a different skill silently did nothing until a refresh.
+      // A skill link always wins over what's showing, even mid-session — attempts save per item, so nothing's lost.
       setSessionId(null);
       setItems([]);
       setSummary(null);
@@ -563,6 +533,13 @@ export function Modules() {
   const meta = current ? ITEM_TYPE_META[current.itemTypeId] : undefined;
 
   useEffect(() => {
+    // A pending two-phase read timer belongs to the question it was started
+    // on — moving away (Skip/Back) before it fires must not let it force a
+    // *different*, still-idle two-phase question straight to writing later.
+    if (twoPhaseTimeoutRef.current !== null) {
+      clearTimeout(twoPhaseTimeoutRef.current);
+      twoPhaseTimeoutRef.current = null;
+    }
     const cached = answersRef.current[index];
     setAnswerText(cached?.responseText ?? "");
     setPendingAudio(cached?.audioBase64 ? { base64: cached.audioBase64, mimeType: cached.audioMimeType ?? "" } : null);
@@ -591,8 +568,11 @@ export function Modules() {
   function handleStartReading() {
     if (!current) return;
     setTwoPhaseStage("reading");
-    const readSeconds = current.twoPhaseReadSeconds ?? 30;
-    setTimeout(() => setTwoPhaseStage("writing"), readSeconds * 1000);
+    const readSeconds = current.twoPhaseReadSeconds ?? DEFAULT_TWO_PHASE_READ_SECONDS;
+    twoPhaseTimeoutRef.current = setTimeout(() => {
+      twoPhaseTimeoutRef.current = null;
+      setTwoPhaseStage("writing");
+    }, readSeconds * 1000);
   }
 
   async function handlePlay() {
@@ -897,32 +877,7 @@ export function Modules() {
         </p>
       )}
 
-      {current.inputMethod === "radio" ? (
-        <div className="flex flex-col gap-2.5">
-          {getOptions(current).map((option, i) => {
-            const letter = String.fromCharCode(65 + i);
-            const selected = answerText === String(i);
-            return (
-              <button
-                key={i}
-                onClick={() => setAnswerText(String(i))}
-                className={`flex items-center gap-3 text-left rounded-card border-2 px-4 py-3 text-sm font-medium transition-all cursor-pointer ${
-                  selected ? "border-accent bg-accent/10 text-ink shadow-sm" : "border-rule hover:border-rule-strong hover:bg-paper-warm/60"
-                }`}
-              >
-                <span
-                  className={`h-7 w-7 shrink-0 rounded-full flex items-center justify-center text-xs font-bold ${
-                    selected ? "bg-accent text-white" : "bg-paper-warm text-muted"
-                  }`}
-                >
-                  {letter}
-                </span>
-                {option}
-              </button>
-            );
-          })}
-        </div>
-      ) : current.inputMethod === "two-phase" ? (
+      {current.inputMethod === "two-phase" ? (
         twoPhaseStage === "writing" && (
           <textarea
             value={answerText}
@@ -932,58 +887,19 @@ export function Modules() {
             rows={4}
           />
         )
-      ) : current.inputMethod === "mic" ? (
-        <div className="flex flex-col items-center gap-3">
-          <button
-            onClick={handleToggleRecord}
-            disabled={playing || (needsAudioFirst && !hasPlayed)}
-            className={`h-14 w-14 rounded-full flex items-center justify-center shadow-[0_8px_18px_-8px_rgba(0,0,0,0.3)] transition-transform hover:scale-105 disabled:opacity-60 disabled:hover:scale-100 cursor-pointer disabled:cursor-not-allowed ${
-              recording ? "bg-error text-white" : "bg-navy text-lime btn-shine"
-            }`}
-          >
-            {recording ? <Square size={18} /> : <Mic size={22} />}
-          </button>
-
-          {recording ? (
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-error">{t("placementTest.stopRecording")}</span>
-              <span className="flex items-center gap-1">
-                {[0, 1, 2, 3, 4].map((i) => (
-                  <span key={i} className="recording-dot h-2 w-2 rounded-full bg-error" style={{ animationDelay: `${i * 0.15}s` }} />
-                ))}
-              </span>
-            </div>
-          ) : (
-            <span className="text-sm font-medium text-muted">
-              {audioBlobUrl ? t("placementTest.recordAgain") : t("placementTest.record")}
-            </span>
-          )}
-
-          {audioBlobUrl && !recording && (
-            <div className="flex flex-col items-center gap-2 w-full">
-              <span className="flex items-center gap-1.5 text-sm text-success">
-                <CheckCircle2 size={18} />
-                {t("placementTest.audioSaved")}
-              </span>
-              <audio controls src={audioBlobUrl} className="w-full h-9" />
-            </div>
-          )}
-        </div>
-      ) : current.inputMethod === "textarea" ? (
-        <textarea
-          value={answerText}
-          onChange={(e) => setAnswerText(e.target.value)}
-          placeholder={t("placementTest.answerPlaceholder")}
-          className="w-full rounded-card border border-rule bg-surface px-4 py-3 text-sm text-ink shadow-sm focus:border-navy focus:outline-none transition-colors"
-          rows={4}
-        />
       ) : (
-        <input
-          type="text"
-          value={answerText}
-          onChange={(e) => setAnswerText(e.target.value)}
-          placeholder={t("placementTest.answerPlaceholder")}
-          className="w-full rounded-card border border-rule bg-surface px-4 py-3 text-sm text-ink shadow-sm focus:border-navy focus:outline-none transition-colors"
+        <AnswerInputControl
+          item={current}
+          answerText={answerText}
+          onAnswerTextChange={setAnswerText}
+          recording={recording}
+          onToggleRecord={handleToggleRecord}
+          audioBlobUrl={audioBlobUrl}
+          needsAudioFirst={needsAudioFirst}
+          hasPlayed={hasPlayed}
+          playing={playing}
+          stopIconSize={18}
+          textareaRows={4}
         />
       )}
 

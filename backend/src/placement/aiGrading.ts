@@ -1,22 +1,8 @@
-// Rubric-based grading for everything that has no single machine-checkable
-// correct answer, using Gemini. Every one of these types is graded from
-// TEXT — for spoken types, that's the transcript the browser's own
-// SpeechRecognition produced (or whatever the learner typed as a fallback).
-//
-// This used to run on Claude, which has no audio input at all. Migrated to
-// Gemini because Gemini can accept both text and audio under one API key —
-// but this function still only ever sends it TEXT, on purpose: Gemini's own
-// audio-quality judgment (see geminiFluency.ts) was tested directly and
-// found to hallucinate on real recordings, so content correctness is kept
-// on the same solid ground as before (text only) rather than trusting an
-// audio judgment call here too. Gemini's text-only grading was tested
-// separately — repeated identical trials came back consistent, unlike its
-// audio judgment — see Grading_Methods_Report.md.
-//
-// Fails closed: any missing key, network error, or unparseable response
-// returns null, and the caller treats that exactly like "no verdict yet."
-// A grading outage should never crash an attempt submission or silently
-// mark someone wrong.
+// Rubric-based grading (Gemini) for anything with no single machine-checkable
+// answer — always from TEXT (transcript for spoken types), never audio:
+// Gemini's own audio-quality judgment was tested and found to hallucinate,
+// while its text-only grading was consistent (see Grading_Methods_Report.md).
+// Fails closed: any error/missing key returns null, treated as "no verdict yet."
 import { GoogleGenAI } from "@google/genai";
 
 export const GEMINI_GRADING_MODEL = "gemini-3.5-flash-lite";

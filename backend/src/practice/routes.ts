@@ -1,31 +1,24 @@
-import { randomUUID } from "node:crypto";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { z } from "zod";
 import { Router } from "express";
 import { pool } from "../db.js";
 import { requireAuth, type AuthedRequest } from "../auth/middleware.js";
 import { submitAttemptSchema } from "../placement/schemas.js";
-import { gradeAttempt } from "../placement/grading.js";
-import { computeFluencySignals, isTrulyCorrect } from "../placement/fluencySignals.js";
-import { scoreAudioFluency } from "../placement/geminiFluency.js";
+import { gradeAndSaveAttempt } from "../attemptGrading.js";
+import { isTrulyCorrect } from "../placement/fluencySignals.js";
 import { passThresholdForLevel } from "../placement/cefr.js";
 import { pickDifficultySpread } from "../placement/routes.js";
-import type { SkillTag } from "../placement/roadmap.js";
+import type { SkillTag } from "../placement/roadmapBuilder.js";
 import { withAudioUrls } from "../voice/itemAudio.js";
+import { correlateVoiceCheck } from "../voice/correlate.js";
+import { toItemPayload } from "../itemPayload.js";
 
 export const practiceRouter = Router();
 
 const ALL_SKILLS: SkillTag[] = ["listening", "speaking", "reading", "writing"];
-const UPLOADS_DIR = path.join(process.cwd(), "uploads", "attempts");
 const MIN_ITEMS = 1;
-// Generous ceiling — selectPracticeItems already caps the actual result to
-// however many items are available for that skill, so this just needs to
-// comfortably cover a high daily-minutes preference without erroring.
+// Generous ceiling — actual results are capped by however many items exist.
 const MAX_ITEMS = 40;
-// A whole-skill session spread across every item type for that skill —
-// kept short (not the old 8) since a "Start Practice" click otherwise reads
-// as a long same-feeling grind (e.g. 8 listening drills back to back).
+// Kept short (not the old 8) so "Start Practice" isn't a long same-feel grind.
 const DEFAULT_ITEMS = 5;
 // A single-type task from the Dashboard's "Today's Tasks" checklist — quick
 // enough to feel like one bite-sized item, not a full session.
@@ -34,9 +27,7 @@ const DEFAULT_TASK_ITEMS = 3;
 const startSessionSchema = z.object({
   skill: z.enum(["listening", "speaking", "reading", "writing"]),
   count: z.number().int().min(MIN_ITEMS).max(MAX_ITEMS).optional(),
-  // When set, the session pulls only from this one item type instead of
-  // spreading across every type that carries the skill — used by a single
-  // "Today's Tasks" row so clicking one task practices just that exercise.
+  // Set for a single-type "Today's Tasks" row instead of spreading across all types.
   itemTypeId: z.string().optional(),
   // When set, the session is exactly this Set's items, in authored order —
   // a fixed lesson, not a spread/adaptive sample. Takes priority over count.
@@ -44,48 +35,7 @@ const startSessionSchema = z.object({
   voiceCheckId: z.string().uuid().optional(),
 });
 
-// Correlates a Voice Check done right before session start with the
-// session it gated — mirrors the identical helper in placement/routes.ts
-// (the check itself has no session yet when it runs).
-async function correlateVoiceCheck(userId: string, voiceCheckId: string | undefined, sessionId: string): Promise<void> {
-  if (!voiceCheckId) return;
-  await pool.query(`UPDATE voice_check_results SET session_id = $1 WHERE id = $2 AND user_id = $3 AND session_id IS NULL`, [
-    sessionId,
-    voiceCheckId,
-    userId,
-  ]);
-}
-
-function toItemPayload(row: {
-  id: string;
-  item_type_id: string;
-  content: unknown;
-  input_method: string;
-  instruction_text: string;
-  question_instruction: string;
-  timer_seconds: number | null;
-  two_phase_read_seconds: number | null;
-  two_phase_write_seconds: number | null;
-}) {
-  return {
-    id: row.id,
-    itemTypeId: row.item_type_id,
-    content: row.content,
-    inputMethod: row.input_method,
-    instructionText: row.instruction_text,
-    questionInstruction: row.question_instruction,
-    timerSeconds: row.timer_seconds,
-    twoPhaseReadSeconds: row.two_phase_read_seconds,
-    twoPhaseWriteSeconds: row.two_phase_write_seconds,
-  };
-}
-
-// Draws `count` items for one skill from the practice pool, spread across
-// the item types that carry that skill (not just one type) and across
-// difficulty within each type, preferring items this learner hasn't done
-// yet — same "prefer unseen, fall back once the pool runs out" rule as
-// placement selection, but scoped to practice sessions/items only so it
-// doesn't interact with placement-test history at all.
+// Spreads `count` across the skill's item types and difficulty, preferring unseen items.
 async function selectPracticeItems(userId: string, skill: SkillTag, count: number, itemTypeId?: string) {
   const result = await pool.query(
     `SELECT i.id, i.item_type_id, i.content, i.difficulty, it.input_method, it.instruction_text, it.question_instruction, it.timer_seconds, it.two_phase_read_seconds, it.two_phase_write_seconds,
@@ -143,17 +93,14 @@ async function selectPracticeItems(userId: string, skill: SkillTag, count: numbe
     if (n === 0) continue;
     const rows = perType.get(type)!;
     const notAttempted = rows.filter((r) => !r.previously_attempted);
-    const pool = notAttempted.length >= n ? notAttempted : rows;
-    selected.push(...pickDifficultySpread(pool, n));
+    const candidatePool = notAttempted.length >= n ? notAttempted : rows;
+    selected.push(...pickDifficultySpread(candidatePool, n));
   }
   return selected;
 }
 
-// A Set's items, in the order they were authored — a fixed mini-lesson,
-// unlike selectPracticeItems' spread/adaptive sampling. Ordered by the
-// explicit set_order column, not created_at: a single multi-row seed INSERT
-// resolves now() once for the whole statement, so every item in a set gets
-// an identical timestamp with no defined tie-break order.
+// A Set's items in authored order (set_order, not created_at — a multi-row
+// seed insert gives every row the same timestamp, so it can't break ties).
 async function selectSetItems(setId: string) {
   const result = await pool.query(
     `SELECT i.id, i.item_type_id, i.content, it.input_method, it.instruction_text, it.question_instruction, it.timer_seconds, it.two_phase_read_seconds, it.two_phase_write_seconds
@@ -165,9 +112,7 @@ async function selectSetItems(setId: string) {
   return result.rows;
 }
 
-// Units for one item type, each with how many sets it contains and how many
-// of those this learner has already completed — feeds the Modules
-// UnitPicker step (a real progress ring, not just a bare count).
+// Units for one item type, with each unit's set count and completed count (feeds UnitPicker).
 practiceRouter.get("/units", requireAuth, async (req: AuthedRequest, res, next) => {
   try {
     const itemTypeId = req.query.itemTypeId;
@@ -195,8 +140,7 @@ practiceRouter.get("/units", requireAuth, async (req: AuthedRequest, res, next) 
   }
 });
 
-// Sets within one unit, each annotated with whether this learner already
-// has a completed session for it — feeds the Modules SetPicker step.
+// Sets within one unit, each flagged completed or not (feeds SetPicker).
 practiceRouter.get("/units/:unitId/sets", requireAuth, async (req: AuthedRequest, res, next) => {
   try {
     const result = await pool.query(
@@ -217,9 +161,7 @@ practiceRouter.get("/units/:unitId/sets", requireAuth, async (req: AuthedRequest
   }
 });
 
-// Per-skill total/remaining unattempted counts in the practice pool — lets
-// the Modules skill picker and the Dashboard's Today's Plan card show real
-// content depth instead of assuming a bottomless supply.
+// Per-skill total/remaining counts — used by the skill picker and Today's Plan.
 practiceRouter.get("/availability", requireAuth, async (req: AuthedRequest, res, next) => {
   try {
     const result = await pool.query(
@@ -246,17 +188,13 @@ practiceRouter.get("/availability", requireAuth, async (req: AuthedRequest, res,
   }
 });
 
-// Starting a practice session reuses any already-in-progress session for
-// the same skill instead of minting a new item set — a page refresh
-// shouldn't hand the learner a different half-done set.
+// Resumes any already-in-progress session instead of minting a new item set.
 practiceRouter.post("/session", requireAuth, async (req: AuthedRequest, res, next) => {
   try {
     const body = startSessionSchema.parse(req.body);
     const count = body.count ?? (body.itemTypeId ? DEFAULT_TASK_ITEMS : DEFAULT_ITEMS);
 
-    // A Set-based session matches purely on setId (already fully specific —
-    // one type, one unit, one set) rather than skill/itemTypeId, which stay
-    // reserved for the older count-based path.
+    // A Set-based session matches on setId alone (already fully specific).
     const existing = await pool.query(
       body.setId
         ? `SELECT id, composition FROM sessions
@@ -279,12 +217,7 @@ practiceRouter.post("/session", requireAuth, async (req: AuthedRequest, res, nex
         [itemIds],
       );
       const byId = new Map(itemsResult.rows.map((r) => [r.id, r]));
-      // Which of these were already answered before the learner left —
-      // without this, resuming would silently rewind the on-screen
-      // question pointer back to the first item, even though nothing was
-      // actually lost server-side (same gap the GET /session/:id endpoint
-      // below already solves; mirrored here since Overview's new "Continue
-      // where you left off" card lands here, not on a session-id URL).
+      // Marks which items were already answered so resuming doesn't rewind the on-screen pointer.
       const attemptsResult = await pool.query(`SELECT item_id, response_text FROM attempts WHERE session_id = $1`, [
         existing.rows[0].id,
       ]);
@@ -393,93 +326,12 @@ practiceRouter.post("/session/:sessionId/attempts", requireAuth, async (req: Aut
     if (!session) return res.status(404).json({ error: "session_not_found" });
     if (session.completed_at) return res.status(409).json({ error: "session_already_completed" });
 
-    const itemResult = await pool.query(
-      `SELECT i.item_type_id, i.answer_set, i.content, i.cefr_level, it.min_words, it.input_method
-       FROM items i JOIN item_types it ON it.id = i.item_type_id
-       WHERE i.id = $1`,
-      [body.itemId],
-    );
-    const item = itemResult.rows[0];
-    if (!item) return res.status(404).json({ error: "item_not_found" });
+    const graded = await gradeAndSaveAttempt(session.id, body);
+    if (!graded) return res.status(404).json({ error: "item_not_found" });
 
-    // Resubmitting the same item in this session replaces the old attempt
-    // instead of stacking a second one, same as placement.
-    const priorResult = await pool.query(
-      `SELECT id, response_uri FROM attempts WHERE session_id = $1 AND item_id = $2`,
-      [session.id, body.itemId],
-    );
-    const prior = priorResult.rows[0];
-    if (prior) {
-      await pool.query(`DELETE FROM attempts WHERE id = $1`, [prior.id]);
-      if (prior.response_uri) {
-        const fileName = path.basename(prior.response_uri);
-        await unlink(path.join(UPLOADS_DIR, fileName)).catch(() => {
-          // best-effort cleanup — a missing file isn't worth failing the resubmit over
-        });
-      }
-    }
-
-    let responseUri: string | null = null;
-    if (body.audioBase64) {
-      await mkdir(UPLOADS_DIR, { recursive: true });
-      const ext = body.audioMimeType?.includes("mp4") ? "m4a" : "webm";
-      const fileName = `${randomUUID()}.${ext}`;
-      await writeFile(path.join(UPLOADS_DIR, fileName), Buffer.from(body.audioBase64, "base64"));
-      responseUri = `/uploads/attempts/${fileName}`;
-    }
-
-    // The recording (if any) is still saved above for playback/human
-    // review, but grading itself runs on the transcript only — Claude's API
-    // has no audio input, so unlike before, it can't listen to the actual
-    // recording (see aiGrading.ts).
-    const grade = await gradeAttempt(
-      item.item_type_id,
-      item.answer_set,
-      item.content,
-      item.cefr_level,
-      item.min_words,
-      body.responseText,
-    );
-    const responseText = body.responseText ?? null;
-
-    const attemptResult = await pool.query(
-      `INSERT INTO attempts (session_id, item_id, window_start_at, submitted_at, response_uri, response_text)
-       VALUES ($1, $2, now(), now(), $3, $4) RETURNING id`,
-      [session.id, body.itemId, responseUri, responseText],
-    );
-    const attemptId = attemptResult.rows[0].id;
-
-    const modelVersion =
-      grade.method === "ai-text" ? "gemini-3.5-flash-lite-v1" : grade.method === "text-diff" ? "text-diff-v1" : "exact-match-v1";
-
-    // Free fluency signals — see placement/routes.ts for the full reasoning.
-    const freeSignals =
-      item.input_method === "mic" && responseText
-        ? computeFluencySignals(responseText, body.durationMs)
-        : null;
-
-    // Real pronunciation/fluency scoring from the actual recording — see
-    // geminiFluency.ts. Fails closed; absent, not broken, if unconfigured.
-    const geminiScores =
-      item.input_method === "mic" && body.audioBase64
-        ? await scoreAudioFluency(body.audioBase64, body.audioMimeType ?? "audio/webm", item.cefr_level)
-        : null;
-
-    const mannerScores = freeSignals || geminiScores ? { ...freeSignals, gemini: geminiScores ?? undefined } : null;
-
-    await pool.query(
-      `INSERT INTO scores (attempt_id, content_score, manner_scores, status, model_version) VALUES ($1, $2, $3, $4, $5)`,
-      [attemptId, grade.score, mannerScores ? JSON.stringify(mannerScores) : null, grade.status, modelVersion],
-    );
-
-    // See placement/routes.ts's attempts handler for the full reasoning —
-    // for a mic answer, "correct" now also requires pronunciation, fluency,
-    // and pace to clear the same bar as content, when actually measured.
-    const wasCorrect =
-      grade.status === "scored"
-        ? isTrulyCorrect(grade.score, item.cefr_level, item.input_method, mannerScores, passThresholdForLevel)
-        : grade.correct;
-    res.status(201).json({ attemptId, status: grade.status, correct: wasCorrect });
+    const { attemptId, grade, wasCorrect } = graded;
+    const correct = grade.status === "scored" ? wasCorrect : grade.correct;
+    res.status(201).json({ attemptId, status: grade.status, correct });
   } catch (err) {
     next(err);
   }

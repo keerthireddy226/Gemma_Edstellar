@@ -1,6 +1,3 @@
-import { randomUUID } from "node:crypto";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { pool } from "../db.js";
@@ -8,9 +5,8 @@ import { requireAuth, type AuthedRequest } from "../auth/middleware.js";
 import { generateToken, hashToken } from "../auth/tokens.js";
 import { sendPlacementReminderEmail } from "../auth/mailer.js";
 import { submitAttemptSchema } from "./schemas.js";
-import { gradeAttempt } from "./grading.js";
-import { computeFluencySignals, isTrulyCorrect } from "./fluencySignals.js";
-import { scoreAudioFluency } from "./geminiFluency.js";
+import { isTrulyCorrect, type StoredMannerScores } from "./fluencySignals.js";
+import { gradeAndSaveAttempt } from "../attemptGrading.js";
 import {
   CEFR_LEVELS,
   cefrRank,
@@ -21,25 +17,13 @@ import {
   stepLevel,
   type CefrLevel,
 } from "./cefr.js";
-import { buildRoadmap, type AccessDuration, type SkillTag } from "./roadmap.js";
+import { buildRoadmap, type AccessDuration, type SkillTag } from "./roadmapBuilder.js";
 import { withAudioUrls } from "../voice/itemAudio.js";
+import { correlateVoiceCheck } from "../voice/correlate.js";
+import { toItemPayload } from "../itemPayload.js";
 import { z } from "zod";
 
 const startSessionBodySchema = z.object({ voiceCheckId: z.string().uuid().optional() });
-
-// Correlates a Voice Check done right before session start with the
-// session it gated — the check itself has no session yet when it runs
-// (POST /voice/verify happens before this endpoint), so this backfills it
-// once the real session exists. Silently a no-op if voiceCheckId is
-// missing/invalid/already claimed — never blocks session creation over it.
-async function correlateVoiceCheck(userId: string, voiceCheckId: string | undefined, sessionId: string): Promise<void> {
-  if (!voiceCheckId) return;
-  await pool.query(`UPDATE voice_check_results SET session_id = $1 WHERE id = $2 AND user_id = $3 AND session_id IS NULL`, [
-    sessionId,
-    voiceCheckId,
-    userId,
-  ]);
-}
 
 const ALL_SKILLS: SkillTag[] = ["listening", "speaking", "reading", "writing"];
 
@@ -47,23 +31,7 @@ export const placementRouter = Router();
 
 const REMINDER_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-// 20 questions total, same mix as before — only *how* each type's questions
-// get chosen changed (see the adaptive selection block above): each type
-// still contributes this many questions, but which specific ones depends on
-// how the learner answers, not a fixed upfront easy/medium/hard spread.
-// Reading (Read Aloud) is included now that AI grading covers it — before
-// that, Reading was carried by Reading Comprehension alone (thinner than
-// every other skill's coverage). Repeats, Short Answer, and Sentence Builds
-// each gave up one slot to make room for it without growing the test. Story
-// Retelling, Speaking Situations, Typing, and Summary and Opinion are still
-// not used here — Read Aloud already overlaps them for listening/speaking
-// signal, and every skill now has reasonable coverage without adding more
-// types.
-//
-// Passage Reconstruction was swapped out for Reading Comprehension: its
-// real Versant mechanic (read-then-recall-from-memory) has no single
-// correct rewording, so it can no longer fill a "graded" slot — Reading
-// Comprehension (MCQ) is the new stand-in.
+// 20 questions total, spread across these types/skills (chosen adaptively per type, not a fixed easy/medium/hard split).
 const ITEMS_PER_TYPE: Record<string, number> = {
   reading: 3,
   repeats: 2,
@@ -90,20 +58,9 @@ const TYPE_ORDER = [
   "email_writing",
 ];
 
-const UPLOADS_DIR = path.join(process.cwd(), "uploads", "attempts");
-
-// Picks `count` rows spread evenly across the sorted difficulty range,
-// rather than an arbitrary subset — with count=2 this always lands near the
-// easiest and the hardest available item. A pair of similar-difficulty
-// items can't tell a true beginner from a true advanced speaker; a
-// deliberate easy+hard spread can.
-//
-// Each target position is picked from a small window of similarly-difficult
-// candidates around it, not the single closest item — otherwise every
-// first-time learner gets the exact same 20 questions, which makes the test
-// memorizable if people compare notes instead of a real measure of ability.
-// The spread itself (still easy/medium/hard) stays intentional; only which
-// specific item fills each slot varies.
+// Picks `count` rows evenly spread across difficulty (not an arbitrary
+// subset), with randomness within a small window per slot so every
+// first-time learner isn't handed the exact same 20 questions.
 const SPREAD_WINDOW = 3;
 
 export function pickDifficultySpread<T extends { id: string; difficulty: string | null }>(rows: T[], count: number): T[] {
@@ -133,21 +90,9 @@ export function pickDifficultySpread<T extends { id: string; difficulty: string 
   return picks;
 }
 
-// ---------------------------------------------------------------------------
-// Adaptive item selection for the placement test itself. Instead of building
-// all 20 questions upfront with a fixed easy/medium/hard spread per type,
-// each type now climbs one level at a time: right answer -> next question in
-// that type is one level harder; wrong (or skipped) -> one level easier.
-// Once a type's budget (ITEMS_PER_TYPE) is used up, the next type in
-// TYPE_ORDER starts fresh at START_LEVEL.
-//
-// Two things this fixes on its own, just from how it selects items:
-// - It can never leave an untested gap in the middle of what it covers,
-//   since it only ever asks about the level right next to the last answer
-//   (see the "capped by gap" case in cefr.ts, which this makes far rarer).
-// - Two learners who answer differently naturally get different questions,
-//   without needing a separate randomization pass.
-// ---------------------------------------------------------------------------
+// Adaptive item selection: each type climbs one CEFR level at a time (right
+// -> harder, wrong/skip -> easier) until its ITEMS_PER_TYPE budget is used,
+// then the next TYPE_ORDER entry starts fresh at START_LEVEL.
 
 type ItemPoolRow = {
   id: string;
@@ -225,32 +170,6 @@ interface AdaptiveComposition {
   pendingItemId: string | null;
 }
 
-function toItemPayload(row: {
-  id: string;
-  item_type_id: string;
-  content: unknown;
-  skills: string[];
-  input_method: string;
-  instruction_text: string;
-  question_instruction: string;
-  timer_seconds: number | null;
-  two_phase_read_seconds: number | null;
-  two_phase_write_seconds: number | null;
-}) {
-  return {
-    id: row.id,
-    itemTypeId: row.item_type_id,
-    content: row.content,
-    skills: row.skills,
-    inputMethod: row.input_method,
-    instructionText: row.instruction_text,
-    questionInstruction: row.question_instruction,
-    timerSeconds: row.timer_seconds,
-    twoPhaseReadSeconds: row.two_phase_read_seconds,
-    twoPhaseWriteSeconds: row.two_phase_write_seconds,
-  };
-}
-
 // Skipped outside production, same reasoning as the auth limiters — local
 // testing shouldn't get locked out by the same cooldown a real learner would
 // only hit from actually spamming this button.
@@ -305,11 +224,7 @@ placementRouter.post("/schedule-later", requireAuth, scheduleLaterLimiter, async
   }
 });
 
-// Reconstructs the full question history for an in-progress or completed
-// adaptive session, in the order questions were actually shown — used both
-// to resume a session (page refresh, POST /session reuse) and by GET
-// /session/:id. The last entry is the still-unanswered current question
-// unless the session is complete.
+// Reconstructs an adaptive session's question history in shown order, for resuming (POST /session) and GET /session/:id.
 async function buildHistoryResponse(userId: string, sessionId: string, composition: AdaptiveComposition, completed: boolean) {
   const itemIds = composition.history;
   const itemsResult = await pool.query(
@@ -340,10 +255,7 @@ async function buildHistoryResponse(userId: string, sessionId: string, compositi
   };
 }
 
-// Starting a session reuses any already-in-progress one for this user
-// instead of minting a new item set every time — a page refresh or an
-// accidental double-click shouldn't hand the learner a different, half-done
-// test.
+// Reuses an already-in-progress session — a refresh/double-click shouldn't mint a different, half-done test.
 placementRouter.post("/session", requireAuth, async (req: AuthedRequest, res, next) => {
   try {
     const { voiceCheckId } = startSessionBodySchema.parse(req.body ?? {});
@@ -353,12 +265,7 @@ placementRouter.post("/session", requireAuth, async (req: AuthedRequest, res, ne
        ORDER BY started_at DESC LIMIT 1`,
       [req.user!.id],
     );
-    // A session started before the adaptive engine existed carries the old
-    // `{ itemIds }` shape instead of `{ history, perType, ... }` — trying to
-    // resume it would crash. There's no meaningful way to convert a
-    // fixed-spread-in-progress session into an adaptive one, so it's marked
-    // abandoned (no attempts are lost — those stay in the attempts table
-    // regardless) and a fresh adaptive session starts instead.
+    // Pre-adaptive-engine sessions carry an old `{ itemIds }` shape that would crash on resume — abandon and start fresh instead.
     if (existing.rows[0] && Array.isArray(existing.rows[0].composition?.history)) {
       await correlateVoiceCheck(req.user!.id, voiceCheckId, existing.rows[0].id);
       const response = await buildHistoryResponse(req.user!.id, existing.rows[0].id, existing.rows[0].composition, false);
@@ -394,11 +301,7 @@ placementRouter.post("/session", requireAuth, async (req: AuthedRequest, res, ne
   }
 });
 
-// Side-effect-free peek used by the Placement intro page: lets it show
-// "Continue where you left off" instead of "Begin the test" without ever
-// creating a session itself (unlike POST /session, which always resumes-or-
-// starts one). Registered before the :sessionId param route below so
-// "current" doesn't get swallowed as a session id.
+// Side-effect-free peek (no session created, unlike POST /session) so the intro page can offer "Continue" — registered before :sessionId so "current" isn't swallowed as an id.
 placementRouter.get("/session/current", requireAuth, async (req: AuthedRequest, res, next) => {
   try {
     const existing = await pool.query(
@@ -455,117 +358,25 @@ placementRouter.post("/session/:sessionId/attempts", requireAuth, async (req: Au
     }
 
     const composition = session.composition as AdaptiveComposition;
-    // The adaptive engine only ever has one live question at a time — this
-    // guards against a stale client submitting for a question that isn't
-    // (or is no longer) the one actually pending.
+    // Guards against a stale client submitting for a question that's no longer the one pending.
     if (composition.pendingItemId !== body.itemId) {
       return res.status(409).json({ error: "not_the_current_item" });
     }
-
-    const itemResult = await pool.query(
-      `SELECT i.item_type_id, i.answer_set, i.content, i.cefr_level, it.min_words, it.input_method
-       FROM items i JOIN item_types it ON it.id = i.item_type_id
-       WHERE i.id = $1`,
-      [body.itemId],
-    );
-    const item = itemResult.rows[0];
-    if (!item) return res.status(404).json({ error: "item_not_found" });
+    // Snapshot before `composition` gets mutated below — used as a
+    // compare-and-swap guard on the final UPDATE, so two concurrent
+    // submissions for the same session can't silently overwrite one
+    // another's composition update (only one wins; the other gets a 409).
+    const originalCompositionJson = JSON.stringify(composition);
 
     // Guards against a duplicate network retry of the same submission —
     // the adaptive flow never intentionally resubmits an already-answered
     // question (there's no "Back"), but a retry shouldn't double-count.
-    const priorResult = await pool.query(
-      `SELECT id, response_uri FROM attempts WHERE session_id = $1 AND item_id = $2`,
-      [session.id, body.itemId],
-    );
-    const prior = priorResult.rows[0];
-    if (prior) {
-      await pool.query(`DELETE FROM attempts WHERE id = $1`, [prior.id]);
-      if (prior.response_uri) {
-        const fileName = path.basename(prior.response_uri);
-        await unlink(path.join(UPLOADS_DIR, fileName)).catch(() => {
-          // best-effort cleanup — a missing file isn't worth failing the resubmit over
-        });
-      }
-    }
+    const graded = await gradeAndSaveAttempt(session.id, body);
+    if (!graded) return res.status(404).json({ error: "item_not_found" });
 
-    let responseUri: string | null = null;
-    if (body.audioBase64) {
-      await mkdir(UPLOADS_DIR, { recursive: true });
-      const ext = body.audioMimeType?.includes("mp4") ? "m4a" : "webm";
-      const fileName = `${randomUUID()}.${ext}`;
-      await writeFile(path.join(UPLOADS_DIR, fileName), Buffer.from(body.audioBase64, "base64"));
-      responseUri = `/uploads/attempts/${fileName}`;
-    }
-
-    // The recording (if any) is still saved above for playback/human
-    // review, but grading itself runs on the transcript only — Claude's API
-    // has no audio input, so unlike before, it can't listen to the actual
-    // recording (see aiGrading.ts).
-    const grade = await gradeAttempt(
-      item.item_type_id,
-      item.answer_set,
-      item.content,
-      item.cefr_level,
-      item.min_words,
-      body.responseText,
-    );
-    const responseText = body.responseText ?? null;
-
-    const attemptResult = await pool.query(
-      `INSERT INTO attempts (session_id, item_id, window_start_at, submitted_at, response_uri, response_text)
-       VALUES ($1, $2, now(), now(), $3, $4) RETURNING id`,
-      [session.id, body.itemId, responseUri, responseText],
-    );
-    const attemptId = attemptResult.rows[0].id;
-
-    const modelVersion =
-      grade.method === "ai-text" ? "gemini-3.5-flash-lite-v1" : grade.method === "text-diff" ? "text-diff-v1" : "exact-match-v1";
-
-    // Free fluency signals (speech rate, filler words) — computed from the
-    // transcript and recording length alone, no AI, no cost. Separate from
-    // content_score entirely: this describes how a spoken answer was
-    // delivered, not whether it was correct. Only meaningful for mic
-    // answers that actually produced a transcript.
-    const freeSignals =
-      item.input_method === "mic" && responseText
-        ? computeFluencySignals(responseText, body.durationMs)
-        : null;
-
-    // Real pronunciation/fluency scoring, from actually listening to the
-    // recording — the thing Claude cannot do at all. Only attempted when
-    // there's both a recording and a GEMINI_API_KEY configured; fails
-    // closed (see geminiFluency.ts), so a quota limit or network error just
-    // means this field is absent, never a broken submission.
-    const geminiScores =
-      item.input_method === "mic" && body.audioBase64
-        ? await scoreAudioFluency(body.audioBase64, body.audioMimeType ?? "audio/webm", item.cefr_level)
-        : null;
-
-    const mannerScores = freeSignals || geminiScores ? { ...freeSignals, gemini: geminiScores ?? undefined } : null;
-
-    await pool.query(
-      `INSERT INTO scores (attempt_id, content_score, manner_scores, status, model_version) VALUES ($1, $2, $3, $4, $5)`,
-      [attemptId, grade.score, mannerScores ? JSON.stringify(mannerScores) : null, grade.status, modelVersion],
-    );
-
-    // --- Adaptive step: pick what comes next ---
-    // A skip is treated as "wrong" for stepping purposes — it's the
-    // learner's own choice not to attempt it, so there's no evidence they
-    // cleared this level, same as a real miss.
-    //
-    // A failed-grading attempt is different: that's a grading *service*
-    // fault (AI call broke), not anything the learner did — they may well
-    // have answered correctly. Stepping them down for it would silently
-    // penalize an infrastructure problem, which contradicts the results
-    // summary's own "this isn't about your answers" framing for failedCount
-    // (see the summary endpoint below). So it stays at the *same* level
-    // instead of moving up or down — neither rewarded nor punished.
-    //
-    // For a mic answer, "correct" now also requires pronunciation, fluency,
-    // and pace to clear the bar (when we actually measured them) — see
-    // isTrulyCorrect in fluencySignals.ts for the full reasoning.
-    const wasCorrect = isTrulyCorrect(grade.score, item.cefr_level, item.input_method, mannerScores, passThresholdForLevel);
+    // Adaptive step: skip counts as wrong (same as a miss); a grading-service
+    // failure stays at the same level (not the learner's fault either way).
+    const { attemptId, item, grade, wasCorrect } = graded;
     const currentType = item.item_type_id as string;
     const typeState = composition.perType[currentType];
     let nextItem: ItemPoolRow | null = null;
@@ -582,8 +393,7 @@ placementRouter.post("/session/:sessionId/attempts", requireAuth, async (req: Au
       composition.history.push(nextItem.id);
       composition.pendingItemId = nextItem.id;
     } else {
-      // This type's budget is used up (or its pool unexpectedly ran dry) —
-      // move on to the next type that still has items available.
+      // Type's budget used up (or pool ran dry) — move to the next type with items.
       const next = await pickFirstItemFrom(req.user!.id, composition.currentTypeIndex + 1);
       if (next) {
         composition.currentTypeIndex = next.typeIndex;
@@ -600,7 +410,16 @@ placementRouter.post("/session/:sessionId/attempts", requireAuth, async (req: Au
       }
     }
 
-    await pool.query(`UPDATE sessions SET composition = $1 WHERE id = $2`, [JSON.stringify(composition), session.id]);
+    const updateResult = await pool.query(
+      `UPDATE sessions SET composition = $1 WHERE id = $2 AND composition = $3::jsonb RETURNING id`,
+      [JSON.stringify(composition), session.id, originalCompositionJson],
+    );
+    if (!updateResult.rows[0]) {
+      // Another request for this same session already advanced the
+      // composition first — this attempt is still saved (gradeAndSaveAttempt
+      // already committed it), it just lost the race to pick the next item.
+      return res.status(409).json({ error: "session_composition_conflict" });
+    }
 
     res.status(201).json({
       attemptId,
@@ -614,6 +433,117 @@ placementRouter.post("/session/:sessionId/attempts", requireAuth, async (req: Au
     next(err);
   }
 });
+
+interface ScoredAttemptRow {
+  status: string;
+  content_score: number | string | null;
+  manner_scores: StoredMannerScores | null;
+  skills: string[];
+  input_method: string;
+  cefr_level: CefrLevel | null;
+}
+
+function rowIsCorrect(r: ScoredAttemptRow): boolean {
+  return isTrulyCorrect(Number(r.content_score), r.cefr_level, r.input_method, r.manner_scores, passThresholdForLevel);
+}
+
+// Per-skill percent/level, plus the same percents shaped for buildRoadmap
+// (which needs a number per skill even for untested ones, to rank "weakest
+// first" — internal ranking only, never shown as a real score).
+function computeSkillBreakdown(graded: ScoredAttemptRow[], overallPercent: number) {
+  const skillPercents = {} as Record<SkillTag, number | null>;
+  const skillLevels = {} as Record<SkillTag, { level: CefrLevel; cappedByGap: boolean } | null>;
+  const roadmapSkillPercents = {} as Record<SkillTag, number>;
+  for (const skill of ALL_SKILLS) {
+    const relevant = graded.filter((r) => r.skills.includes(skill));
+    if (relevant.length === 0) {
+      skillPercents[skill] = null;
+      skillLevels[skill] = null;
+      roadmapSkillPercents[skill] = overallPercent;
+      continue;
+    }
+    const percent = Math.round((relevant.filter(rowIsCorrect).length / relevant.length) * 100);
+    // Highest CEFR level actually sustained, not just a flat percentage; falls back to percent only if no cefr_level tags exist yet.
+    const assessed = assessSkillLevel(relevant.map((r) => ({ cefrLevel: r.cefr_level, correct: rowIsCorrect(r) })));
+    skillPercents[skill] = percent;
+    skillLevels[skill] = { level: assessed.level ?? percentToCefr(percent), cappedByGap: assessed.cappedByGap };
+    roadmapSkillPercents[skill] = percent;
+  }
+  return { skillPercents, skillLevels, roadmapSkillPercents };
+}
+
+// Headline level: assessed across all skills combined, from every question shown (not just answered). A skip counts as
+// wrong at a level the learner otherwise engaged with, but a level with zero real attempts stays an untested gap, not a
+// failure. Grading failures are excluded entirely (service fault, not the learner's). Also can't outrank the weakest
+// *tested* skill — pooling alone could let a strong skill outweigh a genuinely failed one (e.g. 0% Listening next to
+// overall "B1").
+function computeHeadlineLevel(
+  graded: ScoredAttemptRow[],
+  allRows: ScoredAttemptRow[],
+  correctCount: number,
+  pendingCount: number,
+  skillLevels: Record<SkillTag, { level: CefrLevel; cappedByGap: boolean } | null>,
+) {
+  const gradedLevels = new Set(graded.map((r) => r.cefr_level));
+  const skippedAsWrong = allRows
+    .filter((r) => r.status === "pending" && gradedLevels.has(r.cefr_level))
+    .map((r) => ({ cefrLevel: r.cefr_level, correct: false }));
+  const answeredEvidence = graded.map((r) => ({ cefrLevel: r.cefr_level, correct: rowIsCorrect(r) }));
+  const overallAssessment = assessSkillLevel([...answeredEvidence, ...skippedAsWrong]);
+  // Fallback percentage (no level certified above) also counts skips as wrong, or a mostly-skipped test would look fine.
+  const overallPercentForLevel = Math.round((correctCount / (graded.length + pendingCount)) * 100);
+  const pooledCefrLevel: CefrLevel = overallAssessment.level ?? percentToCefr(overallPercentForLevel);
+
+  const testedSkillLevels = ALL_SKILLS.map((skill) => skillLevels[skill]?.level).filter(
+    (level): level is CefrLevel => level != null,
+  );
+  const weakestTestedSkillLevel =
+    testedSkillLevels.length > 0
+      ? testedSkillLevels.reduce((weakest, level) => (cefrRank(level) < cefrRank(weakest) ? level : weakest))
+      : null;
+  const cefrLevel: CefrLevel =
+    weakestTestedSkillLevel && cefrRank(weakestTestedSkillLevel) < cefrRank(pooledCefrLevel) ? weakestTestedSkillLevel : pooledCefrLevel;
+  // Once a weak skill has pulled the headline down below what the pooled walk found, that's the real, complete reason
+  // why — the gap caveat only makes sense when the pooled result stands as-is.
+  const cefrCappedByGap = cefrLevel === pooledCefrLevel && overallAssessment.cappedByGap;
+  return { cefrLevel, cefrCappedByGap };
+}
+
+async function saveRoadmap(userId: string, cefrLevel: CefrLevel, roadmapSkillPercents: Record<SkillTag, number>) {
+  const profileResult = await pool.query(
+    `SELECT goal_level, exam_date, access_duration, daily_minutes_preference FROM participant_profiles WHERE user_id = $1`,
+    [userId],
+  );
+  const profile = profileResult.rows[0] ?? {};
+  const goalLevel: CefrLevel =
+    profile.goal_level && profile.goal_level !== "unsure"
+      ? profile.goal_level
+      : CEFR_LEVELS[Math.min(cefrRank(cefrLevel) + 1, CEFR_LEVELS.length - 1)];
+
+  const roadmap = buildRoadmap({
+    assessedLevel: cefrLevel,
+    goalLevel,
+    examDate: profile.exam_date ? new Date(profile.exam_date).toISOString().slice(0, 10) : null,
+    accessDuration: (profile.access_duration as AccessDuration) ?? "3months",
+    dailyMinutesPreference: profile.daily_minutes_preference ?? 30,
+    skillPercents: roadmapSkillPercents,
+  });
+
+  const roadmapResult = await pool.query(
+    `INSERT INTO roadmaps (user_id, pace, minutes_per_day, total_hours_estimate) VALUES ($1, $2, $3, $4) RETURNING id`,
+    [userId, roadmap.pace, roadmap.minutesPerDay, roadmap.totalHoursEstimate],
+  );
+  const roadmapId = roadmapResult.rows[0].id;
+
+  for (const m of roadmap.milestones) {
+    await pool.query(
+      `INSERT INTO roadmap_milestones (roadmap_id, level, label, target_day_offset, focus_skill) VALUES ($1, $2, $3, $4, $5)`,
+      [roadmapId, m.level, m.labelType, m.targetDayOffset, m.focusSkill],
+    );
+  }
+
+  return { goalLevel };
+}
 
 placementRouter.post("/session/:sessionId/complete", requireAuth, async (req: AuthedRequest, res, next) => {
   try {
@@ -632,167 +562,29 @@ placementRouter.post("/session/:sessionId/complete", requireAuth, async (req: Au
        WHERE a.session_id = $1`,
       [req.params.sessionId],
     );
-    const graded = summaryResult.rows.filter((r) => r.status === "scored");
-    // pg returns `numeric` columns as strings, not JS numbers. Each row's own
-    // level sets its own bar — C2 content demands far more than A1 does. For
-    // a mic answer, "correct" also requires pronunciation/fluency/pace to
-    // clear that same bar, when measured — see isTrulyCorrect.
-    const correctCount = graded.filter((r) =>
-      isTrulyCorrect(Number(r.content_score), r.cefr_level, r.input_method, r.manner_scores, passThresholdForLevel),
-    ).length;
-    const pendingCount = summaryResult.rows.filter((r) => r.status === "pending").length;
-    // Distinct from pending: an answer WAS given and grading was actually
-    // attempted, but the AI call itself broke (rate limit, network error) —
-    // a temporary service problem, not "you didn't answer enough."
-    const failedCount = summaryResult.rows.filter((r) => r.status === "failed").length;
+    const rows: ScoredAttemptRow[] = summaryResult.rows;
+    const graded = rows.filter((r) => r.status === "scored");
+    // Each row's own CEFR level sets its own pass bar — see isTrulyCorrect.
+    const correctCount = graded.filter(rowIsCorrect).length;
+    const pendingCount = rows.filter((r) => r.status === "pending").length;
+    // Distinct from pending: grading was attempted but the AI call itself broke.
+    const failedCount = rows.filter((r) => r.status === "failed").length;
 
-    // Not enough evidence yet to estimate a level — every item is still
-    // awaiting review (e.g. the item bank changed to be all open-ended).
-    // The raw tally is still useful on its own, so return it without a
-    // placement/roadmap rather than fail the request.
+    // Nothing graded yet — return the raw tally without a placement/roadmap.
     if (graded.length === 0) {
       return res.json({ gradedCount: 0, correctCount: 0, pendingCount, failedCount });
     }
 
     const overallPercent = Math.round((correctCount / graded.length) * 100);
-
-    // null means exactly what it says — this skill had zero graded questions
-    // (skipped, or all still pending), so there is no evidence to report.
-    // This used to silently fall back to the overall percentage, which
-    // fabricated a plausible-looking score for a skill that was never
-    // actually tested at all.
-    const skillPercents = {} as Record<SkillTag, number | null>;
-    // Each entry carries `cappedByGap` alongside the level itself — when
-    // true, the percent above looks deceptively high next to a low level
-    // only because there's a real testing gap behind it (see cefr.ts), and
-    // the frontend needs to know that to explain it instead of just
-    // displaying what looks like a contradiction.
-    const skillLevels = {} as Record<SkillTag, { level: CefrLevel; cappedByGap: boolean } | null>;
-    for (const skill of ALL_SKILLS) {
-      const relevant = graded.filter((r) => (r.skills as string[]).includes(skill));
-      if (relevant.length === 0) {
-        skillPercents[skill] = null;
-        skillLevels[skill] = null;
-        continue;
-      }
-      const percent = Math.round(
-        (relevant.filter((r) => isTrulyCorrect(Number(r.content_score), r.cefr_level, r.input_method, r.manner_scores, passThresholdForLevel)).length /
-          relevant.length) *
-          100,
-      );
-      skillPercents[skill] = percent;
-      // The real assessment — per skill, the highest CEFR level the learner
-      // actually sustained, from which difficulty of items they got right,
-      // not just a flat percentage. Falls back to the percent-based estimate
-      // only when items were answered but none carry a cefr_level tag yet.
-      const assessed = assessSkillLevel(
-        relevant.map((r) => ({
-          cefrLevel: r.cefr_level,
-          correct: isTrulyCorrect(Number(r.content_score), r.cefr_level, r.input_method, r.manner_scores, passThresholdForLevel),
-        })),
-      );
-      skillLevels[skill] = { level: assessed.level ?? percentToCefr(percent), cappedByGap: assessed.cappedByGap };
-    }
-
-    // The headline level is assessed from every question the learner was
-    // actually SHOWN, across all skills combined — not just the ones they
-    // answered. A skipped question counts as a wrong answer here, the same
-    // as a real mistake would — but only at a level where the learner
-    // engaged with *something*. A level nobody attempted at all (every
-    // single question at that difficulty was skipped) is genuinely
-    // untested, not failed — the walk already treats an untested level as a
-    // gap, and it should stay that way here too rather than reading as a
-    // hard 0% that kills the whole climb before it can reach levels the
-    // learner actually did well on. Skipping some questions at a level
-    // you're otherwise engaging with still counts against you there, same
-    // as before — this only excuses a level with zero real attempts.
-    // (An AI grading *failure* is different — that's a service fault, not
-    // the learner's fault, so it's left out of this entirely rather than
-    // counted against them.)
-    const gradedLevels = new Set(graded.map((r) => r.cefr_level));
-    const skippedAsWrong = summaryResult.rows
-      .filter((r) => r.status === "pending" && gradedLevels.has(r.cefr_level))
-      .map((r) => ({ cefrLevel: r.cefr_level, correct: false }));
-    const answeredEvidence = graded.map((r) => ({
-      cefrLevel: r.cefr_level,
-      correct: isTrulyCorrect(Number(r.content_score), r.cefr_level, r.input_method, r.manner_scores, passThresholdForLevel),
-    }));
-    const overallAssessment = assessSkillLevel([...answeredEvidence, ...skippedAsWrong]);
-    // The fallback percentage (used only when the walk above finds no real
-    // evidence to certify any level) also has to count skips as wrong, for
-    // the same reason — otherwise a mostly-skipped test could still fall
-    // back to a percentage computed only from the few questions answered.
-    const overallPercentForLevel = Math.round((correctCount / (graded.length + pendingCount)) * 100);
-    const pooledCefrLevel: CefrLevel = overallAssessment.level ?? percentToCefr(overallPercentForLevel);
-
-    // The headline must never outrank the weakest skill that was actually
-    // tested. Pooling every skill's answers together (above) is what the
-    // walk needs to find a level at all when no single skill has enough
-    // per-level samples on its own — but taken alone, it can let a strong
-    // skill mathematically outweigh a genuinely failed one, producing a
-    // headline that contradicts the very breakdown shown right below it
-    // (e.g. 0% on Listening next to an overall "B1"). A skill nobody was
-    // tested on (null) doesn't count against this — only a skill with real,
-    // measured evidence can pull the headline down.
-    const testedSkillLevels = ALL_SKILLS.map((skill) => skillLevels[skill]?.level).filter(
-      (level): level is CefrLevel => level != null,
-    );
-    const weakestTestedSkillLevel =
-      testedSkillLevels.length > 0
-        ? testedSkillLevels.reduce((weakest, level) => (cefrRank(level) < cefrRank(weakest) ? level : weakest))
-        : null;
-    const cefrLevel: CefrLevel =
-      weakestTestedSkillLevel && cefrRank(weakestTestedSkillLevel) < cefrRank(pooledCefrLevel) ? weakestTestedSkillLevel : pooledCefrLevel;
-    // Once a weak skill has pulled the headline down below what the pooled
-    // walk found, that's the real, complete reason why — the gap caveat
-    // only makes sense when the pooled result stands as-is.
-    const cefrCappedByGap = cefrLevel === pooledCefrLevel && overallAssessment.cappedByGap;
-
-    // buildRoadmap still needs a real number per skill to rank "weakest
-    // first" for milestone ordering — an untested skill falls back to the
-    // overall percent here (an internal ranking input only, never surfaced
-    // to the learner as if it were a real per-skill score).
-    const roadmapSkillPercents = {} as Record<SkillTag, number>;
-    for (const skill of ALL_SKILLS) {
-      roadmapSkillPercents[skill] = skillPercents[skill] ?? overallPercent;
-    }
+    const { skillPercents, skillLevels, roadmapSkillPercents } = computeSkillBreakdown(graded, overallPercent);
+    const { cefrLevel, cefrCappedByGap } = computeHeadlineLevel(graded, rows, correctCount, pendingCount, skillLevels);
 
     await pool.query(
       `INSERT INTO placements (user_id, overall_percent, cefr_level, skill_percents, skill_levels) VALUES ($1, $2, $3, $4, $5)`,
       [req.user!.id, overallPercent, cefrLevel, JSON.stringify(skillPercents), JSON.stringify(skillLevels)],
     );
 
-    const profileResult = await pool.query(
-      `SELECT goal_level, exam_date, access_duration, daily_minutes_preference FROM participant_profiles WHERE user_id = $1`,
-      [req.user!.id],
-    );
-    const profile = profileResult.rows[0] ?? {};
-    const goalLevel: CefrLevel =
-      profile.goal_level && profile.goal_level !== "unsure"
-        ? profile.goal_level
-        : CEFR_LEVELS[Math.min(cefrRank(cefrLevel) + 1, CEFR_LEVELS.length - 1)];
-
-    const roadmap = buildRoadmap({
-      assessedLevel: cefrLevel,
-      goalLevel,
-      examDate: profile.exam_date ? new Date(profile.exam_date).toISOString().slice(0, 10) : null,
-      accessDuration: (profile.access_duration as AccessDuration) ?? "3months",
-      dailyMinutesPreference: profile.daily_minutes_preference ?? 30,
-      skillPercents: roadmapSkillPercents,
-    });
-
-    const roadmapResult = await pool.query(
-      `INSERT INTO roadmaps (user_id, pace, minutes_per_day, total_hours_estimate) VALUES ($1, $2, $3, $4) RETURNING id`,
-      [req.user!.id, roadmap.pace, roadmap.minutesPerDay, roadmap.totalHoursEstimate],
-    );
-    const roadmapId = roadmapResult.rows[0].id;
-
-    for (const m of roadmap.milestones) {
-      await pool.query(
-        `INSERT INTO roadmap_milestones (roadmap_id, level, label, target_day_offset, focus_skill) VALUES ($1, $2, $3, $4, $5)`,
-        [roadmapId, m.level, m.labelType, m.targetDayOffset, m.focusSkill],
-      );
-    }
+    const { goalLevel } = await saveRoadmap(req.user!.id, cefrLevel, roadmapSkillPercents);
 
     res.json({
       gradedCount: graded.length,

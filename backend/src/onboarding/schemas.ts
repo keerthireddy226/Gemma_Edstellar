@@ -11,7 +11,7 @@ export const onboardingSchema = z.object({
   scoreTarget: z.string().optional(),
   examReason: z.enum(["university", "job", "immigration", "promotion", "personal"]),
   hasAppliedForExam: z.boolean(),
-  examDate: z.string().optional().nullable(),
+  examDate: z.iso.date().optional().nullable(),
   targetPrepDays: z.number().int().positive(),
   pastAttemptsStatus: z.enum(["first", "once", "multiple"]),
   prevScore: z.string().optional(),

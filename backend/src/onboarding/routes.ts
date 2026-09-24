@@ -25,9 +25,9 @@ onboardingRouter.get("/profile", requireAuth, async (req: AuthedRequest, res, ne
 });
 
 onboardingRouter.post("/complete", requireAuth, async (req: AuthedRequest, res, next) => {
-  const body = onboardingSchema.parse(req.body);
   const client = await pool.connect();
   try {
+    const body = onboardingSchema.parse(req.body);
     await client.query("BEGIN");
 
     await client.query("UPDATE users SET first_name = $1, last_name = $2 WHERE id = $3", [
@@ -126,10 +126,11 @@ onboardingRouter.post("/complete", requireAuth, async (req: AuthedRequest, res, 
 onboardingRouter.patch("/voice-preference", requireAuth, async (req: AuthedRequest, res, next) => {
   try {
     const body = voicePreferenceSchema.parse(req.body);
-    await pool.query(`UPDATE participant_profiles SET preferred_voice = $1, updated_at = now() WHERE user_id = $2`, [
-      body.preferredVoice,
-      req.user!.id,
-    ]);
+    const result = await pool.query(
+      `UPDATE participant_profiles SET preferred_voice = $1, updated_at = now() WHERE user_id = $2 RETURNING user_id`,
+      [body.preferredVoice, req.user!.id],
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: "profile_not_found" });
     res.status(204).send();
   } catch (err) {
     next(err);
@@ -139,10 +140,11 @@ onboardingRouter.patch("/voice-preference", requireAuth, async (req: AuthedReque
 onboardingRouter.patch("/preferences", requireAuth, async (req: AuthedRequest, res, next) => {
   try {
     const body = preferencesSchema.parse(req.body);
-    await pool.query(`UPDATE participant_profiles SET spoken_prompts_enabled = $1, updated_at = now() WHERE user_id = $2`, [
-      body.spokenPromptsEnabled,
-      req.user!.id,
-    ]);
+    const result = await pool.query(
+      `UPDATE participant_profiles SET spoken_prompts_enabled = $1, updated_at = now() WHERE user_id = $2 RETURNING user_id`,
+      [body.spokenPromptsEnabled, req.user!.id],
+    );
+    if (!result.rows[0]) return res.status(404).json({ error: "profile_not_found" });
     res.status(204).send();
   } catch (err) {
     next(err);

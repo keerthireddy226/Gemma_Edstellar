@@ -1,12 +1,6 @@
-// Real AI-generated item audio (male/female, standard American accent),
-// replacing the frontend's browser-native speechSynthesis for items that
-// have been batch-generated (see ../../scripts/generateItemAudio.ts).
-// Plain REST, not the @google-cloud SDK, so this only needs a restricted
-// API key rather than a service-account credential file — same shape as
-// GEMINI_API_KEY elsewhere in this codebase. Fails closed exactly like
-// geminiFluency.ts: no key, a non-OK response, or a network error all
-// resolve to null, and the caller (the batch script) just skips that item
-// rather than crashing the whole run.
+// Real AI-generated item audio (male/female), batch-generated via
+// ../../scripts/generateItemAudio.ts. Plain REST with a restricted API key
+// (same shape as GEMINI_API_KEY) — fails closed to null on any error.
 
 export type VoiceGender = "male" | "female";
 

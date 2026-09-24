@@ -1,6 +1,6 @@
 import { api } from "@/lib/api";
 
-export type InputMethod = "mic" | "text" | "textarea" | "radio" | "two-phase";
+type InputMethod = "mic" | "text" | "textarea" | "radio" | "two-phase";
 
 export interface TestItem {
   id: string;
@@ -22,7 +22,7 @@ export interface TestItem {
   audioUrl?: string | null;
 }
 
-export interface AttemptResult {
+interface AttemptResult {
   attemptId: string;
   status: "scored" | "pending" | "failed";
   correct: boolean | null;

@@ -12,6 +12,12 @@ const ALL_SKILLS: SkillTag[] = ["listening", "speaking", "reading", "writing"];
 // otherwise a big level gap + tight deadline can inflate minutesPerDay
 // enough to ask for a long, repetitive same-skill grind in one sitting.
 const MAX_ITEMS_PER_SKILL_PER_DAY = 8;
+// Fallback average seconds-per-item for a skill with no matching item types
+// yet — shouldn't normally happen, just avoids a divide-by-zero.
+const FALLBACK_AVG_SECONDS_PER_ITEM = 60;
+// Per-session ceiling on counted practice time — a session left open and
+// resumed after a break shouldn't inflate practiceMinutes by the idle gap.
+const MAX_MINUTES_PER_SESSION = 120;
 
 // Weaker skills get proportionally more of today's practice time — same
 // "practice your weakest skill first" idea the roadmap milestones use.
@@ -139,7 +145,9 @@ dashboardRouter.get("/", requireAuth, async (req: AuthedRequest, res, next) => {
     for (const skill of ALL_SKILLS) {
       const matching = itemTypesResult.rows.filter((r) => (r.skills as string[]).includes(skill));
       avgSecondsPerSkill[skill] =
-        matching.length > 0 ? matching.reduce((sum, r) => sum + r.estimated_seconds, 0) / matching.length : 60;
+        matching.length > 0
+          ? matching.reduce((sum, r) => sum + r.estimated_seconds, 0) / matching.length
+          : FALLBACK_AVG_SECONDS_PER_ITEM;
     }
 
     const attemptsTodayResult = await pool.query(
@@ -178,10 +186,10 @@ dashboardRouter.get("/", requireAuth, async (req: AuthedRequest, res, next) => {
     // submitted_at are both written at submission time), but the session's
     // own started_at/completed_at span is genuine.
     const practiceMinutes = Math.round(
-      completedSessionsResult.rows.reduce(
-        (sum, r) => sum + (new Date(r.completed_at).getTime() - new Date(r.started_at).getTime()) / 60_000,
-        0,
-      ),
+      completedSessionsResult.rows.reduce((sum, r) => {
+        const minutes = (new Date(r.completed_at).getTime() - new Date(r.started_at).getTime()) / 60_000;
+        return sum + Math.min(minutes, MAX_MINUTES_PER_SESSION);
+      }, 0),
     );
     const streakDays = computeStreakDays(completedSessionsResult.rows.map((r) => dayKey(new Date(r.completed_at))));
 

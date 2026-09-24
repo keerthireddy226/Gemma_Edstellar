@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import type { SkillTag, TestItem } from "@/hooks/useTestSession";
+import type { SkillTag, TestItem } from "@/api/testSession";
 
 export interface PracticeSummary {
   gradedCount: number;

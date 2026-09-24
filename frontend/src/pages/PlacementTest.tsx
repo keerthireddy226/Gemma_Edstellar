@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Volume2, Mic, Square, CheckCircle2, Clock, X } from "lucide-react";
+import { Volume2, CheckCircle2, Clock, X } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
 import { Button } from "@/components/Button";
 import {
@@ -11,18 +11,18 @@ import {
   completeSession,
   type TestItem,
   type SessionSummary,
-} from "@/hooks/useTestSession";
+} from "@/api/testSession";
 import { useVoiceRecorder, blobToBase64 } from "@/hooks/useVoiceRecorder";
 import { playSpokenAudio } from "@/lib/playSpokenAudio";
 import { VoiceCheck } from "@/components/VoiceCheck";
-import { getVoiceEnrollmentStatus } from "@/hooks/useVoiceCheck";
+import { AnswerInputControl } from "@/components/AnswerInputControl";
+import { getVoiceEnrollmentStatus } from "@/api/voiceCheck";
 import {
   AUDIO_FIRST_TYPES,
   SKILL_BADGE_CLASS,
   ITEM_TYPE_META,
   getSpokenSegments,
   getVisibleText,
-  getOptions,
   getPassageAndQuestion,
 } from "@/lib/testItemDisplay";
 
@@ -456,91 +456,17 @@ export function PlacementTest() {
               </p>
             )}
 
-            {current.inputMethod === "radio" ? (
-              <div className="flex flex-col gap-2.5">
-                {getOptions(current).map((option, i) => {
-                  const letter = String.fromCharCode(65 + i);
-                  const selected = answerText === String(i);
-                  return (
-                    <button
-                      key={i}
-                      onClick={() => setAnswerText(String(i))}
-                      className={`flex items-center gap-3 text-left rounded-card border-2 px-4 py-3 text-sm font-medium transition-all cursor-pointer ${
-                        selected
-                          ? "border-accent bg-accent/10 text-ink shadow-sm"
-                          : "border-rule hover:border-rule-strong hover:bg-paper-warm/60"
-                      }`}
-                    >
-                      <span
-                        className={`h-7 w-7 shrink-0 rounded-full flex items-center justify-center text-xs font-bold ${
-                          selected ? "bg-accent text-white" : "bg-paper-warm text-muted"
-                        }`}
-                      >
-                        {letter}
-                      </span>
-                      {option}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : current.inputMethod === "mic" ? (
-              <div className="flex flex-col items-center gap-3">
-                <button
-                  onClick={handleToggleRecord}
-                  disabled={playing || (needsAudioFirst && !hasPlayed)}
-                  className={`h-14 w-14 rounded-full flex items-center justify-center shadow-[0_8px_18px_-8px_rgba(0,0,0,0.3)] transition-transform hover:scale-105 disabled:opacity-60 disabled:hover:scale-100 cursor-pointer disabled:cursor-not-allowed ${
-                    recording ? "bg-error text-white" : "bg-navy text-lime btn-shine"
-                  }`}
-                >
-                  {recording ? <Square size={20} /> : <Mic size={22} />}
-                </button>
-
-                {recording ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-error">{t("placementTest.stopRecording")}</span>
-                    <span className="flex items-center gap-1">
-                      {[0, 1, 2, 3, 4].map((i) => (
-                        <span
-                          key={i}
-                          className="recording-dot h-2 w-2 rounded-full bg-error"
-                          style={{ animationDelay: `${i * 0.15}s` }}
-                        />
-                      ))}
-                    </span>
-                  </div>
-                ) : (
-                  <span className="text-sm font-medium text-muted">
-                    {audioBlobUrl ? t("placementTest.recordAgain") : t("placementTest.record")}
-                  </span>
-                )}
-
-                {audioBlobUrl && !recording && (
-                  <div className="flex flex-col items-center gap-2 w-full">
-                    <span className="flex items-center gap-1.5 text-sm text-success">
-                      <CheckCircle2 size={18} />
-                      {t("placementTest.audioSaved")}
-                    </span>
-                    <audio controls src={audioBlobUrl} className="w-full h-9" />
-                  </div>
-                )}
-              </div>
-            ) : current.inputMethod === "textarea" ? (
-              <textarea
-                value={answerText}
-                onChange={(e) => setAnswerText(e.target.value)}
-                placeholder={t("placementTest.answerPlaceholder")}
-                className="w-full rounded-card border border-rule bg-surface px-4 py-3 text-sm text-ink shadow-sm focus:border-navy focus:outline-none transition-colors"
-                rows={5}
-              />
-            ) : (
-              <input
-                type="text"
-                value={answerText}
-                onChange={(e) => setAnswerText(e.target.value)}
-                placeholder={t("placementTest.answerPlaceholder")}
-                className="w-full rounded-card border border-rule bg-surface px-4 py-3 text-sm text-ink shadow-sm focus:border-navy focus:outline-none transition-colors"
-              />
-            )}
+            <AnswerInputControl
+              item={current}
+              answerText={answerText}
+              onAnswerTextChange={setAnswerText}
+              recording={recording}
+              onToggleRecord={handleToggleRecord}
+              audioBlobUrl={audioBlobUrl}
+              needsAudioFirst={needsAudioFirst}
+              hasPlayed={hasPlayed}
+              playing={playing}
+            />
 
             {error && <p className="text-sm text-error text-center">{error}</p>}
           </div>

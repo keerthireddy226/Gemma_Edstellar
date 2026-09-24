@@ -22,9 +22,9 @@ import { VoiceSection } from "@/components/VoiceSection";
 import { Button } from "@/components/Button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useAuth } from "@/hooks/useAuth";
-import { getVoiceEnrollmentStatus } from "@/hooks/useVoiceCheck";
-import { getOnboardingProfile, updateSpokenPromptsPreference, type OnboardingProfile } from "@/hooks/useOnboarding";
-import { getRoadmap, type RoadmapData } from "@/hooks/useRoadmap";
+import { getVoiceEnrollmentStatus } from "@/api/voiceCheck";
+import { getOnboardingProfile, updateSpokenPromptsPreference, type OnboardingProfile } from "@/api/onboarding";
+import { getRoadmap, type RoadmapData } from "@/api/roadmap";
 import { ROUTES } from "@/constants/routes";
 
 // A colored icon-in-squircle badge, reused as the visual anchor for every

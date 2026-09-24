@@ -14,6 +14,14 @@ import { dashboardRouter } from "./dashboard/routes.js";
 import { practiceRouter } from "./practice/routes.js";
 import { voiceRouter } from "./voice/routes.js";
 import { coachRouter } from "./coach/routes.js";
+import { requireAuth } from "./auth/middleware.js";
+
+// An unset FRONTEND_URL would make cors() below fall back to reflecting any
+// origin (its documented behavior for a falsy `origin`) — failing loudly
+// here beats silently opening credentialed CORS to every site.
+if (!process.env.FRONTEND_URL) {
+  throw new Error("FRONTEND_URL must be set");
+}
 
 const app = express();
 
@@ -27,7 +35,9 @@ app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
 app.use(express.json({ limit: "5mb" }));
 app.use(cookieParser());
 app.use(morgan("dev"));
-app.use("/uploads", express.static("uploads"));
+// Voice enrollment samples and attempt recordings live here — requiring a
+// real session (not just an unguessable filename) before serving any of it.
+app.use("/uploads", requireAuth, express.static("uploads"));
 
 app.get("/api/health", async (_req, res, next) => {
   try {

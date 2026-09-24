@@ -19,14 +19,14 @@ import { ROUTES } from "@/constants/routes";
 import { Button } from "@/components/Button";
 import { Mascot } from "@/components/Mascot";
 import { MotivationalBar } from "@/components/MotivationalBar";
-import { getRoadmap, type RoadmapData, type RoadmapMilestone } from "@/hooks/useRoadmap";
-import { getDashboard } from "@/hooks/useDashboard";
+import { getRoadmap, type RoadmapData, type RoadmapMilestone } from "@/api/roadmap";
+import { getDashboard } from "@/api/dashboard";
 import { meetsGoal, percentToCefr } from "@/lib/cefr";
 import { ApiError } from "@/lib/api";
 import { ProgressRing } from "@/components/ProgressRing";
 import { SKILL_RING_COLOR, SKILL_TINT_CLASSES } from "@/lib/skillTints";
 import { WORD_BANK, IDIOM_BANK, WORD_CHALLENGES } from "@/data/dailyContent";
-import type { SkillTag, CefrLevel } from "@/hooks/useTestSession";
+import type { SkillTag, CefrLevel } from "@/api/testSession";
 
 const SKILL_ICONS: Record<SkillTag, typeof Headphones> = {
   listening: Headphones,

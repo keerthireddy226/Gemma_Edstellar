@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getRoadmap } from "@/hooks/useRoadmap";
+import { getRoadmap } from "@/api/roadmap";
 
 // Sidebar nav items past Roadmap/Overview stay locked until a placement
 // result exists — mirrors the same signal the Roadmap page itself uses.

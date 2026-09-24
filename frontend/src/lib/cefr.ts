@@ -1,6 +1,6 @@
-import type { CefrLevel } from "@/hooks/useTestSession";
+import type { CefrLevel } from "@/api/testSession";
 
-export const CEFR_LEVELS: CefrLevel[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
+const CEFR_LEVELS: CefrLevel[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
 export function cefrRank(level: CefrLevel): number {
   return CEFR_LEVELS.indexOf(level);

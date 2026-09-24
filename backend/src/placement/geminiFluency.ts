@@ -1,20 +1,10 @@
-// Real audio-based pronunciation/fluency scoring — the thing Claude
-// structurally cannot do (see aiGrading.ts's header). Gemini accepts audio
-// directly, so unlike the free signals in fluencySignals.ts (which only
-// ever look at the transcript and the recording's length), this actually
-// listens to the recording itself.
-//
-// This is a supplementary "manner" signal, not a replacement for content
-// grading — it never decides right/wrong, and it fails closed exactly like
-// aiGrading.ts: any missing key, network error, or unparseable response
-// returns null, and the caller just omits it rather than failing the
-// attempt submission.
+// Real audio-based pronunciation/fluency scoring, via Gemini (unlike the
+// text-only free signals in fluencySignals.ts) — a supplementary "manner"
+// signal, never a right/wrong verdict, fails closed like aiGrading.ts.
 import { GoogleGenAI } from "@google/genai";
 
-// Verified directly against the live API before picking this: the older
-// "gemini-2.5-flash-lite" name (still the current published price sheet's
-// example) is no longer available to new callers — Google's own 404 points
-// callers at this one instead. Confirmed working with a real request.
+// "gemini-2.5-flash-lite" (still in Google's published price sheet) 404s for
+// new callers — this is the model Google's own error pointed to instead.
 const GEMINI_MODEL = "gemini-3.5-flash-lite";
 
 let client: GoogleGenAI | null = null;
@@ -55,16 +45,8 @@ export async function scoreAudioFluency(
   if (!ai) return null;
 
   const level = cefrLevel ?? "B1";
-  // Deliberately does NOT tell the model what the learner was supposed to
-  // say. Tested directly: giving it the expected text made it anchor on
-  // "they probably said this" instead of critically checking the audio —
-  // on six trials of the exact same silent recording, that version
-  // hallucinated confident pronunciation feedback four times. Asking it to
-  // verify real speech is present FIRST, with no expected text to anchor
-  // on, got 6/6 correct on the same silent clip and still scored real
-  // recordings sensibly (0.8–0.9, consistent, properly on the stated 0–1
-  // scale). Content correctness doesn't need this call anyway — that's
-  // graded separately, from the transcript, in aiGrading.ts.
+  // Deliberately doesn't tell the model the expected text — that made it anchor on "they probably said this"
+  // and hallucinate on silence (4/6 trials); verifying real speech is present first fixed it (0/6).
   const prompt = `Listen carefully to the attached audio. First, determine: does this recording contain any actual audible human speech at all? If the recording is silent, contains only noise/static, or has no discernible spoken words, you must respond with pronunciation 0, fluency 0, and clearly state no speech was detected — do not guess or assume speech occurred. Only if you can actually hear real spoken words, judge the pronunciation and fluency of what you genuinely hear (a ${level}-level English learner's recording) — how it sounds, not the words' content. Score both pronunciation and fluency on a scale from 0 (worst) to 1 (excellent, native-like) — never use any other scale.`;
 
   try {

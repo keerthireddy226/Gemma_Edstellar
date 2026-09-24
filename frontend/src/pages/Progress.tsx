@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TrendingUp, TrendingDown, Minus, Trophy } from "lucide-react";
-import { getDailyProgress, type DailyProgress, type DailyStat } from "@/hooks/useDashboard";
+import { getDailyProgress, type DailyProgress, type DailyStat } from "@/api/dashboard";
 import { ApiError } from "@/lib/api";
 import { MotivationalBar } from "@/components/MotivationalBar";
 

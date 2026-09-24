@@ -5,7 +5,7 @@ import type { LucideIcon } from "lucide-react";
 import { GraduationCap, LayoutDashboard, BookOpen, ChevronDown, Headphones, Mic, PenLine, MessageCircle, ClipboardList, User, Map, BarChart3 } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
 import { useHasPlacement } from "@/hooks/useHasPlacement";
-import type { SkillTag } from "@/hooks/useTestSession";
+import type { SkillTag } from "@/api/testSession";
 
 const MODULE_SKILLS: SkillTag[] = ["listening", "speaking", "reading", "writing"];
 const MODULE_SKILL_ICONS: Record<SkillTag, LucideIcon> = {

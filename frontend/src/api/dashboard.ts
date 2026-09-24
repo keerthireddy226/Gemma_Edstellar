@@ -1,5 +1,5 @@
 import { api } from "@/lib/api";
-import type { SkillTag } from "@/hooks/useTestSession";
+import type { SkillTag } from "@/api/testSession";
 
 export type ModuleStatus = "not_started" | "in_progress" | "completed";
 
