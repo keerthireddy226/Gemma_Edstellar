@@ -393,7 +393,9 @@
       "decline": "अभी नहीं"
     },
     "enroll": {
-      "title": "अपना वॉइस सैंपल रिकॉर्ड करें"
+      "title": "अपना वॉइस सैंपल रिकॉर्ड करें",
+      "takeLabel": "टेक {{current}} / {{total}}",
+      "takeOneSaved": "बढ़िया — कृपया इसे एक बार और पढ़ें ताकि हम पक्का कर सकें कि यह वाकई आप हैं।"
     },
     "verify": {
       "title": "त्वरित वॉइस चेक",
@@ -409,13 +411,14 @@
     },
     "record": {
       "instruction": "माइक्रोफ़ोन पर टैप करें और नीचे दिया गया वाक्य ज़ोर से पढ़ें, फिर रोकने के लिए फिर से टैप करें।",
-      "phraseEnroll": "My voice is my identity for this test.",
-      "phraseVerify": "I am ready to start my test today.",
+      "phraseEnroll": "My voice is my identity for this test — every word I say here helps the system learn what I sound like.",
+      "phraseVerify": "I am ready to start my test today, and I understand that my voice will be checked carefully before I begin.",
       "start": "रिकॉर्ड करने के लिए टैप करें",
       "recording": "रिकॉर्ड हो रहा है…",
       "saving": "आपका वॉइस सैंपल सहेजा जा रहा है…",
       "verifying": "आपकी आवाज़ की पुष्टि हो रही है…",
       "error": "कुछ गलत हो गया। आप फिर से कोशिश कर सकते हैं, या अभी के लिए छोड़ सकते हैं।",
+      "tooShort": "वह बहुत छोटा था, ठीक से पहचानने के लिए — कृपया रोकने से पहले पूरा वाक्य सामान्य गति से पढ़ें।",
       "skip": "अभी के लिए छोड़ें"
     }
   },

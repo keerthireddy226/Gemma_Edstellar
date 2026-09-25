@@ -393,7 +393,9 @@
       "decline": "Not now"
     },
     "enroll": {
-      "title": "Record your voice sample"
+      "title": "Record your voice sample",
+      "takeLabel": "Take {{current}} of {{total}}",
+      "takeOneSaved": "Got it — please read it once more so we can be sure it's really you."
     },
     "verify": {
       "title": "Quick voice check",
@@ -409,13 +411,14 @@
     },
     "record": {
       "instruction": "Tap the microphone and read the sentence below aloud, then tap again to stop.",
-      "phraseEnroll": "My voice is my identity for this test.",
-      "phraseVerify": "I am ready to start my test today.",
+      "phraseEnroll": "My voice is my identity for this test — every word I say here helps the system learn what I sound like.",
+      "phraseVerify": "I am ready to start my test today, and I understand that my voice will be checked carefully before I begin.",
       "start": "Tap to record",
       "recording": "Recording…",
       "saving": "Saving your voice sample…",
       "verifying": "Verifying your voice…",
       "error": "Something went wrong. You can try again, or skip for now.",
+      "tooShort": "That was too short to read reliably — please read the full sentence at a natural pace before stopping.",
       "skip": "Skip for now"
     }
   },

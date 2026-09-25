@@ -2,8 +2,18 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Mic, Square, CheckCircle2, ArrowLeft } from "lucide-react";
 import { useVoiceRecorder, blobToBase64 } from "@/hooks/useVoiceRecorder";
-import { enrollVoice, verifyVoice, type VoiceCheckPurpose } from "@/api/voiceCheck";
+import { enrollVoice, verifyVoice, type VoiceCheckPurpose, type VoiceSample } from "@/api/voiceCheck";
 import { Button } from "@/components/Button";
+
+// See backend/src/voice/speakerVerification.ts's MIN_AUDIO_DURATION_SECONDS —
+// kept a bit stricter here (client-enforced) than that server-side backstop.
+// The enroll/verify phrases are written to take ~8-10s to read naturally, so
+// this floor sits comfortably below a normal reading, well above the ~2-3s
+// zone that produced unreliable embeddings in testing.
+const MIN_RECORDING_MS = 5500;
+// Enrollment records the phrase twice — embeddings averaged server-side
+// into one voiceprint, to cancel out any single take's own noise/idiosyncrasy.
+const REQUIRED_ENROLLMENT_TAKES = 2;
 
 interface VoiceCheckProps {
   mode: "enroll" | "verify";
@@ -25,30 +35,50 @@ export function VoiceCheck({ mode, purpose, onComplete, onBack }: VoiceCheckProp
   const [verified, setVerified] = useState(false);
   // Holds the verify result until the learner taps "Proceed to test" — advancing stays a deliberate action.
   const [pendingVoiceCheckId, setPendingVoiceCheckId] = useState<string | undefined>(undefined);
+  // Enroll-mode only: takes recorded so far, before both are submitted together.
+  const [enrollTakes, setEnrollTakes] = useState<VoiceSample[]>([]);
 
-  async function handleSubmit(blob: Blob, mimeType: string) {
+  async function submitVerify(blob: Blob, mimeType: string) {
     setSubmitting(true);
     setError(null);
     setVerifyBlocked(null);
     try {
       const audioBase64 = await blobToBase64(blob);
-      if (mode === "enroll") {
-        await enrollVoice(audioBase64, mimeType);
-        onComplete({});
-      } else {
-        const result = await verifyVoice(purpose!, audioBase64, mimeType);
-        if (!result.allowed) {
-          setVerifyBlocked(
-            result.decision === "error" ? t("voiceCheck.verify.noSpeechError") : t("voiceCheck.verify.mismatchError"),
-          );
-          setSubmitting(false);
-          return;
-        }
-        setVerified(true);
+      const result = await verifyVoice(purpose!, audioBase64, mimeType);
+      if (!result.allowed) {
+        setVerifyBlocked(
+          result.decision === "error" ? t("voiceCheck.verify.noSpeechError") : t("voiceCheck.verify.mismatchError"),
+        );
         setSubmitting(false);
-        setPendingVoiceCheckId(result.voiceCheckId);
+        return;
       }
+      setVerified(true);
+      setSubmitting(false);
+      setPendingVoiceCheckId(result.voiceCheckId);
     } catch {
+      setError(t("voiceCheck.record.error"));
+      setSubmitting(false);
+    }
+  }
+
+  async function submitEnrollment(samples: VoiceSample[]) {
+    setSubmitting(true);
+    setError(null);
+    setVerifyBlocked(null);
+    try {
+      const result = await enrollVoice(samples);
+      if (result.status !== "enrolled") {
+        // Same "too short to read reliably" cause as a too-short verify
+        // clip (see MIN_AUDIO_DURATION_SECONDS) — block and ask to redo
+        // both takes rather than silently treating this as enrolled.
+        setEnrollTakes([]);
+        setVerifyBlocked(t("voiceCheck.record.tooShort"));
+        setSubmitting(false);
+        return;
+      }
+      onComplete({});
+    } catch {
+      setEnrollTakes([]);
       setError(t("voiceCheck.record.error"));
       setSubmitting(false);
     }
@@ -57,7 +87,26 @@ export function VoiceCheck({ mode, purpose, onComplete, onBack }: VoiceCheckProp
   async function handleToggleRecord() {
     if (recording) {
       const result = await stop();
-      if (result.blob) await handleSubmit(result.blob, result.mimeType);
+      if (!result.blob) return;
+      // Caught here, before ever hitting the network — a same-speaker
+      // recording under MIN_RECORDING_SECONDS produced wildly inconsistent
+      // match scores in testing (~0.34 to ~0.87 for the same enrolled
+      // voice), so this is enforced up front rather than left to chance.
+      if (result.durationMs < MIN_RECORDING_MS) {
+        setVerifyBlocked(t("voiceCheck.record.tooShort"));
+        return;
+      }
+      if (mode === "enroll") {
+        const audioBase64 = await blobToBase64(result.blob);
+        const takes = [...enrollTakes, { audioBase64, audioMimeType: result.mimeType }];
+        if (takes.length < REQUIRED_ENROLLMENT_TAKES) {
+          setEnrollTakes(takes);
+          return;
+        }
+        await submitEnrollment(takes);
+      } else {
+        await submitVerify(result.blob, result.mimeType);
+      }
     } else {
       setError(null);
       setVerifyBlocked(null);
@@ -83,7 +132,14 @@ export function VoiceCheck({ mode, purpose, onComplete, onBack }: VoiceCheckProp
         {mode === "verify" && purpose && (
           <p className="text-sm text-muted mt-1.5">{t(`voiceCheck.verify.subtitle.${purpose}`)}</p>
         )}
-        <p className="text-sm text-muted mt-1.5">{t("voiceCheck.record.instruction")}</p>
+        {mode === "enroll" && (
+          <p className="text-sm font-semibold text-navy-deep mt-1.5">
+            {t("voiceCheck.enroll.takeLabel", { current: enrollTakes.length + 1, total: REQUIRED_ENROLLMENT_TAKES })}
+          </p>
+        )}
+        <p className="text-sm text-muted mt-1.5">
+          {mode === "enroll" && enrollTakes.length > 0 ? t("voiceCheck.enroll.takeOneSaved") : t("voiceCheck.record.instruction")}
+        </p>
       </div>
 
       {verified ? (

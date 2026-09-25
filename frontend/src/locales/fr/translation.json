@@ -393,7 +393,9 @@
       "decline": "Pas maintenant"
     },
     "enroll": {
-      "title": "Enregistrez votre échantillon vocal"
+      "title": "Enregistrez votre échantillon vocal",
+      "takeLabel": "Prise {{current}} sur {{total}}",
+      "takeOneSaved": "C'est noté — merci de le relire une fois de plus pour confirmer que c'est bien vous."
     },
     "verify": {
       "title": "Vérification vocale rapide",
@@ -409,13 +411,14 @@
     },
     "record": {
       "instruction": "Appuyez sur le micro et lisez la phrase ci-dessous à voix haute, puis appuyez à nouveau pour arrêter.",
-      "phraseEnroll": "My voice is my identity for this test.",
-      "phraseVerify": "I am ready to start my test today.",
+      "phraseEnroll": "My voice is my identity for this test — every word I say here helps the system learn what I sound like.",
+      "phraseVerify": "I am ready to start my test today, and I understand that my voice will be checked carefully before I begin.",
       "start": "Appuyez pour enregistrer",
       "recording": "Enregistrement…",
       "saving": "Enregistrement de votre échantillon vocal…",
       "verifying": "Vérification de votre voix…",
       "error": "Une erreur s'est produite. Vous pouvez réessayer, ou passer pour l'instant.",
+      "tooShort": "C'était trop court pour être lu de manière fiable — veuillez lire la phrase entière à un rythme naturel avant d'arrêter.",
       "skip": "Passer pour l'instant"
     }
   },

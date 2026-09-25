@@ -393,7 +393,9 @@
       "decline": "ఇప్పుడు వద్దు"
     },
     "enroll": {
-      "title": "మీ వాయిస్ నమూనాను రికార్డ్ చేయండి"
+      "title": "మీ వాయిస్ నమూనాను రికార్డ్ చేయండి",
+      "takeLabel": "టేక్ {{current}} / {{total}}",
+      "takeOneSaved": "బాగుంది — ఇది నిజంగా మీరేనని నిర్ధారించుకోవడానికి దయచేసి దీన్ని మరోసారి చదవండి."
     },
     "verify": {
       "title": "త్వరిత వాయిస్ చెక్",
@@ -409,13 +411,14 @@
     },
     "record": {
       "instruction": "మైక్రోఫోన్‌ను నొక్కి దిగువ వాక్యాన్ని బిగ్గరగా చదవండి, తర్వాత ఆపడానికి మళ్ళీ నొక్కండి.",
-      "phraseEnroll": "My voice is my identity for this test.",
-      "phraseVerify": "I am ready to start my test today.",
+      "phraseEnroll": "My voice is my identity for this test — every word I say here helps the system learn what I sound like.",
+      "phraseVerify": "I am ready to start my test today, and I understand that my voice will be checked carefully before I begin.",
       "start": "రికార్డ్ చేయడానికి నొక్కండి",
       "recording": "రికార్డ్ అవుతోంది…",
       "saving": "మీ వాయిస్ నమూనా సేవ్ చేయబడుతోంది…",
       "verifying": "మీ వాయిస్ ధృవీకరించబడుతోంది…",
       "error": "ఏదో తప్పు జరిగింది. మీరు మళ్ళీ ప్రయత్నించవచ్చు, లేదా ఇప్పుడు వదిలేయవచ్చు.",
+      "tooShort": "అది నమ్మదగినంతగా చదవడానికి చాలా చిన్నదిగా ఉంది — దయచేసి ఆపే ముందు పూర్తి వాక్యాన్ని సహజ వేగంతో చదవండి.",
       "skip": "ఇప్పుడు వదిలేయండి"
     }
   },

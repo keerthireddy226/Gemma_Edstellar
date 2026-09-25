@@ -9,7 +9,15 @@ import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import { pool } from "../db.js";
 import { requireAuth, type AuthedRequest } from "../auth/middleware.js";
-import { computeEmbedding, cosineSimilarity, embeddingToBuffer, bufferToEmbedding, MATCH_THRESHOLD } from "./speakerVerification.js";
+import {
+  computeEmbedding,
+  cosineSimilarity,
+  averageEmbeddings,
+  embeddingToBuffer,
+  bufferToEmbedding,
+  isCompatibleEmbedding,
+  MATCH_THRESHOLD,
+} from "./speakerVerification.js";
 
 export const voiceRouter = Router();
 
@@ -33,18 +41,23 @@ function extFromMime(mimeType: string | undefined): string {
   return mimeType?.includes("mp4") ? "m4a" : "webm";
 }
 
+const REQUIRED_ENROLLMENT_TAKES = 2;
+
 const enrollmentSchema = z.object({
   consentGiven: z.literal(true),
-  audioBase64: z.string(),
-  audioMimeType: z.string().optional(),
+  // 2 separate takes of the phrase, embeddings averaged into one voiceprint
+  // — cancels out per-take noise (nerves, mic position, a stray sound)
+  // instead of permanently trusting whichever single take happened to be
+  // recorded at setup (see speakerVerification.ts's averageEmbeddings).
+  samples: z
+    .array(z.object({ audioBase64: z.string(), audioMimeType: z.string().optional() }))
+    .length(REQUIRED_ENROLLMENT_TAKES),
 });
 
 voiceRouter.post("/enrollment", requireAuth, voiceCheckLimiter, async (req: AuthedRequest, res, next) => {
   const client = await pool.connect();
   try {
     const body = enrollmentSchema.parse(req.body);
-    const audioBuffer = Buffer.from(body.audioBase64, "base64");
-    const ext = extFromMime(body.audioMimeType);
 
     await client.query("BEGIN");
 
@@ -58,9 +71,11 @@ voiceRouter.post("/enrollment", requireAuth, voiceCheckLimiter, async (req: Auth
     );
     const consentRecordId = consentResult.rows[0].id;
 
-    const embedding = await computeEmbedding(audioBuffer, ext);
+    const embeddings = await Promise.all(
+      body.samples.map((s) => computeEmbedding(Buffer.from(s.audioBase64, "base64"), extFromMime(s.audioMimeType))),
+    );
 
-    if (!embedding) {
+    if (embeddings.some((e) => !e)) {
       // Fails open, same spirit as geminiFluency.ts: the consent record
       // still stands (they did consent), but nothing blocks the rest of
       // the app — the learner can just retry enrollment later.
@@ -74,17 +89,24 @@ voiceRouter.post("/enrollment", requireAuth, voiceCheckLimiter, async (req: Auth
       return res.status(200).json({ status: "failed" });
     }
 
+    const [embeddingA, embeddingB] = embeddings as Float32Array[];
+    const embedding = averageEmbeddings(embeddingA, embeddingB);
+
     await mkdir(ENROLLMENT_UPLOADS_DIR, { recursive: true });
-    const sampleUri = `/uploads/voice-enrollment/${req.user!.id}.${ext}`;
-    await writeFile(path.join(ENROLLMENT_UPLOADS_DIR, `${req.user!.id}.${ext}`), audioBuffer);
+    const sampleUris = body.samples.map((s, i) => {
+      const ext = extFromMime(s.audioMimeType);
+      const fileName = `${req.user!.id}-${i + 1}.${ext}`;
+      return { uri: `/uploads/voice-enrollment/${fileName}`, fileName, buffer: Buffer.from(s.audioBase64, "base64") };
+    });
+    await Promise.all(sampleUris.map((s) => writeFile(path.join(ENROLLMENT_UPLOADS_DIR, s.fileName), s.buffer)));
 
     await client.query(
-      `INSERT INTO voice_enrollments (user_id, embedding, status, sample_uri, consent_record_id)
-       VALUES ($1, $2, 'enrolled', $3, $4)
+      `INSERT INTO voice_enrollments (user_id, embedding, status, sample_uri, sample_uri_2, consent_record_id)
+       VALUES ($1, $2, 'enrolled', $3, $4, $5)
        ON CONFLICT (user_id) DO UPDATE SET
          embedding = EXCLUDED.embedding, status = 'enrolled', sample_uri = EXCLUDED.sample_uri,
-         consent_record_id = EXCLUDED.consent_record_id, updated_at = now()`,
-      [req.user!.id, embeddingToBuffer(embedding), sampleUri, consentRecordId],
+         sample_uri_2 = EXCLUDED.sample_uri_2, consent_record_id = EXCLUDED.consent_record_id, updated_at = now()`,
+      [req.user!.id, embeddingToBuffer(embedding), sampleUris[0].uri, sampleUris[1].uri, consentRecordId],
     );
 
     await client.query("COMMIT");
@@ -99,8 +121,13 @@ voiceRouter.post("/enrollment", requireAuth, voiceCheckLimiter, async (req: Auth
 
 voiceRouter.get("/enrollment/status", requireAuth, async (req: AuthedRequest, res, next) => {
   try {
-    const result = await pool.query(`SELECT status FROM voice_enrollments WHERE user_id = $1`, [req.user!.id]);
-    res.json({ enrolled: result.rows[0]?.status === "enrolled" });
+    const result = await pool.query(`SELECT status, embedding FROM voice_enrollments WHERE user_id = $1`, [req.user!.id]);
+    const row = result.rows[0];
+    // An embedding left over from a since-replaced model (see
+    // speakerVerification.ts) can't be compared against — treat it the
+    // same as never having enrolled, so the learner is prompted to redo it.
+    const enrolled = row?.status === "enrolled" && isCompatibleEmbedding(row.embedding);
+    res.json({ enrolled });
   } catch (err) {
     next(err);
   }
@@ -126,8 +153,10 @@ voiceRouter.post("/verify", requireAuth, voiceCheckLimiter, async (req: AuthedRe
     const sampleUri = `/uploads/voice-check/${fileName}`;
     await writeFile(path.join(CHECK_UPLOADS_DIR, fileName), audioBuffer);
 
-    // No/failed enrollment — no voiceprint to check against, so let them through.
-    if (!enrollment || enrollment.status !== "enrolled") {
+    // No/failed enrollment, or one left over from a since-replaced model
+    // (see speakerVerification.ts) — no voiceprint to check against, so let
+    // them through, same as ever.
+    if (!enrollment || enrollment.status !== "enrolled" || !isCompatibleEmbedding(enrollment.embedding)) {
       const result = await pool.query(
         `INSERT INTO voice_check_results (user_id, purpose, decision, sample_uri, flagged_for_review)
          VALUES ($1, $2, 'error', $3, true) RETURNING id`,

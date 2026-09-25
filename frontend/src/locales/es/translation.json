@@ -393,7 +393,9 @@
       "decline": "Ahora no"
     },
     "enroll": {
-      "title": "Graba tu muestra de voz"
+      "title": "Graba tu muestra de voz",
+      "takeLabel": "Toma {{current}} de {{total}}",
+      "takeOneSaved": "Listo — por favor léelo una vez más para confirmar que eres tú."
     },
     "verify": {
       "title": "Verificación rápida de voz",
@@ -409,13 +411,14 @@
     },
     "record": {
       "instruction": "Toca el micrófono y lee en voz alta la siguiente frase, luego toca de nuevo para detener.",
-      "phraseEnroll": "My voice is my identity for this test.",
-      "phraseVerify": "I am ready to start my test today.",
+      "phraseEnroll": "My voice is my identity for this test — every word I say here helps the system learn what I sound like.",
+      "phraseVerify": "I am ready to start my test today, and I understand that my voice will be checked carefully before I begin.",
       "start": "Toca para grabar",
       "recording": "Grabando…",
       "saving": "Guardando tu muestra de voz…",
       "verifying": "Verificando tu voz…",
       "error": "Algo salió mal. Puedes intentarlo de nuevo, u omitir por ahora.",
+      "tooShort": "Eso fue demasiado corto para leerse de forma confiable — por favor lee la frase completa a un ritmo natural antes de detener.",
       "skip": "Omitir por ahora"
     }
   },
