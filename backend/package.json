@@ -9,6 +9,7 @@
     "start": "node dist/index.js",
     "migrate": "node-pg-migrate",
     "generate-item-audio": "tsx scripts/generateItemAudio.ts",
+    "analyze-voice-lab": "tsx scripts/analyzeVoiceLab.ts",
     "setup-voice-model": "bash scripts/download-speaker-model.sh",
     "lint": "oxlint"
   },
@@ -20,6 +21,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
     "@google/genai": "^2.23.0",
+    "@picovoice/eagle-node": "^3.0.1",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",

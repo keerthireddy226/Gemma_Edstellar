@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Volume2, Mic, CheckCircle2, ArrowLeft, Clock, Headphones, BookOpen, PenLine, ChevronRight } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
@@ -21,8 +21,6 @@ import {
 import type { TestItem, SkillTag } from "@/api/testSession";
 import { useVoiceRecorder, blobToBase64 } from "@/hooks/useVoiceRecorder";
 import { playSpokenAudio } from "@/lib/playSpokenAudio";
-import { VoiceCheck } from "@/components/VoiceCheck";
-import { getVoiceEnrollmentStatus } from "@/api/voiceCheck";
 import { AnswerInputControl } from "@/components/AnswerInputControl";
 import {
   AUDIO_FIRST_TYPES,
@@ -347,7 +345,6 @@ function SetPicker({
 export function Modules() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { recording, start: startRecording, stop: stopRecording } = useVoiceRecorder();
 
@@ -428,17 +425,14 @@ export function Modules() {
   // file yet when a start is actually requested, redirect to enroll (with
   // consent) first, rather than only ever showing the verify step — this
   // page has no upstream "Placement.tsx"-style gate of its own to rely on.
-  const [voiceEnrolled, setVoiceEnrolled] = useState<boolean | null>(null);
+  // Voice Check removed — a requested start now runs straight away.
   useEffect(() => {
-    getVoiceEnrollmentStatus()
-      .then((res) => setVoiceEnrolled(res.enrolled))
-      .catch(() => setVoiceEnrolled(true));
-  }, []);
-  useEffect(() => {
-    if (pendingStart && voiceEnrolled === false) {
-      navigate(ROUTES.VOICE_ENROLLMENT, { state: { next: `${location.pathname}${location.search}` } });
-    }
-  }, [pendingStart, voiceEnrolled, navigate, location.pathname, location.search]);
+    if (!pendingStart) return;
+    const { skill, count, itemTypeId, setId } = pendingStart;
+    setPendingStart(null);
+    handleStart(skill, count, itemTypeId, setId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingStart]);
 
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [items, setItems] = useState<TestItem[]>([]);
@@ -472,11 +466,11 @@ export function Modules() {
       .finally(() => setLoadingAvailability(false));
   }, []);
 
-  async function handleStart(skill: SkillTag, count?: number, itemTypeId?: string, voiceCheckId?: string, setId?: string) {
+  async function handleStart(skill: SkillTag, count?: number, itemTypeId?: string, setId?: string) {
     setStarting(true);
     setError(null);
     try {
-      const res = await startPracticeSession(skill, count, itemTypeId, voiceCheckId, setId);
+      const res = await startPracticeSession(skill, count, itemTypeId, setId);
       setSessionId(res.sessionId);
       setItems(res.items);
       // Resuming an in-progress session returns every item with its own
@@ -686,23 +680,6 @@ export function Modules() {
     // A start was requested but we don't know enrollment status yet, or
     // we're about to redirect to enroll (per the effect above) — show
     // nothing rather than flash the picker screens behind it.
-    if (pendingStart && !voiceEnrolled) {
-      return null;
-    }
-    if (pendingStart && voiceEnrolled) {
-      return (
-        <VoiceCheck
-          mode="verify"
-          purpose="practice"
-          onBack={() => setPendingStart(null)}
-          onComplete={(result) => {
-            const { skill, count, itemTypeId, setId } = pendingStart;
-            setPendingStart(null);
-            handleStart(skill, count, itemTypeId, result.voiceCheckId, setId);
-          }}
-        />
-      );
-    }
     if (pickerUnit) {
       return (
         <SetPicker

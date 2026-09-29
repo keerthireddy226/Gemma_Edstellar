@@ -9,7 +9,6 @@ import { passThresholdForLevel } from "../placement/cefr.js";
 import { pickDifficultySpread } from "../placement/routes.js";
 import type { SkillTag } from "../placement/roadmapBuilder.js";
 import { withAudioUrls } from "../voice/itemAudio.js";
-import { correlateVoiceCheck } from "../voice/correlate.js";
 import { toItemPayload } from "../itemPayload.js";
 
 export const practiceRouter = Router();
@@ -32,7 +31,6 @@ const startSessionSchema = z.object({
   // When set, the session is exactly this Set's items, in authored order —
   // a fixed lesson, not a spread/adaptive sample. Takes priority over count.
   setId: z.string().uuid().optional(),
-  voiceCheckId: z.string().uuid().optional(),
 });
 
 // Spreads `count` across the skill's item types and difficulty, preferring unseen items.
@@ -230,7 +228,6 @@ practiceRouter.post("/session", requireAuth, async (req: AuthedRequest, res, nex
           attempted: attemptByItem.has(row!.id),
           responseText: attemptByItem.get(row!.id) ?? null,
         }));
-      await correlateVoiceCheck(req.user!.id, body.voiceCheckId, existing.rows[0].id);
       return res.json({
         sessionId: existing.rows[0].id,
         skill: body.skill,
@@ -258,8 +255,6 @@ practiceRouter.post("/session", requireAuth, async (req: AuthedRequest, res, nex
         }),
       ],
     );
-
-    await correlateVoiceCheck(req.user!.id, body.voiceCheckId, sessionResult.rows[0].id);
 
     res.status(201).json({
       sessionId: sessionResult.rows[0].id,

@@ -6,7 +6,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { scheduleLater } from "@/api/placement";
 import { getRoadmap } from "@/api/roadmap";
 import { getCurrentSession } from "@/api/testSession";
-import { getVoiceEnrollmentStatus } from "@/api/voiceCheck";
 import { VoiceSection } from "@/components/VoiceSection";
 import { Button } from "@/components/Button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -25,23 +24,8 @@ export function Placement() {
   // then either "not started" or the number of questions already shown in
   // an existing, unfinished session (leaving early doesn't lose it).
   const [resumeQuestionsShown, setResumeQuestionsShown] = useState<number | null>(null);
-  // Whether Voice Check enrollment already exists for this learner — null
-  // while unknown. Defaults to true (skip the gate) on a lookup failure so
-  // a technical hiccup here never blocks someone from reaching their test.
-  const [voiceEnrolled, setVoiceEnrolled] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    getVoiceEnrollmentStatus()
-      .then((res) => setVoiceEnrolled(res.enrolled))
-      .catch(() => setVoiceEnrolled(true));
-  }, []);
-
   function goToPlacementTest() {
-    if (voiceEnrolled === false) {
-      navigate(ROUTES.VOICE_ENROLLMENT, { state: { next: ROUTES.PLACEMENT_TEST } });
-    } else {
-      navigate(ROUTES.PLACEMENT_TEST);
-    }
+    navigate(ROUTES.PLACEMENT_TEST);
   }
 
   // Landing here after already completing the test (e.g. via browser back,

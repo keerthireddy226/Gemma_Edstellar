@@ -22,7 +22,6 @@ import { VoiceSection } from "@/components/VoiceSection";
 import { Button } from "@/components/Button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useAuth } from "@/hooks/useAuth";
-import { getVoiceEnrollmentStatus } from "@/api/voiceCheck";
 import { getOnboardingProfile, updateSpokenPromptsPreference, type OnboardingProfile } from "@/api/onboarding";
 import { getRoadmap, type RoadmapData } from "@/api/roadmap";
 import { ROUTES } from "@/constants/routes";
@@ -132,39 +131,6 @@ function PlanSection() {
   );
 }
 
-function IdentityCheckSection() {
-  const { t } = useTranslation();
-  const navigate = useNavigate();
-  const [enrolled, setEnrolled] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    getVoiceEnrollmentStatus()
-      .then((res) => setEnrolled(res.enrolled))
-      .catch(() => setEnrolled(false));
-  }, []);
-
-  return (
-    <div className="bg-surface border border-rule rounded-card p-6 flex flex-col gap-3 h-full">
-      <SectionHeader icon={ShieldCheck} tint="bg-success/15 text-success" title={t("profile.identityCheck.title")} />
-      <p className="text-sm text-muted -mt-1">{t("profile.identityCheck.subtitle")}</p>
-      <div className="flex items-center gap-3 rounded-card border border-rule px-4 py-3.5 mt-auto">
-        <span
-          className={`h-9 w-9 rounded-2xl flex items-center justify-center shrink-0 ${
-            enrolled ? "bg-success/15 text-success" : "bg-paper-warm text-muted"
-          }`}
-        >
-          <ShieldCheck size={18} strokeWidth={1.8} />
-        </span>
-        <span className="flex-1 min-w-0 text-sm font-semibold text-ink">
-          {enrolled === null ? t("profile.identityCheck.loading") : enrolled ? t("profile.identityCheck.enrolled") : t("profile.identityCheck.notEnrolled")}
-        </span>
-        <Button variant="secondary" onClick={() => navigate(ROUTES.VOICE_ENROLLMENT, { state: { next: ROUTES.PROFILE } })}>
-          {enrolled ? t("profile.identityCheck.reenroll") : t("profile.identityCheck.enroll")}
-        </Button>
-      </div>
-    </div>
-  );
-}
 
 // Real editing, not decorative — PATCH /auth/me actually updates the
 // account (see updateName in useAuth.ts). Email/account type stay
@@ -444,7 +410,6 @@ export function Profile() {
           <VoiceSection hideTitle />
         </div>
 
-        <IdentityCheckSection />
       </div>
 
       <div className="bg-surface border border-rule rounded-card p-6 flex flex-col gap-3">

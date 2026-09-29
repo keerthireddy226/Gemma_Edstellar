@@ -19,11 +19,9 @@ import {
 } from "./cefr.js";
 import { buildRoadmap, type AccessDuration, type SkillTag } from "./roadmapBuilder.js";
 import { withAudioUrls } from "../voice/itemAudio.js";
-import { correlateVoiceCheck } from "../voice/correlate.js";
 import { toItemPayload } from "../itemPayload.js";
 import { z } from "zod";
 
-const startSessionBodySchema = z.object({ voiceCheckId: z.string().uuid().optional() });
 
 const ALL_SKILLS: SkillTag[] = ["listening", "speaking", "reading", "writing"];
 
@@ -258,7 +256,6 @@ async function buildHistoryResponse(userId: string, sessionId: string, compositi
 // Reuses an already-in-progress session — a refresh/double-click shouldn't mint a different, half-done test.
 placementRouter.post("/session", requireAuth, async (req: AuthedRequest, res, next) => {
   try {
-    const { voiceCheckId } = startSessionBodySchema.parse(req.body ?? {});
     const existing = await pool.query(
       `SELECT id, composition FROM sessions
        WHERE user_id = $1 AND session_type = 'placement' AND completed_at IS NULL
@@ -267,7 +264,6 @@ placementRouter.post("/session", requireAuth, async (req: AuthedRequest, res, ne
     );
     // Pre-adaptive-engine sessions carry an old `{ itemIds }` shape that would crash on resume — abandon and start fresh instead.
     if (existing.rows[0] && Array.isArray(existing.rows[0].composition?.history)) {
-      await correlateVoiceCheck(req.user!.id, voiceCheckId, existing.rows[0].id);
       const response = await buildHistoryResponse(req.user!.id, existing.rows[0].id, existing.rows[0].composition, false);
       return res.json(response);
     }
@@ -289,8 +285,6 @@ placementRouter.post("/session", requireAuth, async (req: AuthedRequest, res, ne
        VALUES ($1, 'placement', 'exam', $2) RETURNING id`,
       [req.user!.id, JSON.stringify(composition)],
     );
-
-    await correlateVoiceCheck(req.user!.id, voiceCheckId, sessionResult.rows[0].id);
 
     res.status(201).json({
       sessionId: sessionResult.rows[0].id,

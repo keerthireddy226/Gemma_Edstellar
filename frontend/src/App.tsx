@@ -15,7 +15,6 @@ import { ResetPassword } from "@/pages/ResetPassword";
 import { VerifyEmail } from "@/pages/VerifyEmail";
 import { Onboarding } from "@/pages/Onboarding";
 import { Placement } from "@/pages/Placement";
-import { VoiceEnrollment } from "@/pages/VoiceEnrollment";
 import { PlacementTest } from "@/pages/PlacementTest";
 import { Roadmap } from "@/pages/Roadmap";
 import { Dashboard } from "@/pages/Dashboard";
@@ -75,14 +74,6 @@ function App() {
           element={
             <ProtectedRoute>
               <PlacementTest />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path={ROUTES.VOICE_ENROLLMENT}
-          element={
-            <ProtectedRoute>
-              <VoiceEnrollment />
             </ProtectedRoute>
           }
         />

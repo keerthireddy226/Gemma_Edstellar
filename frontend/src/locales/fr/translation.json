@@ -371,55 +371,6 @@
         "title": "Mode Minuteur Strict",
         "subtitle": "Désactiver la pause pendant les exercices chronométrés."
       }
-    },
-    "identityCheck": {
-      "title": "Vérification d'Identité",
-      "subtitle": "Une vérification vocale confirme que c'est bien vous qui passez chaque test.",
-      "loading": "Vérification de votre statut d'inscription…",
-      "enrolled": "Inscrit(e)",
-      "notEnrolled": "Pas encore inscrit(e)",
-      "enroll": "Configurer",
-      "reenroll": "Se réinscrire"
-    }
-  },
-  "voiceCheck": {
-    "back": "Retour",
-    "enrollmentConsent": {
-      "title": "Configurez votre Vérification Vocale",
-      "subtitle": "Ceci est distinct de l'enregistrement vocal pour la notation — veuillez lire avant de continuer.",
-      "body": "Pour aider à confirmer que c'est bien vous qui passez chaque test — et non quelqu'un d'autre à votre place — nous créerons une \"empreinte vocale\" : une courte liste de nombres qui capture la forme unique de votre voix. Ce n'est pas un enregistrement que vous pouvez réécouter, et elle n'est jamais utilisée pour noter vos réponses.\n\nAvant chaque examen blanc, session de module ou test d'entraînement, il vous sera demandé d'enregistrer une courte phrase. Nous la comparons à cette empreinte vocale. Si la correspondance n'est pas suffisante, rien n'est bloqué — c'est simplement signalé pour qu'un membre du personnel l'examine plus tard.\n\nVotre empreinte vocale est stockée en toute sécurité et utilisée uniquement à cette fin. Vous pouvez demander sa suppression à tout moment. Si vous refusez, vous pouvez toujours utiliser l'application — les sessions ne seront simplement pas vérifiées par rapport à votre identité.",
-      "checkboxLabel": "Je comprends et j'accepte de configurer la Vérification Vocale.",
-      "submit": "Continuer",
-      "decline": "Pas maintenant"
-    },
-    "enroll": {
-      "title": "Enregistrez votre échantillon vocal",
-      "takeLabel": "Prise {{current}} sur {{total}}",
-      "takeOneSaved": "C'est noté — merci de le relire une fois de plus pour confirmer que c'est bien vous."
-    },
-    "verify": {
-      "title": "Vérification vocale rapide",
-      "subtitle": {
-        "placement": "Ceci est une vérification rapide avant le début de votre examen blanc.",
-        "practice": "Ceci est une vérification rapide avant le début de votre session de pratique.",
-        "practice_test": "Ceci est une vérification rapide avant le début de votre test d'entraînement."
-      },
-      "mismatchError": "Votre voix ne correspond pas. Veuillez réessayer.",
-      "noSpeechError": "Nous n'avons rien entendu. Veuillez réessayer.",
-      "success": "Voix reconnue",
-      "proceed": "Continuer vers le test"
-    },
-    "record": {
-      "instruction": "Appuyez sur le micro et lisez la phrase ci-dessous à voix haute, puis appuyez à nouveau pour arrêter.",
-      "phraseEnroll": "My voice is my identity for this test — every word I say here helps the system learn what I sound like.",
-      "phraseVerify": "I am ready to start my test today, and I understand that my voice will be checked carefully before I begin.",
-      "start": "Appuyez pour enregistrer",
-      "recording": "Enregistrement…",
-      "saving": "Enregistrement de votre échantillon vocal…",
-      "verifying": "Vérification de votre voix…",
-      "error": "Une erreur s'est produite. Vous pouvez réessayer, ou passer pour l'instant.",
-      "tooShort": "C'était trop court pour être lu de manière fiable — veuillez lire la phrase entière à un rythme naturel avant d'arrêter.",
-      "skip": "Passer pour l'instant"
     }
   },
   "heroTagline": {

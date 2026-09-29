@@ -371,55 +371,6 @@
         "title": "Modo de Temporizador Estricto",
         "subtitle": "Deshabilita la pausa durante los ejercicios cronometrados."
       }
-    },
-    "identityCheck": {
-      "title": "Verificación de Identidad",
-      "subtitle": "Una verificación de voz confirma que realmente eres tú quien realiza cada prueba.",
-      "loading": "Comprobando tu estado de inscripción…",
-      "enrolled": "Inscrito/a",
-      "notEnrolled": "Aún no inscrito/a",
-      "enroll": "Configurar",
-      "reenroll": "Volver a inscribir"
-    }
-  },
-  "voiceCheck": {
-    "back": "Atrás",
-    "enrollmentConsent": {
-      "title": "Configura tu Verificación de Voz",
-      "subtitle": "Esto es independiente de la grabación de voz para calificación — por favor lee antes de continuar.",
-      "body": "Para ayudar a confirmar que realmente eres tú quien realiza cada prueba — y no otra persona en tu lugar — crearemos una \"huella de voz\": una lista corta de números que capta la forma única de tu voz. Esto no es una grabación que puedas escuchar, y nunca se usa para calificar tus respuestas.\n\nAntes de cada examen simulado, sesión de módulo o prueba de práctica, se te pedirá grabar una frase corta. La comparamos con esta huella de voz. Si no coincide bien, nada se bloquea — simplemente se marca para que el personal lo revise más tarde.\n\nTu huella de voz se almacena de forma segura y se usa solo para este fin. Puedes pedirnos que la eliminemos en cualquier momento. Si rechazas, aún puedes usar la aplicación — las sesiones simplemente no se verificarán contra tu identidad.",
-      "checkboxLabel": "Entiendo y acepto configurar la Verificación de Voz.",
-      "submit": "Continuar",
-      "decline": "Ahora no"
-    },
-    "enroll": {
-      "title": "Graba tu muestra de voz",
-      "takeLabel": "Toma {{current}} de {{total}}",
-      "takeOneSaved": "Listo — por favor léelo una vez más para confirmar que eres tú."
-    },
-    "verify": {
-      "title": "Verificación rápida de voz",
-      "subtitle": {
-        "placement": "Esta es una verificación rápida antes de que comience tu examen simulado.",
-        "practice": "Esta es una verificación rápida antes de que comience tu sesión de práctica.",
-        "practice_test": "Esta es una verificación rápida antes de que comience tu prueba de práctica."
-      },
-      "mismatchError": "Tu voz no coincide. Por favor, inténtalo de nuevo.",
-      "noSpeechError": "No pudimos escuchar nada. Por favor, inténtalo de nuevo.",
-      "success": "Voz coincide",
-      "proceed": "Continuar a la prueba"
-    },
-    "record": {
-      "instruction": "Toca el micrófono y lee en voz alta la siguiente frase, luego toca de nuevo para detener.",
-      "phraseEnroll": "My voice is my identity for this test — every word I say here helps the system learn what I sound like.",
-      "phraseVerify": "I am ready to start my test today, and I understand that my voice will be checked carefully before I begin.",
-      "start": "Toca para grabar",
-      "recording": "Grabando…",
-      "saving": "Guardando tu muestra de voz…",
-      "verifying": "Verificando tu voz…",
-      "error": "Algo salió mal. Puedes intentarlo de nuevo, u omitir por ahora.",
-      "tooShort": "Eso fue demasiado corto para leerse de forma confiable — por favor lee la frase completa a un ritmo natural antes de detener.",
-      "skip": "Omitir por ahora"
     }
   },
   "heroTagline": {

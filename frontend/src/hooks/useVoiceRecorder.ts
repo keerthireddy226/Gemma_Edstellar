@@ -14,6 +14,10 @@ interface RecordingResult {
 // Live transcription is a progressive enhancement (Chrome/Edge-only) — elsewhere the recording still works, just with an empty transcript.
 export function useVoiceRecorder() {
   const [recording, setRecording] = useState(false);
+  // 0-1, updated live while recording — lets Voice Check show a real volume
+  // meter, since "am I speaking too quietly" turned out to be a genuine,
+  // hard-to-self-judge cause of bad matches.
+  const [volumeLevel, setVolumeLevel] = useState(0);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const recognitionRef = useRef<any>(null);
@@ -21,13 +25,50 @@ export function useVoiceRecorder() {
   const recognitionErrorRef = useRef<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const startedAtRef = useRef(0);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const rafIdRef = useRef<number | null>(null);
 
   const start = useCallback(async () => {
     transcriptRef.current = "";
     recognitionErrorRef.current = null;
     startedAtRef.current = Date.now();
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // Explicit rather than relying on the browser's unstated defaults —
+    // runs on the raw mic signal in real time (before any lossy encoding),
+    // unlike a denoising filter applied after the fact: measured directly,
+    // running ffmpeg noise filters on an already-recorded clip consistently
+    // made Voice Check's match score *worse*, not better (the speaker model
+    // was trained on real noisy/reverberant audio and already accounts for
+    // it — an external filter just distorts the signal outside what it
+    // learned), so that approach was deliberately not used here.
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
     streamRef.current = stream;
+
+    // Live volume meter, from the raw mic signal (before autoGainControl's
+    // own boosting is fully accounted for by the browser, so a low reading
+    // here still means "the actual captured level is low").
+    const audioContext = new AudioContext();
+    const source = audioContext.createMediaStreamSource(stream);
+    const analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+    source.connect(analyser);
+    audioContextRef.current = audioContext;
+    const levelData = new Uint8Array(analyser.frequencyBinCount);
+    const tick = () => {
+      analyser.getByteTimeDomainData(levelData);
+      let sumSquares = 0;
+      for (let i = 0; i < levelData.length; i++) {
+        const normalized = (levelData[i] - 128) / 128;
+        sumSquares += normalized * normalized;
+      }
+      // RMS scaled up — ordinary speech rarely reaches anywhere near full
+      // amplitude, so a straight 0-1 RMS reading would look nearly empty
+      // even when speaking normally.
+      setVolumeLevel(Math.min(1, Math.sqrt(sumSquares / levelData.length) * 4));
+      rafIdRef.current = requestAnimationFrame(tick);
+    };
+    tick();
 
     const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4";
     const recorder = new MediaRecorder(stream, { mimeType });
@@ -76,6 +117,13 @@ export function useVoiceRecorder() {
         } catch {
           // already stopped
         }
+        if (rafIdRef.current !== null) {
+          cancelAnimationFrame(rafIdRef.current);
+          rafIdRef.current = null;
+        }
+        audioContextRef.current?.close().catch(() => {});
+        audioContextRef.current = null;
+        setVolumeLevel(0);
         setRecording(false);
         resolve({
           blob,
@@ -98,7 +146,7 @@ export function useVoiceRecorder() {
     });
   }, []);
 
-  return { recording, start, stop };
+  return { recording, volumeLevel, start, stop };
 }
 
 export function blobToBase64(blob: Blob): Promise<string> {

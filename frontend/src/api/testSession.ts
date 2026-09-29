@@ -65,8 +65,8 @@ export interface SessionSummary {
   goalLevel?: CefrLevel;
 }
 
-export function startSession(voiceCheckId?: string): Promise<{ sessionId: string; items: TestItem[] }> {
-  return api("/placement/session", { method: "POST", body: JSON.stringify({ voiceCheckId }) });
+export function startSession(): Promise<{ sessionId: string; items: TestItem[] }> {
+  return api("/placement/session", { method: "POST", body: JSON.stringify({}) });
 }
 
 // Side-effect-free — unlike startSession, this never creates or resumes a

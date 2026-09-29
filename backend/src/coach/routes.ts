@@ -15,7 +15,7 @@ export const coachRouter = Router();
 const MAX_MESSAGE_LENGTH = 500;
 const sendMessageSchema = z.object({ text: z.string().min(1).max(MAX_MESSAGE_LENGTH) });
 
-// Same shape as this app's other real-API-cost limiters (voiceCheckLimiter,
+// Same shape as this app's other real-API-cost limiters (see the
 // scheduleLaterLimiter) — skipped outside production so local dev/QA never
 // gets locked out.
 const coachMessageLimiter = rateLimit({
