@@ -1,8 +1,6 @@
 import type { TestItem } from "@/api/testSession";
 
-// These are heard, not read — showing the source text on screen would let a
-// learner just read it back instead of actually listening. Dictation is
-// typed but still needs the audio played first, same reasoning.
+// Heard, not read — showing the source text would let a learner read it back instead of listening.
 export const AUDIO_FIRST_TYPES = new Set([
   "repeats",
   "short_answer",
@@ -14,10 +12,7 @@ export const AUDIO_FIRST_TYPES = new Set([
   "response_selection",
 ]);
 
-// Tailwind can't resolve a dynamic `text-${skill}` class at build time — it
-// only picks up classes that appear as literal strings somewhere in source,
-// so this filled pill badge (used where the skill(s) a question tests need
-// to be unmistakable at a glance) spells the mapping out directly.
+// Tailwind can't resolve a dynamic `text-${skill}` class at build time — spelled out directly.
 export const SKILL_BADGE_CLASS: Record<string, string> = {
   listening: "bg-listening/15 border-listening/40 text-listening",
   speaking: "bg-speaking/15 border-speaking/40 text-speaking",
@@ -64,9 +59,7 @@ export function getVisibleText(item: TestItem): string {
   return (c.text ?? c.question ?? c.sentence ?? c.passage ?? c.prompt ?? c.situation ?? "") as string;
 }
 
-// Types that show two distinct pieces of text together (a passage/notice
-// plus a separate question) rather than one single field — reading_selective
-// and reading_comprehension both read silently, then answer about it.
+// Types showing a passage plus a separate question, not one field — read silently, then answer.
 export function getPassageAndQuestion(item: TestItem): { passage: string; question: string } | null {
   const c = item.content as Record<string, unknown>;
   if (item.itemTypeId === "reading_selective" && typeof c.text === "string" && typeof c.question === "string") {

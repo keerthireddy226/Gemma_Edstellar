@@ -1,8 +1,4 @@
-// Rubric-based grading (Gemini) for anything with no single machine-checkable
-// answer — always from TEXT (transcript for spoken types), never audio:
-// Gemini's own audio-quality judgment was tested and found to hallucinate,
-// while its text-only grading was consistent (see Grading_Methods_Report.md).
-// Fails closed: any error/missing key returns null, treated as "no verdict yet."
+// Rubric-based grading (Gemini), always from text — its own audio-quality judgment was tested and found to hallucinate. Fails closed: returns null, treated as "no verdict yet."
 import { GoogleGenAI } from "@google/genai";
 
 export const GEMINI_GRADING_MODEL = "gemini-3.5-flash-lite";
@@ -41,11 +37,7 @@ function levelStandard(cefrLevel: string | null): string {
   return `This item is tagged ${level} — basic clarity is enough; simple errors are expected and should not be penalized heavily.`;
 }
 
-// One task description per AI-graded type, grounded in that item's own
-// content/answer key — what counts as "answered it well" is completely
-// different for "write an email" than for "retell this story." Types that
-// are spoken in the app are graded here from their transcript only (no
-// audio) — see the file header for why.
+// One task description per AI-graded type — "answered well" means something different per type.
 function buildTask(
   itemTypeId: string,
   content: Record<string, unknown>,
@@ -130,9 +122,7 @@ export async function gradeWithAI(
   return { score: Math.max(0, Math.min(1, score)), reason: String(parsed.reason ?? "") };
 }
 
-// "Typing" is a copy-the-passage-exactly drill (a typing-speed exercise),
-// not open-ended writing — there's a definite target text, so a word-level
-// diff is both cheaper and more reliable than asking an AI to "judge" it.
+// "Typing" has a definite target text — word-level diff is cheaper/more reliable than AI judging it.
 export function scoreTypingAccuracy(target: string, response: string): number {
   const norm = (s: string) => s.trim().toLowerCase().replace(/[.,!?;:]/g, "").replace(/\s+/g, " ");
   const a = norm(target).split(" ").filter(Boolean);
@@ -155,10 +145,7 @@ export function scoreTypingAccuracy(target: string, response: string): number {
   return Math.max(0, 1 - distance / a.length);
 }
 
-// The 13 types that now go through gradeWithAI above (all of them judged
-// from text only — Gemini could technically accept the audio directly, but
-// its audio judgment tested unreliable, so this deliberately stays
-// text-only, same basis as when this ran on Claude).
+// Types that go through gradeWithAI above — text only, since audio judgment tested unreliable.
 export const AI_GRADED_TYPES = new Set([
   "email_writing",
   "summary_and_opinion",

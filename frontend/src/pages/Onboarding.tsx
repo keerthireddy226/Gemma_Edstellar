@@ -17,9 +17,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ROUTES } from "@/constants/routes";
 import { getRoadmap } from "@/api/roadmap";
 
-/* ------------------------------------------------------------------ */
-/* Shared step chrome + small controls, local to this page            */
-/* ------------------------------------------------------------------ */
+/* Shared step chrome + small controls, local to this page */
 
 const TOTAL_STEPS = 6;
 
@@ -135,13 +133,9 @@ function FieldLabel({ children }: { children: string }) {
 const textInputClass =
   "w-full rounded-input border border-rule bg-paper px-3.5 py-2.5 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-navy/20 focus:border-navy";
 
-/* ------------------------------------------------------------------ */
-/* Wizard state                                                        */
-/* ------------------------------------------------------------------ */
+/* Wizard state */
 
-// Everything the learner has to actually choose starts unset (null), rather
-// than defaulting to some option — a preselected "versant" or "3 months"
-// looks like the learner already made a choice they never made.
+// Choices start unset (null) — a preselected option would look like a choice the learner never made.
 type FormState = Omit<
   OnboardingAnswers,
   | "consentGiven"

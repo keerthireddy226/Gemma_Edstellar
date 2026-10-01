@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { gradeAttempt } from "./grading.js";
 
-// Only the exact-match/text-diff item types are covered here — the AI-graded
-// types (AI_GRADED_TYPES) call out to Gemini and aren't pure functions, so
-// they're outside what a unit test can cheaply and honestly cover.
+// Only exact-match/text-diff types covered here — AI-graded types call out to Gemini, not pure functions.
 
 describe("gradeAttempt", () => {
   it("returns pending when there's no response text at all", async () => {

@@ -17,10 +17,7 @@ interface AnswerInputControlProps {
   textareaRows?: number;
 }
 
-// The radio/mic/textarea/plain-text answer control shared by PlacementTest
-// and Modules — everything else about a question (passage display, timers,
-// two-phase reading stage, adaptive vs index-based navigation) stays
-// page-specific.
+// Radio/mic/textarea/plain-text answer control shared by PlacementTest and Modules.
 export function AnswerInputControl({
   item,
   answerText,

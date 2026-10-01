@@ -1,13 +1,8 @@
-// Real AI-generated item audio (male/female), batch-generated via
-// ../../scripts/generateItemAudio.ts. Plain REST with a restricted API key
-// (same shape as GEMINI_API_KEY) — fails closed to null on any error.
+// Real AI-generated item audio (male/female), batch-generated. Fails closed to null on any error.
 
 export type VoiceGender = "male" | "female";
 
-// Google's en-US Neural2 voice set: clear, standard American accent, one
-// male and one female. Not stored per item_audio row — that table's
-// voice_id column is the gender label ('male'/'female'), which is what the
-// rest of the app (preferred_voice, item-serving joins) keys on.
+// Google's en-US Neural2 voice set. item_audio.voice_id stores the gender label, not this name.
 const VOICE_NAME: Record<VoiceGender, string> = {
   male: "en-US-Neural2-D",
   female: "en-US-Neural2-F",

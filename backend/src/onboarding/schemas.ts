@@ -1,8 +1,6 @@
 import { z } from "zod";
 
-// Mirrors participant_profiles + the users.first_name/last_name columns.
-// One combined submission at the end of the wizard, not a save-per-step —
-// simpler than resumable per-step persistence, and good enough for Phase 2.
+// Mirrors participant_profiles + users.first_name/last_name. One combined submission, not save-per-step.
 export const onboardingSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),

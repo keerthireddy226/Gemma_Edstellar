@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Volume2, Mic, CheckCircle2, ArrowLeft, Clock, Headphones, BookOpen, PenLine, ChevronRight } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
@@ -21,6 +21,8 @@ import {
 import type { TestItem, SkillTag } from "@/api/testSession";
 import { useVoiceRecorder, blobToBase64 } from "@/hooks/useVoiceRecorder";
 import { playSpokenAudio } from "@/lib/playSpokenAudio";
+import { getFaceEnrollmentStatus } from "@/api/faceCheck";
+import { FaceCheck } from "@/components/FaceCheck";
 import { AnswerInputControl } from "@/components/AnswerInputControl";
 import {
   AUDIO_FIRST_TYPES,
@@ -284,10 +286,7 @@ function UnitPicker({
   );
 }
 
-// Shown after picking a unit — one card per set, with a checkmark if this
-// learner already completed it. Selecting a set starts a fixed, ordered
-// mini-lesson (POST /practice/session with setId) instead of the old
-// spread/adaptive sample.
+// One card per set; selecting one starts the fixed, ordered set instead of an adaptive sample.
 function SetPicker({
   unitName,
   sets,
@@ -345,6 +344,7 @@ function SetPicker({
 export function Modules() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { recording, start: startRecording, stop: stopRecording } = useVoiceRecorder();
 
@@ -372,6 +372,12 @@ export function Modules() {
   const [pendingStart, setPendingStart] = useState<{ skill: SkillTag; count?: number; itemTypeId?: string; setId?: string } | null>(
     null,
   );
+  const [faceEnrolled, setFaceEnrolled] = useState<boolean | null>(null);
+  useEffect(() => {
+    getFaceEnrollmentStatus()
+      .then((res) => setFaceEnrolled(res.enrolled))
+      .catch(() => setFaceEnrolled(true));
+  }, []);
 
   useEffect(() => {
     if (!pickerType) return;
@@ -421,18 +427,13 @@ export function Modules() {
       cancelled = true;
     };
   }, [pickerUnit]);
-  // Same robustness fix as PlacementTest.tsx: if there's no enrollment on
-  // file yet when a start is actually requested, redirect to enroll (with
-  // consent) first, rather than only ever showing the verify step — this
-  // page has no upstream "Placement.tsx"-style gate of its own to rely on.
-  // Voice Check removed — a requested start now runs straight away.
+  // No enrollment yet when a start is requested — redirect to enroll
+  // first, since this page has no upstream Placement.tsx-style gate.
   useEffect(() => {
-    if (!pendingStart) return;
-    const { skill, count, itemTypeId, setId } = pendingStart;
-    setPendingStart(null);
-    handleStart(skill, count, itemTypeId, setId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingStart]);
+    if (pendingStart && faceEnrolled === false) {
+      navigate(ROUTES.FACE_ENROLLMENT, { state: { next: `${location.pathname}${location.search}` } });
+    }
+  }, [pendingStart, faceEnrolled, navigate, location.pathname, location.search]);
 
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [items, setItems] = useState<TestItem[]>([]);
@@ -680,6 +681,22 @@ export function Modules() {
     // A start was requested but we don't know enrollment status yet, or
     // we're about to redirect to enroll (per the effect above) — show
     // nothing rather than flash the picker screens behind it.
+    if (pendingStart && faceEnrolled === null) return null;
+    if (pendingStart && faceEnrolled === false) return null;
+    if (pendingStart && faceEnrolled) {
+      const { skill, count, itemTypeId, setId } = pendingStart;
+      return (
+        <FaceCheck
+          mode="verify"
+          purpose="practice"
+          onBack={() => setPendingStart(null)}
+          onComplete={() => {
+            setPendingStart(null);
+            handleStart(skill, count, itemTypeId, setId);
+          }}
+        />
+      );
+    }
     if (pickerUnit) {
       return (
         <SetPicker

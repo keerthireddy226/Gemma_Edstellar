@@ -20,12 +20,7 @@ export function percentToCefr(percent: number): CefrLevel {
   return "C2";
 }
 
-// How much accuracy it takes to be credited with a level, and it isn't the
-// same at every level — clearing A2 with a couple of lucky guesses is fine,
-// but calling someone C2 ("near-native") off a bare 60% would be handing out
-// the top of the entire CEFR scale too cheaply. The top levels require
-// close to flawless performance; the bottom levels stay lenient, since a
-// true beginner making basic errors is expected, not disqualifying.
+// Accuracy needed to be credited with a level — top levels demand near-flawless, bottom levels stay lenient.
 const LEVEL_PASS_THRESHOLD: Record<CefrLevel, number> = {
   A1: 0.6,
   A2: 0.6,
@@ -40,18 +35,10 @@ export function passThresholdForLevel(level: string | null): number {
   return LEVEL_PASS_THRESHOLD.B1;
 }
 
-// Where the adaptive placement engine starts every learner, on every
-// question type — the middle of the scale, so the first question is
-// equally uninformative about whether they'll turn out to be a true
-// beginner or advanced (see placement/routes.ts).
+// Middle of the scale — the first question is equally uninformative either way.
 export const START_LEVEL: CefrLevel = "B1";
 
-// One step of the adaptive walk: right -> one level harder, wrong (or
-// skipped) -> one level easier. Clamped at the ends of the scale. Because
-// this only ever asks about the level right next to the last answer, the
-// resulting test can never have an untested gap in the middle of what it
-// covers — the "capped by gap" situation in assessSkillLevel below simply
-// can't arise from an adaptively-built session.
+// One step of the adaptive walk: right -> one level harder, wrong/skipped -> one level easier.
 export function stepLevel(level: CefrLevel, correct: boolean): CefrLevel {
   const rank = cefrRank(level);
   const nextRank = correct ? Math.min(rank + 1, CEFR_LEVELS.length - 1) : Math.max(rank - 1, 0);
@@ -59,53 +46,18 @@ export function stepLevel(level: CefrLevel, correct: boolean): CefrLevel {
 }
 
 /**
- * Assesses a level from *which* difficulty of items a learner actually got
- * right, instead of one flat percent-correct — two learners who score 50%
- * overall but on opposite ends of the difficulty range aren't equally
- * proficient, and a flat percentage can't tell them apart.
- *
- * Walks A1 -> C2, tracking the highest level with accuracy at or above that
- * level's own pass bar (see LEVEL_PASS_THRESHOLD — 60% is enough at A1/A2,
- * but C2 demands 95%). A single shaky level (below threshold but not 0%) is
- * treated as noise from a small per-level sample and doesn't cap the result
- * — but two such dips in a row, or any level with a true 0% accuracy, is
- * treated as a real ceiling and stops the walk there.
- *
- * Once the walk has reached the first level with any real evidence, a later
- * level with zero attempted items stops the walk there too, same as a 0% —
- * it does NOT get skipped over. Passing a scattered handful of levels with
- * an untested gap in between (e.g. A2 and C2 both tested and passed, but B1
- * and C1 never asked at all) is not evidence of C2 ability: we only have a
- * real basis to certify up to the last level in an *unbroken* chain of
- * levels we actually tested and the learner actually passed, starting from
- * wherever their evidence begins. Beyond a gap, we genuinely don't know, and
- * shouldn't report a level as if we did. (Untested levels *before* the first
- * tested one don't count against this — e.g. if the sample happened to start
- * at A2, that's just where the evidence begins, not a gap.)
- *
- * Heuristic, like percentToCefr — not an officially validated psychometric
- * scale, and only as good as the per-item cefr_level tags it's fed. When a
- * gap makes this return a null level, the caller falls back to a cruder
- * flat-percent estimate rather than a fabricated precise one.
- *
- * `cappedByGap` tells the caller *why* the walk stopped where it did: true
- * means it hit an untested level with higher-level answers waiting beyond
- * it (so the raw percent-correct on what *was* tested can look deceptively
- * high right next to a low capped level — that combination needs explaining
- * to the learner, not just displaying as-is). False means it stopped for a
- * real reason (failed a level, or simply ran out of graded items), which
- * doesn't need that caveat.
+ * Assesses a level from which difficulty a learner got right, not a flat percent. Walks A1->C2,
+ * stopping at the highest level clearing its own pass bar; a gap (untested level before higher
+ * tested ones) also stops the walk there, since an unbroken chain from the evidence start is the
+ * only real basis to certify a level. `cappedByGap` tells the caller whether that's why it stopped
+ * (true) vs. a real failure/no more items (false) — a capped result needs explaining to the learner.
  */
 export interface SkillLevelAssessment {
   level: CefrLevel | null;
   cappedByGap: boolean;
 }
 
-// A single question at a level isn't enough to trust either way — one lucky
-// guess shouldn't certify a level, and one unlucky slip shouldn't cap one.
-// A level needs at least this many graded items before its accuracy counts
-// as real evidence; below that, it's treated exactly like an untested level
-// (see the gap handling below), not as a pass or a fail.
+// A single question isn't enough evidence; below this, a level is treated as untested, not pass/fail.
 const MIN_LEVEL_SAMPLE = 2;
 
 export function assessSkillLevel(gradedItems: { cefrLevel: string | null; correct: boolean }[]): SkillLevelAssessment {

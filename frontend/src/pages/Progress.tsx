@@ -9,9 +9,7 @@ function isToday(dateStr: string): boolean {
   return dateStr === new Date().toISOString().slice(0, 10);
 }
 
-// Today vs. yesterday, in whichever direction actually has something to
-// compare — a flat "you did more!" would be misleading if yesterday was a
-// rest day, so that gets its own neutral phrasing instead of a fake trend.
+// A rest-day yesterday gets neutral phrasing instead of a misleading "you did more!" trend.
 function TodayVsYesterday({ today, yesterday }: { today: DailyStat; yesterday: DailyStat | undefined }) {
   const { t } = useTranslation();
   const prevQuestions = yesterday?.questionsCompleted ?? 0;

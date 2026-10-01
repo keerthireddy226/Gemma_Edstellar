@@ -1,6 +1,4 @@
-// Free heuristic fluency signals (transcript/duration only, no AI or paid
-// service) — supplement content_score, never replace it. Pause detection is
-// deferred: it needs real audio-waveform analysis, not just the transcript.
+// Free heuristic fluency signals (transcript/duration only) — supplement content_score, never replace it.
 
 // Unambiguous filler interjections only — words like "like" are also normal
 // ("I like apples"), so including them would be a noisy signal.
@@ -40,13 +38,7 @@ export interface StoredMannerScores {
 const MIN_ACCEPTABLE_WPM = 70;
 const MAX_ACCEPTABLE_WPM = 220;
 
-// Single definition of "correct" used everywhere (adaptive engine, skill
-// breakdown, headline level). Typed answers: content only. Mic answers:
-// content + pace + pronunciation/fluency all clear the same per-level bar —
-// safe to gate on since geminiFluency.ts's audio-presence check fixed a
-// hallucination bug (was 4/6 false positives on silence, now 0/6). A
-// missing signal (no duration/no Gemini result) never counts against the
-// learner — only a present, bad one does.
+// Single definition of "correct" everywhere. Typed: content only. Mic: content + pace + pronunciation must all clear the bar; a missing signal never counts against the learner.
 export function isTrulyCorrect(
   contentScore: number | null,
   cefrLevel: string | null,

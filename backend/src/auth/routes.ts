@@ -21,11 +21,7 @@ const BCRYPT_ROUNDS = 12;
 // Postgres unique_violation error code.
 const PG_UNIQUE_VIOLATION = "23505";
 
-// Separate instances so each endpoint gets its own 10-per-15-min budget per IP,
-// instead of three routes silently sharing one pool of attempts. Skipped
-// outside production so local/manual testing never gets locked out — the
-// brute-force protection this exists for only matters once real traffic
-// (and real attackers) can reach the API.
+// Separate instances so each endpoint gets its own budget. Skipped outside production.
 function makeAuthLimiter() {
   return rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -44,10 +40,7 @@ const forgotPasswordLimiter = makeAuthLimiter();
 
 export const authRouter = Router();
 
-// Accepts either the shared pool or an in-transaction client — signup must
-// create the session on the *same* connection as the still-uncommitted user
-// row, or the insert fails a foreign-key check against a connection that
-// can't see that row yet.
+// Accepts an in-transaction client too — signup needs the session on the same connection as the uncommitted user row.
 async function createSession(executor: Pick<typeof pool, "query">, userId: string) {
   const token = generateToken();
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS);

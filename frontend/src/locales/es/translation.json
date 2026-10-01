@@ -513,5 +513,49 @@
     "setsProgress": "{{done}} de {{total}} sets completados",
     "backToUnits": "Volver a las unidades",
     "setCompleted": "Completado"
+  },
+  "faceCheck": {
+    "back": "Back",
+    "enroll": {
+      "title": "Set up face verification",
+      "success": "Face captured",
+      "proceed": "Continue",
+      "subtitle": "This is a one-time setup. We'll use this photo to confirm it's you before every mocktest, module, and practice test.",
+      "successSubtitle": "Setup done. Next, you'll see the test instructions before your mocktest begins."
+    },
+    "verify": {
+      "title": "Quick face check",
+      "success": "Face verified",
+      "proceed": "Continue",
+      "mismatchError": "Face didn't match your enrolled photo. Please try again.",
+      "subtitle": {
+        "placement": "Confirming it's you before your mocktest begins.",
+        "practice": "Confirming it's you before this practice session.",
+        "practice_test": "Confirming it's you before this practice test."
+      },
+      "successSubtitle": "Identity confirmed. Moving on to your test."
+    },
+    "record": {
+      "capture": "Capture",
+      "checking": "Checking...",
+      "cameraError": "Could not access camera. Check permissions and try again.",
+      "error": "Something went wrong. Please try again.",
+      "tooShort": "Could not read your face clearly. Please try again."
+    },
+    "fallback": {
+      "request": "Request Alternate Verification",
+      "title": "Verification requested",
+      "pending": "An administrator will review this shortly. This page will update automatically.",
+      "denied": "Your request was not approved. Please contact support.",
+      "expired": "This request has expired. Please try verifying again."
+    },
+    "enrollmentConsent": {
+      "title": "Set up face verification",
+      "subtitle": "This helps confirm it's really you taking the test.",
+      "body": "We'll take a photo of your face to create a reference for identity verification. This photo and a face scan will be used only to confirm your identity before tests, and is stored securely.",
+      "checkboxLabel": "I understand and consent to face identity verification.",
+      "submit": "Continue",
+      "decline": "Not now"
+    }
   }
 }

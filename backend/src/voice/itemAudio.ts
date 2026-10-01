@@ -8,10 +8,7 @@ export async function getPreferredVoice(userId: string): Promise<VoiceGender> {
   return (result.rows[0]?.preferred_voice as VoiceGender | null) ?? DEFAULT_VOICE;
 }
 
-// Attaches audioUrl (null if that item/voice pair hasn't been generated
-// yet) to each item payload — frontend falls back to browser TTS when
-// audioUrl is null, so an ungenerated item never breaks playback, it's just
-// not yet using real AI audio.
+// Attaches audioUrl (null if not generated yet) — frontend falls back to browser TTS when null.
 export async function withAudioUrls<T extends { id: string }>(userId: string, items: T[]): Promise<(T & { audioUrl: string | null })[]> {
   if (items.length === 0) return [];
   const voice = await getPreferredVoice(userId);

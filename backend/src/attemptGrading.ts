@@ -38,10 +38,7 @@ export interface GradedAttempt {
   wasCorrect: boolean;
 }
 
-// Shared by placement and practice's POST /session/:sessionId/attempts:
-// loads the item, replaces any prior attempt for it, saves the recording (if
-// any), grades it, and records the score. Returns null if the item doesn't
-// exist. Placement layers its own adaptive next-item selection on top of this.
+// Shared by placement/practice attempt submission: loads item, grades, records score.
 export async function gradeAndSaveAttempt(sessionId: string, body: AttemptBody): Promise<GradedAttempt | null> {
   const itemResult = await pool.query(
     `SELECT i.item_type_id, i.answer_set, i.content, i.cefr_level, it.min_words, it.input_method

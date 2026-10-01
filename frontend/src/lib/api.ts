@@ -1,6 +1,4 @@
-// Thrown on any non-ok response. `.message` is `body.error` (a stable code
-// like "no_placement_yet") for existing message-based checks; `.body` carries
-// the full JSON body when a caller needs more than the error code.
+// Thrown on any non-ok response. `.message` is the stable error code; `.body` carries the full JSON.
 export class ApiError extends Error {
   body: unknown;
   constructor(message: string, body: unknown) {

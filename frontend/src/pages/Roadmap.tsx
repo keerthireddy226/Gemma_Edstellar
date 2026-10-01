@@ -94,11 +94,7 @@ function Hero({
   );
 }
 
-// "Goal Setter" is always true by the time a learner reaches this page —
-// onboarding requires a goal level before placement can even start — so this
-// is an honest static banner, not a stand-in for the full achievement
-// system (streaks, module-completion badges, etc.) that would need real
-// practice-session tracking to mean anything.
+// "Goal Setter" is always true here (onboarding requires it) — an honest static banner, not a real achievement system.
 function AchievementBanner() {
   const { t } = useTranslation();
   return (

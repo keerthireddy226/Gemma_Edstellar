@@ -56,9 +56,7 @@ const TYPE_ORDER = [
   "email_writing",
 ];
 
-// Picks `count` rows evenly spread across difficulty (not an arbitrary
-// subset), with randomness within a small window per slot so every
-// first-time learner isn't handed the exact same 20 questions.
+// Picks `count` rows evenly spread across difficulty, with randomness so not every learner gets the same set.
 const SPREAD_WINDOW = 3;
 
 export function pickDifficultySpread<T extends { id: string; difficulty: string | null }>(rows: T[], count: number): T[] {
@@ -88,9 +86,7 @@ export function pickDifficultySpread<T extends { id: string; difficulty: string 
   return picks;
 }
 
-// Adaptive item selection: each type climbs one CEFR level at a time (right
-// -> harder, wrong/skip -> easier) until its ITEMS_PER_TYPE budget is used,
-// then the next TYPE_ORDER entry starts fresh at START_LEVEL.
+// Adaptive selection: each type climbs/drops one CEFR level per answer until its budget is used.
 
 type ItemPoolRow = {
   id: string;
@@ -123,9 +119,7 @@ async function fetchTypePool(userId: string, typeId: string): Promise<ItemPoolRo
   return result.rows;
 }
 
-// Nearest-level match from a type's pool, excluding ids already shown this
-// session — prefers a learner's unseen items, and among equally-good
-// candidates picks randomly rather than always the same one.
+// Nearest-level match, excluding ids already shown; prefers unseen items, ties broken randomly.
 function pickAdaptiveItem(rowPool: ItemPoolRow[], targetLevel: CefrLevel, excludeIds: Set<string>): ItemPoolRow | null {
   const candidates = rowPool.filter((r) => !excludeIds.has(r.id));
   if (candidates.length === 0) return null;
@@ -145,9 +139,7 @@ function pickAdaptiveItem(rowPool: ItemPoolRow[], targetLevel: CefrLevel, exclud
   return tied[Math.floor(Math.random() * tied.length)].row;
 }
 
-// Finds the first available item for TYPE_ORDER[startIndex] or, if that
-// type's pool is empty, the next type after it — returns null only if
-// nothing at all is left, across every remaining type.
+// First available item for TYPE_ORDER[startIndex], or the next type if its pool is empty.
 async function pickFirstItemFrom(
   userId: string,
   startIndex: number,
@@ -168,9 +160,7 @@ interface AdaptiveComposition {
   pendingItemId: string | null;
 }
 
-// Skipped outside production, same reasoning as the auth limiters — local
-// testing shouldn't get locked out by the same cooldown a real learner would
-// only hit from actually spamming this button.
+// Skipped outside production so local testing doesn't hit the same cooldown.
 const scheduleLaterLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
@@ -441,9 +431,7 @@ function rowIsCorrect(r: ScoredAttemptRow): boolean {
   return isTrulyCorrect(Number(r.content_score), r.cefr_level, r.input_method, r.manner_scores, passThresholdForLevel);
 }
 
-// Per-skill percent/level, plus the same percents shaped for buildRoadmap
-// (which needs a number per skill even for untested ones, to rank "weakest
-// first" — internal ranking only, never shown as a real score).
+// Per-skill percent/level, plus the same percents shaped for buildRoadmap's "weakest first" ranking.
 function computeSkillBreakdown(graded: ScoredAttemptRow[], overallPercent: number) {
   const skillPercents = {} as Record<SkillTag, number | null>;
   const skillLevels = {} as Record<SkillTag, { level: CefrLevel; cappedByGap: boolean } | null>;
@@ -466,11 +454,7 @@ function computeSkillBreakdown(graded: ScoredAttemptRow[], overallPercent: numbe
   return { skillPercents, skillLevels, roadmapSkillPercents };
 }
 
-// Headline level: assessed across all skills combined, from every question shown (not just answered). A skip counts as
-// wrong at a level the learner otherwise engaged with, but a level with zero real attempts stays an untested gap, not a
-// failure. Grading failures are excluded entirely (service fault, not the learner's). Also can't outrank the weakest
-// *tested* skill — pooling alone could let a strong skill outweigh a genuinely failed one (e.g. 0% Listening next to
-// overall "B1").
+// Headline level: assessed across all skills from every question shown. A skip counts as wrong; grading failures are excluded. Can't outrank the weakest tested skill (avoids a strong skill masking a failed one).
 function computeHeadlineLevel(
   graded: ScoredAttemptRow[],
   allRows: ScoredAttemptRow[],

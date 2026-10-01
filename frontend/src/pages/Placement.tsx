@@ -6,6 +6,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { scheduleLater } from "@/api/placement";
 import { getRoadmap } from "@/api/roadmap";
 import { getCurrentSession } from "@/api/testSession";
+import { getFaceEnrollmentStatus } from "@/api/faceCheck";
+import { FaceCheck } from "@/components/FaceCheck";
+import { FaceEnrollmentConsent } from "@/components/FaceEnrollmentConsent";
 import { VoiceSection } from "@/components/VoiceSection";
 import { Button } from "@/components/Button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -24,6 +27,15 @@ export function Placement() {
   // then either "not started" or the number of questions already shown in
   // an existing, unfinished session (leaving early doesn't lose it).
   const [resumeQuestionsShown, setResumeQuestionsShown] = useState<number | null>(null);
+  // Checked up front so enrollment (with its "face captured" confirmation)
+  // happens before the instructions card, not after clicking Begin.
+  const [faceEnrolled, setFaceEnrolled] = useState<boolean | null>(null);
+  const [faceConsented, setFaceConsented] = useState(false);
+  useEffect(() => {
+    getFaceEnrollmentStatus()
+      .then((res) => setFaceEnrolled(res.enrolled))
+      .catch(() => setFaceEnrolled(true));
+  }, []);
   function goToPlacementTest() {
     navigate(ROUTES.PLACEMENT_TEST);
   }
@@ -80,7 +92,18 @@ export function Placement() {
     { key: "equipment", Icon: Headphones, text: t("placement.info.equipment") },
   ];
 
-  if (checkingPlacement || resumeQuestionsShown === null) return null;
+  if (checkingPlacement || resumeQuestionsShown === null || faceEnrolled === null) return null;
+
+  if (!faceEnrolled) {
+    if (!faceConsented) {
+      return (
+        <div className="app-surface min-h-screen overflow-y-auto flex items-center justify-center px-4 py-10">
+          <FaceEnrollmentConsent onAccept={() => setFaceConsented(true)} onDecline={() => setFaceEnrolled(true)} />
+        </div>
+      );
+    }
+    return <FaceCheck mode="enroll" onComplete={() => setFaceEnrolled(true)} />;
+  }
 
   return (
     <div className="app-surface min-h-screen overflow-y-auto flex items-center justify-center px-4 py-10">

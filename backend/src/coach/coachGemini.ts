@@ -1,6 +1,4 @@
-// Tutor (Coach Mode) — an open-ended practice conversation, unlike
-// aiGrading.ts's one-shot rubric grading. Same SDK/model/lazy-singleton/
-// fail-closed pattern as the rest of this app's Gemini usage.
+// Tutor (Coach Mode) — open-ended conversation, unlike aiGrading.ts's one-shot rubric grading.
 import { GoogleGenAI } from "@google/genai";
 
 const GEMINI_MODEL = "gemini-3.5-flash-lite";
@@ -17,15 +15,11 @@ export interface CoachTurn {
   transcript: string;
 }
 
-// Fixed, not AI-generated — the very first message in every conversation,
-// so starting one never costs an API call and never risks an awkward or
-// off-topic opener.
+// Fixed, not AI-generated — starting a conversation never costs an API call.
 export const COACH_OPENING_LINE =
   "Hi! I'm your practice conversation partner. Tell me a little about your day so far.";
 
-// Sent as-is every turn (not persisted as a real coach_turns row) — keeps
-// the model in a consistent, encouraging, low-pressure persona rather than
-// drifting into a generic assistant tone as the conversation grows.
+// Sent every turn, not persisted — keeps the model in a consistent persona.
 const SYSTEM_INSTRUCTION =
   "You are a friendly, encouraging English conversation partner helping a language learner practice everyday spoken English. " +
   "Keep every reply short — 1 to 3 sentences, natural and conversational, like a real chat message, not an essay. " +
@@ -33,9 +27,7 @@ const SYSTEM_INSTRUCTION =
   "Always end your reply with a simple follow-up question that keeps the conversation going. " +
   "Stay in character as a conversation partner at all times — never mention that you are an AI, a model, or a program.";
 
-// Only the most recent turns are sent — bounds both the prompt size/cost
-// and the context length, without needing to hard-cap how long a
-// conversation can run overall.
+// Only the most recent turns are sent — bounds prompt size without capping conversation length.
 const MAX_HISTORY_TURNS = 20;
 
 export async function getCoachReply(history: CoachTurn[]): Promise<string | null> {

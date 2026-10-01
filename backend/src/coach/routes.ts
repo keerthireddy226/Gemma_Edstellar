@@ -1,8 +1,4 @@
-// Tutor (Coach Mode) — a real, ongoing practice conversation with Gemini
-// (see coachGemini.ts), persisted via the sessions/coach_turns tables that
-// already existed in the schema but had no code touching them until now.
-// Deliberately simple: one open-ended conversation per learner at a time,
-// resumed on every visit until they explicitly start a new one.
+// Tutor (Coach Mode) — one open-ended Gemini conversation per learner, resumed each visit.
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
@@ -15,9 +11,7 @@ export const coachRouter = Router();
 const MAX_MESSAGE_LENGTH = 500;
 const sendMessageSchema = z.object({ text: z.string().min(1).max(MAX_MESSAGE_LENGTH) });
 
-// Same shape as this app's other real-API-cost limiters (see the
-// scheduleLaterLimiter) — skipped outside production so local dev/QA never
-// gets locked out.
+// Skipped outside production so local dev/QA never gets locked out.
 const coachMessageLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 60,
@@ -33,9 +27,7 @@ function toTurnPayload(row: { speaker: "learner" | "agent"; transcript: string }
   return { speaker: row.speaker, text: row.transcript };
 }
 
-// Resumes the learner's one in-progress coach session, or starts a fresh
-// one (seeded with the fixed opening line — see coachGemini.ts) if there
-// isn't one yet.
+// Resumes the learner's in-progress coach session, or starts a fresh one.
 coachRouter.post("/session", requireAuth, async (req: AuthedRequest, res, next) => {
   try {
     const existing = await pool.query(

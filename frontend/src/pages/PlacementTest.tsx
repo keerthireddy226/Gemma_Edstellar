@@ -13,6 +13,7 @@ import {
   type SessionSummary,
 } from "@/api/testSession";
 import { useVoiceRecorder, blobToBase64 } from "@/hooks/useVoiceRecorder";
+import { FaceCheck } from "@/components/FaceCheck";
 import { playSpokenAudio } from "@/lib/playSpokenAudio";
 import { AnswerInputControl } from "@/components/AnswerInputControl";
 import {
@@ -24,9 +25,7 @@ import {
   getPassageAndQuestion,
 } from "@/lib/testItemDisplay";
 
-// Matches the sum of ITEMS_PER_TYPE on the backend (placement/routes.ts) —
-// only used for the progress bar, since the adaptive engine doesn't hand
-// the client a fixed question list upfront to count directly.
+// Matches backend ITEMS_PER_TYPE sum — for the progress bar only.
 const TOTAL_QUESTIONS = 20;
 
 export function PlacementTest() {
@@ -53,6 +52,9 @@ export function PlacementTest() {
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   // Whether this page load is resuming a session that was already started.
   const [alreadyInProgress, setAlreadyInProgress] = useState<boolean | null>(null);
+  // Resuming an in-progress session skips the gate — nobody new could take
+  // over mid-test just by reloading the page.
+  const [faceChecked, setFaceChecked] = useState(false);
 
   useEffect(() => {
     getCurrentSession()
@@ -60,8 +62,10 @@ export function PlacementTest() {
       .catch(() => setAlreadyInProgress(false));
   }, []);
 
+  const readyToLoadSession = alreadyInProgress === true || faceChecked;
+
   useEffect(() => {
-    if (alreadyInProgress === null) return;
+    if (alreadyInProgress === null || !readyToLoadSession) return;
     startSession()
       .then((res) => {
         setSessionId(res.sessionId);
@@ -69,7 +73,7 @@ export function PlacementTest() {
       })
       .catch(() => setError(t("placementTest.loadError")))
       .finally(() => setLoading(false));
-  }, [t, alreadyInProgress]);
+  }, [t, alreadyInProgress, readyToLoadSession]);
 
   const current = items[items.length - 1];
   const needsAudioFirst = current ? AUDIO_FIRST_TYPES.has(current.itemTypeId) : false;
@@ -188,6 +192,10 @@ export function PlacementTest() {
         <p className="text-sm text-muted">{t("placementTest.loading")}</p>
       </div>
     );
+  }
+
+  if (!readyToLoadSession) {
+    return <FaceCheck mode="verify" purpose="placement" onComplete={() => setFaceChecked(true)} />;
   }
 
   if (loading) {

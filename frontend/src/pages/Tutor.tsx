@@ -5,10 +5,7 @@ import { Mascot } from "@/components/Mascot";
 import { Button } from "@/components/Button";
 import { startCoachSession, sendCoachMessage, endCoachSession, type CoachTurn } from "@/api/coach";
 
-// A real, working conversation with Gemini (see backend/src/coach/coachGemini.ts)
-// — not a preview. Persisted via the sessions/coach_turns tables (both
-// already existed in the schema, unused until now). One ongoing
-// conversation is resumed on every visit until the learner starts a new one.
+// A real, working conversation with Gemini — one ongoing session resumed each visit.
 export function Tutor() {
   const { t } = useTranslation();
   const [sessionId, setSessionId] = useState<string | null>(null);

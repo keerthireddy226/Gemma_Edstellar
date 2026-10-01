@@ -1,7 +1,4 @@
-// The word/phrase itself and its example sentence stay in English — they're
-// the language being learned, same reasoning as placement item content never
-// being translated. Only the definition/meaning (the explanatory text) goes
-// through i18n.
+// Word/phrase and example stay in English (the language being learned) — only the definition goes through i18n.
 export interface WordEntry {
   word: string;
   phonetic: string;
@@ -53,9 +50,7 @@ export const IDIOM_BANK: IdiomEntry[] = [
   { phrase: "Under the weather", meaningKey: "dailyContent.idioms.underWeather" },
 ];
 
-// Word + options are the English vocabulary being tested, same as the word
-// bank's word/example — not explanatory text, so none of this needs
-// translation, only the surrounding chrome does.
+// Word + options are the vocabulary being tested — not translated, only the surrounding chrome is.
 export interface WordChallenge {
   word: string;
   options: string[];

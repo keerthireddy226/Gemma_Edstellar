@@ -1,9 +1,7 @@
 import { gradeWithAI, scoreTypingAccuracy, AI_GRADED_TYPES } from "./aiGrading.js";
 import { passThresholdForLevel } from "./cefr.js";
 
-// Exact-text grading for items with a definite answer, plus rubric-based AI
-// grading (via aiGrading.ts, Gemini) for everything else, from transcript
-// only. `correct` is score >= that item's level's pass bar (passThresholdForLevel).
+// Exact-text grading for items with a definite answer, AI rubric grading otherwise. `correct` = score >= pass bar.
 export type GradeResult = {
   status: "scored" | "pending" | "failed";
   correct: boolean | null;

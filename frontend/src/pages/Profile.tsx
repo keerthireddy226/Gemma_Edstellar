@@ -26,9 +26,7 @@ import { getOnboardingProfile, updateSpokenPromptsPreference, type OnboardingPro
 import { getRoadmap, type RoadmapData } from "@/api/roadmap";
 import { ROUTES } from "@/constants/routes";
 
-// A colored icon-in-squircle badge, reused as the visual anchor for every
-// card header and row in this page — same "shapes + color" treatment
-// Modules got, instead of plain grey icons and mono-uppercase-only labels.
+// Colored icon-in-squircle badge, reused as the visual anchor for every card header/row here.
 function IconBadge({ icon: Icon, tint, size = 36 }: { icon: typeof GraduationCap; tint: string; size?: number }) {
   return (
     <span
@@ -59,10 +57,7 @@ function PlanRow({ icon, tint, label, value }: { icon: typeof GraduationCap; tin
   );
 }
 
-// Everything here is already collected elsewhere (onboarding's exam-goal
-// step, the placement test, the roadmap's access window) and just never
-// surfaced again after those flows finished — this reads the same
-// endpoints Onboarding/Roadmap already use, not new backend work.
+// Everything here is already collected elsewhere — reads the same endpoints Onboarding/Roadmap use.
 function PlanSection() {
   const { t } = useTranslation();
   const [profile, setProfile] = useState<OnboardingProfile | null>(null);
@@ -77,9 +72,7 @@ function PlanSection() {
     });
   }, []);
 
-  // No onboarding profile and no roadmap (placement not taken yet) — nothing
-  // real to show, so the whole card (including the loading state) doesn't
-  // render at all rather than showing an empty bordered shell.
+  // Nothing real to show yet (no profile, no roadmap) — skip the whole card, not an empty shell.
   if (!loading && !profile?.exam_preference && !roadmap) return null;
   if (loading) {
     return (
@@ -132,10 +125,7 @@ function PlanSection() {
 }
 
 
-// Real editing, not decorative — PATCH /auth/me actually updates the
-// account (see updateName in useAuth.ts). Email/account type stay
-// read-only: email is tied to login/verification, and every account
-// reaching this (learner-only) portal has the same account type.
+// Real editing — PATCH /auth/me updates the account. Email stays read-only (tied to login/verification).
 function PersonalInformation() {
   const { t } = useTranslation();
   const { user, updateName } = useAuth();
@@ -294,11 +284,7 @@ function ToggleRow({
   );
 }
 
-// Only "Spoken Audio Prompts" is real (saved via PATCH /onboarding/preferences
-// and reloaded from participant_profiles.spoken_prompts_enabled). The other
-// two have no backend at all — shown disabled with a "coming soon" marker
-// rather than pretending to work, same honesty as the Tutor/Practice Tests
-// previews.
+// Only "Spoken Audio Prompts" is real — the other two have no backend, shown disabled as "coming soon".
 function PreferencesSection() {
   const { t } = useTranslation();
   const [spokenPrompts, setSpokenPrompts] = useState(true);

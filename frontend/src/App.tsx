@@ -15,6 +15,7 @@ import { ResetPassword } from "@/pages/ResetPassword";
 import { VerifyEmail } from "@/pages/VerifyEmail";
 import { Onboarding } from "@/pages/Onboarding";
 import { Placement } from "@/pages/Placement";
+import { FaceEnrollment } from "@/pages/FaceEnrollment";
 import { PlacementTest } from "@/pages/PlacementTest";
 import { Roadmap } from "@/pages/Roadmap";
 import { Dashboard } from "@/pages/Dashboard";
@@ -25,9 +26,7 @@ import { Tutor } from "@/pages/Tutor";
 import { Profile } from "@/pages/Profile";
 import { AppLayout } from "@/components/AppShell/AppLayout";
 
-// Any unmatched path (or a stale bookmark) sends a logged-in visitor to
-// *their* actual landing page, not always the learner one, and sends a
-// logged-out visitor to the learner login as a reasonable default.
+// Unmatched path: logged-in goes to their landing page, logged-out to learner login.
 function DefaultRedirect() {
   const { user, loading } = useAuth();
   if (loading) return null;
@@ -66,6 +65,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Placement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.FACE_ENROLLMENT}
+          element={
+            <ProtectedRoute>
+              <FaceEnrollment />
             </ProtectedRoute>
           }
         />

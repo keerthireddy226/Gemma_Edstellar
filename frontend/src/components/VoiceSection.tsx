@@ -6,13 +6,7 @@ import { getOnboardingProfile, updateVoicePreference, type PreferredVoice } from
 
 const VOICES: PreferredVoice[] = ["female", "male"];
 
-// Shared between the Profile page (change it anytime) and the mock test's
-// start screen (pick it before your very first test) — same radio-card
-// picker, same save-on-select behavior, just embedded in two places.
-// hideTitle: Profile renders its own colored icon+title header above this
-// (matching the rest of that page's section headers) — PlacementTest's
-// inline usage still wants this component's own title, so the default
-// keeps showing it.
+// Shared between Profile and the mock test's start screen. hideTitle: Profile renders its own header above this.
 export function VoiceSection({ hideTitle }: { hideTitle?: boolean } = {}) {
   const { t } = useTranslation();
   const [selected, setSelected] = useState<PreferredVoice | null>(null);

@@ -1,6 +1,4 @@
-// Real audio-based pronunciation/fluency scoring, via Gemini (unlike the
-// text-only free signals in fluencySignals.ts) — a supplementary "manner"
-// signal, never a right/wrong verdict, fails closed like aiGrading.ts.
+// Real audio-based pronunciation/fluency scoring via Gemini — supplementary signal, fails closed.
 import { GoogleGenAI } from "@google/genai";
 
 // "gemini-2.5-flash-lite" (still in Google's published price sheet) 404s for

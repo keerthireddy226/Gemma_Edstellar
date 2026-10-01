@@ -13,11 +13,10 @@ import { roadmapRouter } from "./roadmap/routes.js";
 import { dashboardRouter } from "./dashboard/routes.js";
 import { practiceRouter } from "./practice/routes.js";
 import { coachRouter } from "./coach/routes.js";
+import { faceRouter } from "./face/routes.js";
 import { requireAuth } from "./auth/middleware.js";
 
-// An unset FRONTEND_URL would make cors() below fall back to reflecting any
-// origin (its documented behavior for a falsy `origin`) — failing loudly
-// here beats silently opening credentialed CORS to every site.
+// Unset would make cors() below reflect any origin — fail loudly instead.
 if (!process.env.FRONTEND_URL) {
   throw new Error("FRONTEND_URL must be set");
 }
@@ -28,9 +27,7 @@ app.use(helmet());
 // Restricted to the actual frontend origin, not reflected for any caller —
 // origin:true + credentials:true would let any site make credentialed requests.
 app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
-// Raised from the 100kb default — placement attempts can carry a base64
-// audio recording (a mic response is only a few seconds long, but base64
-// adds ~33% overhead on top of that).
+// Raised from 100kb default — base64 audio/image payloads need the room.
 app.use(express.json({ limit: "5mb" }));
 app.use(cookieParser());
 app.use(morgan("dev"));
@@ -54,6 +51,7 @@ app.use("/api/roadmap", roadmapRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/practice", practiceRouter);
 app.use("/api/coach", coachRouter);
+app.use("/api/face", faceRouter);
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof ZodError) {

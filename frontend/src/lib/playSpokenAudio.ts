@@ -1,11 +1,7 @@
 import { speak } from "@/hooks/useVoiceRecorder";
 import type { TestItem } from "@/api/testSession";
 
-// Prefers real pre-generated AI voice audio (item.audioUrl) over the
-// browser's speechSynthesis — falls back to speak(segments) whenever
-// there's no URL yet, the file fails to load, or playback itself errors, so
-// an item that hasn't been through generateItemAudio.ts yet (or a bad file)
-// never breaks audio entirely.
+// Prefers pre-generated AI audio over browser speechSynthesis — falls back on missing URL or any error.
 export function playSpokenAudio(item: TestItem, segments: string[]): Promise<void> {
   if (!item.audioUrl) return speak(segments);
 

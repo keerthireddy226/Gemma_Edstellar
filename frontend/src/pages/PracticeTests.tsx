@@ -1,11 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { ClipboardCheck, Lock } from "lucide-react";
 
-// Reuses the same exam list/copy from onboarding's exam-preference step
-// (onboarding.wizard.examGoal.exam.*) rather than writing new descriptions —
-// same exams, just shown here as "what's coming" instead of "what's your
-// goal". No backend content exists yet for full-length timed tests, so
-// every card is a disabled preview, not a real start button.
+// Reuses onboarding's exam-preference list/copy. No backend content yet — every card is a disabled preview.
 const EXAMS = ["versant", "ielts", "toefl", "pte", "cambridge", "other"] as const;
 
 export function PracticeTests() {

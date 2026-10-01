@@ -14,9 +14,7 @@ export const updateNameSchema = z.object({
   lastName: z.string().min(1),
 });
 
-// A login portal names which role(s) it accepts — a plain list, even when
-// there's only one — so a portal like /admin/login can accept either
-// 'admin' or 'super_admin' without a different check shape.
+// A login portal names which role(s) it accepts — a plain list even for one, e.g. admin or super_admin.
 export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),

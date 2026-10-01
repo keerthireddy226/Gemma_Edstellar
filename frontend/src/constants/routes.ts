@@ -11,6 +11,7 @@ export const ROUTES = {
   VERIFY_EMAIL: "/verify-email",
   ONBOARDING: "/onboarding",
   PLACEMENT: "/placement",
+  FACE_ENROLLMENT: "/face-enrollment",
   PLACEMENT_TEST: "/placement/test",
   ROADMAP: "/roadmap",
   DASHBOARD: "/dashboard",
@@ -26,9 +27,7 @@ export const LEARNER_LOGIN_ALLOWED_ROLES: Role[] = ["learner"];
 export const ORG_ADMIN_LOGIN_ALLOWED_ROLES: Role[] = ["org_admin"];
 export const ADMIN_LOGIN_ALLOWED_ROLES: Role[] = ["admin", "super_admin"];
 
-// So a flow that only learns the account's role after the fact (verify-email,
-// reset-password) can send the learner back to *their* role's login page,
-// instead of always assuming learner.
+// Lets verify-email/reset-password send the learner to *their* role's login page.
 export const LOGIN_ROUTE_BY_ROLE: Record<Role, string> = {
   learner: ROUTES.LOGIN,
   org_admin: ROUTES.ORG_ADMIN_LOGIN,
@@ -36,10 +35,7 @@ export const LOGIN_ROUTE_BY_ROLE: Record<Role, string> = {
   super_admin: ROUTES.ADMIN_LOGIN,
 };
 
-// Where each role lands after logging in. Only learner has a real destination
-// (the onboarding questionnaire) — Org Admin/Admin/Super Admin consoles are
-// reserved/Phase 2, not built yet, so they land on the existing generic
-// Dashboard placeholder instead of the learner-specific onboarding flow.
+// Only learner has a real destination (onboarding) — admin roles land on the Dashboard placeholder.
 export const LANDING_ROUTE_BY_ROLE: Record<Role, string> = {
   learner: ROUTES.ONBOARDING,
   org_admin: ROUTES.DASHBOARD,

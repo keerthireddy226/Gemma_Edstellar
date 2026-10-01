@@ -4,10 +4,7 @@ import type { SkillTag } from "./roadmapBuilder.js";
 
 const EVEN_SKILL_PERCENTS: Record<SkillTag, number> = { listening: 50, speaking: 50, reading: 50, writing: 50 };
 
-// Builds a local-calendar-date ISO string N days out. Avoids
-// `Date.toISOString().slice(0, 10)`, which converts to UTC first and can
-// land on a different calendar date than "N days from now" in a timezone
-// ahead of UTC (this test suite runs in IST, UTC+5:30).
+// Local-calendar-date ISO string N days out — avoids UTC conversion landing on the wrong day (tests run in IST).
 function isoDateDaysFromNow(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() + days);

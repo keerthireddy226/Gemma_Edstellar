@@ -8,9 +8,7 @@ export const dashboardRouter = Router();
 
 type SkillTag = "listening" | "speaking" | "reading" | "writing";
 const ALL_SKILLS: SkillTag[] = ["listening", "speaking", "reading", "writing"];
-// Ceiling on how many items of one skill get suggested for a single day —
-// otherwise a big level gap + tight deadline can inflate minutesPerDay
-// enough to ask for a long, repetitive same-skill grind in one sitting.
+// Ceiling on items of one skill per day — avoids a long, repetitive same-skill grind.
 const MAX_ITEMS_PER_SKILL_PER_DAY = 8;
 // Fallback average seconds-per-item for a skill with no matching item types
 // yet — shouldn't normally happen, just avoids a divide-by-zero.
@@ -19,10 +17,7 @@ const FALLBACK_AVG_SECONDS_PER_ITEM = 60;
 // resumed after a break shouldn't inflate practiceMinutes by the idle gap.
 const MAX_MINUTES_PER_SESSION = 120;
 
-// Weaker skills get proportionally more of today's practice time — same
-// "practice your weakest skill first" idea the roadmap milestones use.
-// Floored at 5 so a skill already at 100% still gets a token amount of
-// upkeep practice rather than disappearing from today's plan entirely.
+// Weaker skills get proportionally more time; floored at 5 so a 100% skill still gets token upkeep.
 function computeSkillWeights(skillPercents: Record<SkillTag, number>): Record<SkillTag, number> {
   const inverse = ALL_SKILLS.map((s) => Math.max(100 - (skillPercents[s] ?? 0), 5));
   const total = inverse.reduce((a, b) => a + b, 0);
@@ -37,9 +32,7 @@ function dayKey(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-// Longest run of consecutive calendar days (ending today or yesterday —
-// today's practice may not have happened yet) with at least one completed
-// practice session.
+// Longest run of consecutive days (ending today or yesterday) with a completed session.
 function computeStreakDays(completedDates: string[]): number {
   const days = new Set(completedDates);
   const today = new Date();
