@@ -14,6 +14,7 @@ import { dashboardRouter } from "./dashboard/routes.js";
 import { practiceRouter } from "./practice/routes.js";
 import { coachRouter } from "./coach/routes.js";
 import { faceRouter } from "./face/routes.js";
+import { webauthnRouter } from "./auth/webauthnRoutes.js";
 import { requireAuth } from "./auth/middleware.js";
 
 // Unset would make cors() below reflect any origin — fail loudly instead.
@@ -52,6 +53,7 @@ app.use("/api/dashboard", dashboardRouter);
 app.use("/api/practice", practiceRouter);
 app.use("/api/coach", coachRouter);
 app.use("/api/face", faceRouter);
+app.use("/api/auth/passkey", webauthnRouter);
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof ZodError) {

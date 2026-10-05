@@ -29,24 +29,3 @@ export function verifyFace(purpose: FaceCheckPurpose, imageBase64: string): Prom
     body: JSON.stringify({ purpose, imageBase64 }),
   });
 }
-
-export function requestFaceFallback(
-  purpose: FaceCheckPurpose,
-  failedResultId: string,
-): Promise<{ fallbackRequestId: string; status: "pending" }> {
-  return api("/face/fallback/request", {
-    method: "POST",
-    body: JSON.stringify({ purpose, failedResultId }),
-  });
-}
-
-export function getFaceFallbackStatus(id: string): Promise<{ status: "pending" | "approved" | "denied" | "expired"; consumed: boolean }> {
-  return api(`/face/fallback/status/${id}`);
-}
-
-export function consumeFaceFallback(fallbackRequestId: string): Promise<{ consumed: boolean }> {
-  return api("/face/fallback/consume", {
-    method: "POST",
-    body: JSON.stringify({ fallbackRequestId }),
-  });
-}

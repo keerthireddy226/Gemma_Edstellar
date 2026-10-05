@@ -357,6 +357,17 @@
       "saving": "సేవ్ అవుతోంది…",
       "cancel": "రద్దు చేయండి"
     },
+    "security": {
+      "title": "Security",
+      "passkeyError": "Something went wrong setting up your passkey. Please try again.",
+      "passkey": {
+        "title": "Passkey",
+        "subtitle": "A quick, secure way back in if a face check ever fails — set up once, using your device's fingerprint, face, or PIN.",
+        "done": "Set up",
+        "setUpAction": "Set up passkey",
+        "settingUp": "Setting up…"
+      }
+    },
     "preferences": {
       "title": "ప్రాధాన్యతలు",
       "spokenPrompts": {
@@ -543,11 +554,8 @@
       "tooShort": "Could not read your face clearly. Please try again."
     },
     "fallback": {
-      "request": "Request Alternate Verification",
-      "title": "Verification requested",
-      "pending": "An administrator will review this shortly. This page will update automatically.",
-      "denied": "Your request was not approved. Please contact support.",
-      "expired": "This request has expired. Please try verifying again."
+      "passkey": "Verify with Passkey",
+      "passkeySuccess": "Passkey verified"
     },
     "enrollmentConsent": {
       "title": "Set up face verification",
