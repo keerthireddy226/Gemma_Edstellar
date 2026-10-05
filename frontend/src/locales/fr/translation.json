@@ -21,6 +21,7 @@
       "errorInvalidCredentials": "E-mail ou mot de passe incorrect.",
       "errorEmailNotVerified": "Veuillez vérifier votre e-mail avant de vous connecter — consultez votre boîte de réception pour le lien de vérification.",
       "errorWrongPortal": "Ce compte n'a pas accès via cette page de connexion.",
+      "errorAlreadyLoggedIn": "Ce compte est déjà connecté sur un autre appareil. Déconnectez-vous d'abord là-bas.",
       "errorTooManyAttempts": "Trop de tentatives de connexion. Veuillez patienter quelques minutes et réessayer.",
       "errorGeneric": "Une erreur s'est produite. Veuillez vérifier votre connexion et réessayer.",
       "forgotPassword": "Mot de passe oublié ?",

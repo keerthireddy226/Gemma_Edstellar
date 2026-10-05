@@ -33,6 +33,8 @@ export function Login({ allowedRoles }: { allowedRoles: Role[] }) {
         setError(t("auth.login.errorEmailNotVerified"));
       } else if (err instanceof Error && err.message === "wrong_login_portal") {
         setError(t("auth.login.errorWrongPortal"));
+      } else if (err instanceof Error && err.message === "already_logged_in") {
+        setError(t("auth.login.errorAlreadyLoggedIn"));
       } else if (err instanceof Error && err.message === "too_many_attempts") {
         setError(t("auth.login.errorTooManyAttempts"));
       } else {

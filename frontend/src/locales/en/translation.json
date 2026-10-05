@@ -21,6 +21,7 @@
       "errorInvalidCredentials": "Incorrect email or password.",
       "errorEmailNotVerified": "Please verify your email before signing in — check your inbox for the verification link.",
       "errorWrongPortal": "This account doesn't have access through this login page.",
+      "errorAlreadyLoggedIn": "This account is already logged in on another device. Log out there first.",
       "errorTooManyAttempts": "Too many login attempts. Please wait a few minutes and try again.",
       "errorGeneric": "Something went wrong. Please check your connection and try again.",
       "forgotPassword": "Forgot password?",

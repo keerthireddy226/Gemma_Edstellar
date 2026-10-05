@@ -134,6 +134,16 @@ authRouter.post("/login", loginLimiter, async (req, res, next) => {
       return res.status(403).json({ error: "wrong_login_portal" });
     }
 
+    // One active session per account — a second login while the first is still
+    // open gets rejected instead of silently coexisting with it.
+    const activeSession = await pool.query(
+      `SELECT 1 FROM auth_sessions WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > now() LIMIT 1`,
+      [user.id],
+    );
+    if (activeSession.rows[0]) {
+      return res.status(409).json({ error: "already_logged_in" });
+    }
+
     const { token } = await createSession(pool, user.id);
     setSessionCookie(res, token);
     res.json({
