@@ -359,20 +359,6 @@
       "saving": "Saving…",
       "cancel": "Cancel"
     },
-    "security": {
-      "title": "Security",
-      "passkeyError": "Something went wrong setting up your passkey. Please try again.",
-      "passkeyRemoveError": "Something went wrong removing your passkey. Please try again.",
-      "passkey": {
-        "title": "Passkey",
-        "subtitle": "A quick, secure way back in if a face check ever fails — set up once, using your device's fingerprint, face, or PIN.",
-        "done": "Set up",
-        "setUpAction": "Set up passkey",
-        "settingUp": "Setting up…",
-        "remove": "Remove",
-        "removing": "Removing…"
-      }
-    },
     "preferences": {
       "title": "Preferences",
       "spokenPrompts": {
@@ -559,11 +545,16 @@
       "tooShort": "Could not read your face clearly. Please try again."
     },
     "fallback": {
-      "passkey": "Verify with Passkey",
-      "passkeySuccess": "Passkey verified",
-      "confirmTitle": "Verify with passkey",
-      "confirmSubtitle": "Your device will ask you to confirm with your fingerprint, face, or PIN. Continue when you're ready.",
-      "confirmContinue": "Continue"
+      "otpButton": "Email me a code",
+      "otpSending": "Sending…",
+      "otpSentNotice": "Code sent — check your email.",
+      "otpPlaceholder": "6-digit code",
+      "otpVerify": "Verify code",
+      "otpVerifying": "Verifying…",
+      "otpResend": "Resend code",
+      "otpSuccess": "Code verified",
+      "otpSendError": "Something went wrong sending the code. Please try again.",
+      "otpInvalidError": "That code didn't work. Check it and try again."
     },
     "enrollmentConsent": {
       "title": "Set up face verification",

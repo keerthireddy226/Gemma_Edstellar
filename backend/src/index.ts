@@ -15,7 +15,6 @@ import { dashboardRouter } from "./dashboard/routes.js";
 import { practiceRouter } from "./practice/routes.js";
 import { coachRouter } from "./coach/routes.js";
 import { faceRouter } from "./face/routes.js";
-import { webauthnRouter } from "./auth/webauthnRoutes.js";
 import { requireAuth } from "./auth/middleware.js";
 
 // Railway's network has no IPv6 egress — without this, Node's dual-stack DNS
@@ -64,7 +63,6 @@ app.use("/api/dashboard", dashboardRouter);
 app.use("/api/practice", practiceRouter);
 app.use("/api/coach", coachRouter);
 app.use("/api/face", faceRouter);
-app.use("/api/auth/passkey", webauthnRouter);
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof ZodError) {

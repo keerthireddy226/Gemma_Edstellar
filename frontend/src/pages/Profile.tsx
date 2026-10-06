@@ -24,7 +24,6 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useAuth } from "@/hooks/useAuth";
 import { getOnboardingProfile, updateSpokenPromptsPreference, type OnboardingProfile } from "@/api/onboarding";
 import { getRoadmap, type RoadmapData } from "@/api/roadmap";
-import { getPasskeyStatus, registerPasskey, removePasskey } from "@/api/passkey";
 import { ROUTES } from "@/constants/routes";
 
 // Colored icon-in-squircle badge, reused as the visual anchor for every card header/row here.
@@ -285,77 +284,6 @@ function ToggleRow({
   );
 }
 
-// Only "Spoken Audio Prompts" is real — the other two have no backend, shown disabled as "coming soon".
-// Self-serve fallback for a failed face check — registered once, used only if face check fails.
-function SecuritySection() {
-  const { t } = useTranslation();
-  const [registered, setRegistered] = useState<boolean | null>(null);
-  const [registering, setRegistering] = useState(false);
-  const [removing, setRemoving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    getPasskeyStatus().then((r) => setRegistered(r.registered)).catch(() => setRegistered(false));
-  }, []);
-
-  async function handleRegister() {
-    setRegistering(true);
-    setError(null);
-    try {
-      await registerPasskey();
-      setRegistered(true);
-    } catch {
-      setError(t("profile.security.passkeyError"));
-    } finally {
-      setRegistering(false);
-    }
-  }
-
-  async function handleRemove() {
-    setRemoving(true);
-    setError(null);
-    try {
-      await removePasskey();
-      setRegistered(false);
-    } catch {
-      setError(t("profile.security.passkeyRemoveError"));
-    } finally {
-      setRemoving(false);
-    }
-  }
-
-  return (
-    <div className="bg-surface border border-rule rounded-card p-6 flex flex-col gap-3">
-      <SectionHeader icon={ShieldCheck} tint="bg-listening/15 text-listening" title={t("profile.security.title")} />
-      <div className="flex items-start gap-3 py-1">
-        <IconBadge icon={ShieldCheck} tint="bg-accent/15 text-accent" size={32} />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-ink">{t("profile.security.passkey.title")}</p>
-          <p className="text-xs text-muted mt-0.5">{t("profile.security.passkey.subtitle")}</p>
-          {error && <p className="text-xs text-error mt-1">{error}</p>}
-        </div>
-        {registered === true && (
-          <div className="flex flex-col items-end gap-1.5 shrink-0">
-            <span className="text-xs font-medium text-success">{t("profile.security.passkey.done")}</span>
-            <button
-              type="button"
-              onClick={handleRemove}
-              disabled={removing}
-              className="text-xs font-medium text-error hover:underline cursor-pointer"
-            >
-              {removing ? t("profile.security.passkey.removing") : t("profile.security.passkey.remove")}
-            </button>
-          </div>
-        )}
-        {registered === false && (
-          <Button variant="secondary" onClick={handleRegister} disabled={registering}>
-            {registering ? t("profile.security.passkey.settingUp") : t("profile.security.passkey.setUpAction")}
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function PreferencesSection() {
   const { t } = useTranslation();
@@ -458,7 +386,6 @@ export function Profile() {
 
         <div className="flex flex-col gap-6">
           <PersonalInformation />
-          <SecuritySection />
           <PreferencesSection />
         </div>
       </div>

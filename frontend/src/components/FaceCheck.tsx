@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Camera, CheckCircle2, ArrowLeft } from "lucide-react";
 import { useCamera } from "@/hooks/useCamera";
-import { enrollFace, verifyFace, type FaceCheckPurpose } from "@/api/faceCheck";
-import { getPasskeyStatus, verifyPasskeyFallback } from "@/api/passkey";
+import { enrollFace, verifyFace, requestFaceFallbackOtp, verifyFaceFallbackOtp, type FaceCheckPurpose } from "@/api/faceCheck";
 import { Button } from "@/components/Button";
 
 interface FaceCheckProps {
@@ -13,7 +12,8 @@ interface FaceCheckProps {
   onBack?: () => void;
 }
 
-// onComplete fires on a match or a passkey pass. No other fallback — passkey is the only path past a failed check.
+// onComplete fires on a match or an OTP pass. No other fallback — an emailed
+// one-time code is the only path past a failed check.
 export function FaceCheck({ mode, purpose, onComplete, onBack }: FaceCheckProps) {
   const { t } = useTranslation();
   const { active, videoRef, start, stop, capture } = useCamera();
@@ -21,12 +21,13 @@ export function FaceCheck({ mode, purpose, onComplete, onBack }: FaceCheckProps)
   const [error, setError] = useState<string | null>(null);
   const [blocked, setBlocked] = useState<string | null>(null);
   const [verified, setVerified] = useState(false);
-  const [verifiedViaPasskey, setVerifiedViaPasskey] = useState(false);
+  const [verifiedViaOtp, setVerifiedViaOtp] = useState(false);
   const [pendingFaceCheckId, setPendingFaceCheckId] = useState<string | undefined>(undefined);
   const [failedResultId, setFailedResultId] = useState<string | null>(null);
   const [fallbackEligible, setFallbackEligible] = useState(false);
-  const [hasPasskey, setHasPasskey] = useState(false);
-  const [confirmingPasskey, setConfirmingPasskey] = useState(false);
+  const [requestingOtp, setRequestingOtp] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
 
   useEffect(() => {
     start().catch(() => setError(t("faceCheck.record.cameraError")));
@@ -56,7 +57,6 @@ export function FaceCheck({ mode, purpose, onComplete, onBack }: FaceCheckProps)
         setBlocked(result.reason ?? t("faceCheck.verify.mismatchError"));
         setFailedResultId(result.fallbackEligible ? result.faceCheckId : null);
         setFallbackEligible(Boolean(result.fallbackEligible));
-        if (result.fallbackEligible) getPasskeyStatus().then((r) => setHasPasskey(r.registered)).catch(() => setHasPasskey(false));
         setSubmitting(false);
         return;
       }
@@ -92,48 +92,38 @@ export function FaceCheck({ mode, purpose, onComplete, onBack }: FaceCheckProps)
     }
   }
 
-  async function verifyWithPasskey() {
+  async function sendOtp() {
     if (!failedResultId) return;
-    setSubmitting(true);
+    setRequestingOtp(true);
     setError(null);
     try {
-      const result = await verifyPasskeyFallback(failedResultId);
-      if (result.allowed) {
-        setVerified(true);
-        setVerifiedViaPasskey(true);
-        setPendingFaceCheckId(result.faceCheckId);
-      }
+      await requestFaceFallbackOtp(failedResultId);
+      setOtpSent(true);
     } catch {
-      setError(t("faceCheck.record.error"));
+      setError(t("faceCheck.fallback.otpSendError"));
     } finally {
-      setSubmitting(false);
+      setRequestingOtp(false);
     }
   }
 
-  if (confirmingPasskey) {
-    return (
-      <div className="app-surface min-h-screen flex items-center justify-center px-4">
-        <div className="bg-surface border border-rule rounded-card p-6 max-w-sm w-full flex flex-col items-center gap-4 text-center">
-          <h2 className="font-display font-bold text-xl text-ink">{t("faceCheck.fallback.confirmTitle")}</h2>
-          <p className="text-sm text-muted -mt-2">{t("faceCheck.fallback.confirmSubtitle")}</p>
-          <div className="flex gap-3 w-full">
-            <Button variant="secondary" onClick={() => setConfirmingPasskey(false)} disabled={submitting} className="flex-1">
-              {t("faceCheck.back")}
-            </Button>
-            <Button
-              onClick={() => {
-                setConfirmingPasskey(false);
-                verifyWithPasskey();
-              }}
-              disabled={submitting}
-              className="flex-1"
-            >
-              {t("faceCheck.fallback.confirmContinue")}
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
+  async function submitOtp() {
+    if (!failedResultId || !otpCode.trim()) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await verifyFaceFallbackOtp(failedResultId, otpCode.trim());
+      if (result.allowed) {
+        setVerified(true);
+        setVerifiedViaOtp(true);
+        setPendingFaceCheckId(result.faceCheckId);
+      } else {
+        setError(t("faceCheck.fallback.otpInvalidError"));
+      }
+    } catch {
+      setError(t("faceCheck.fallback.otpInvalidError"));
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (verified) {
@@ -142,7 +132,7 @@ export function FaceCheck({ mode, purpose, onComplete, onBack }: FaceCheckProps)
         <div className="bg-surface border border-rule rounded-card p-6 max-w-sm w-full flex flex-col items-center gap-4 text-center">
           <CheckCircle2 size={40} className="text-success" />
           <p className="font-semibold text-ink">
-            {mode === "enroll" ? t("faceCheck.enroll.success") : verifiedViaPasskey ? t("faceCheck.fallback.passkeySuccess") : t("faceCheck.verify.success")}
+            {mode === "enroll" ? t("faceCheck.enroll.success") : verifiedViaOtp ? t("faceCheck.fallback.otpSuccess") : t("faceCheck.verify.success")}
           </p>
           <p className="text-sm text-muted -mt-2">
             {mode === "enroll" ? t("faceCheck.enroll.successSubtitle") : t("faceCheck.verify.successSubtitle")}
@@ -172,12 +162,36 @@ export function FaceCheck({ mode, purpose, onComplete, onBack }: FaceCheckProps)
         <video ref={videoRef} autoPlay playsInline muted className="w-full rounded-card bg-ink aspect-[4/3] object-cover" />
         {error && <p className="text-sm text-error">{error}</p>}
         {blocked && (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 w-full">
             <p className="text-sm text-error">{blocked}</p>
-            {fallbackEligible && hasPasskey && (
-              <Button variant="secondary" onClick={() => setConfirmingPasskey(true)} disabled={submitting}>
-                {t("faceCheck.fallback.passkey")}
+            {fallbackEligible && !otpSent && (
+              <Button variant="secondary" onClick={sendOtp} disabled={requestingOtp}>
+                {requestingOtp ? t("faceCheck.fallback.otpSending") : t("faceCheck.fallback.otpButton")}
               </Button>
+            )}
+            {otpSent && (
+              <div className="flex flex-col gap-2 items-center">
+                <p className="text-xs text-muted">{t("faceCheck.fallback.otpSentNotice")}</p>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value)}
+                  placeholder={t("faceCheck.fallback.otpPlaceholder")}
+                  className="w-full rounded-card border border-rule bg-surface px-3 py-2 text-sm text-ink text-center tracking-widest focus:border-navy focus:outline-none"
+                />
+                <Button onClick={submitOtp} disabled={submitting || !otpCode.trim()} className="w-full">
+                  {submitting ? t("faceCheck.fallback.otpVerifying") : t("faceCheck.fallback.otpVerify")}
+                </Button>
+                <button
+                  type="button"
+                  onClick={sendOtp}
+                  disabled={requestingOtp}
+                  className="text-xs text-muted hover:text-ink cursor-pointer disabled:opacity-50"
+                >
+                  {t("faceCheck.fallback.otpResend")}
+                </button>
+              </div>
             )}
           </div>
         )}

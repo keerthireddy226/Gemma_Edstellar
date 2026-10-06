@@ -1,5 +1,6 @@
-// Enroll once, verify before every session. Passkey is the only path past a failed check.
-import { randomUUID } from "node:crypto";
+// Enroll once, verify before every session. An emailed one-time code is the
+// only path past a failed check.
+import { randomUUID, randomInt } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Router } from "express";
@@ -7,6 +8,8 @@ import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import { pool } from "../db.js";
 import { requireAuth, type AuthedRequest } from "../auth/middleware.js";
+import { hashToken } from "../auth/tokens.js";
+import { sendFaceFallbackOtpEmail } from "../auth/mailer.js";
 import { detectFaces, cropFace } from "./detect.js";
 import { assessQuality } from "./quality.js";
 import { scoreLiveness } from "./liveness.js";
@@ -35,6 +38,20 @@ const RETRY_LIMIT = 2;
 // not an identity signal, but still needs an escape hatch instead of an infinite retry loop.
 const ENVIRONMENTAL_RETRY_LIMIT = 3;
 export const FALLBACK_ELIGIBLE_DECISIONS = ["mismatch", "uncertain", "no_face", "multiple_faces", "error"];
+
+const OTP_TTL_MS = 10 * 60 * 1000;
+// Shared by request and verify — a code is only 6 digits, so the verify side
+// especially needs this to make brute-forcing impractical.
+const otpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV !== "production",
+  handler: (_req, res) => {
+    res.status(429).json({ error: "too_many_attempts" });
+  },
+});
 
 // Guards against comparing an embedding from a since-replaced model.
 const EMBEDDING_BYTES = 512 * Float32Array.BYTES_PER_ELEMENT;
@@ -257,6 +274,57 @@ faceRouter.post("/verify", requireAuth, faceCheckLimiter, async (req: AuthedRequ
       retriesRemaining: Math.max(0, RETRY_LIMIT - retriesUsed),
       reason: decision === "match" ? undefined : "Face didn't match your enrolled photo. Please try again.",
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const otpRequestSchema = z.object({ faceCheckId: z.string().uuid() });
+
+faceRouter.post("/otp/request", requireAuth, otpLimiter, async (req: AuthedRequest, res, next) => {
+  try {
+    const body = otpRequestSchema.parse(req.body);
+    const checkResult = await pool.query(`SELECT decision FROM face_check_results WHERE id = $1 AND user_id = $2`, [
+      body.faceCheckId,
+      req.user!.id,
+    ]);
+    const check = checkResult.rows[0];
+    if (!check || !FALLBACK_ELIGIBLE_DECISIONS.includes(check.decision)) {
+      return res.status(403).json({ error: "not_fallback_eligible" });
+    }
+
+    const userResult = await pool.query(`SELECT email FROM users WHERE id = $1`, [req.user!.id]);
+    const email = userResult.rows[0]?.email;
+    if (!email) return res.status(404).json({ error: "user_not_found" });
+
+    const code = randomInt(100000, 1000000).toString();
+    await pool.query(
+      `INSERT INTO face_fallback_otp_codes (user_id, face_check_id, code_hash, expires_at) VALUES ($1, $2, $3, $4)`,
+      [req.user!.id, body.faceCheckId, hashToken(code), new Date(Date.now() + OTP_TTL_MS)],
+    );
+    sendFaceFallbackOtpEmail(email, code).catch((err) => console.error("failed to send face fallback OTP email:", err));
+    res.status(201).json({ sent: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const otpVerifySchema = z.object({ faceCheckId: z.string().uuid(), code: z.string() });
+
+faceRouter.post("/otp/verify", requireAuth, otpLimiter, async (req: AuthedRequest, res, next) => {
+  try {
+    const body = otpVerifySchema.parse(req.body);
+    const result = await pool.query(
+      `SELECT id FROM face_fallback_otp_codes
+       WHERE user_id = $1 AND face_check_id = $2 AND code_hash = $3 AND used_at IS NULL AND expires_at > now()
+       ORDER BY created_at DESC LIMIT 1`,
+      [req.user!.id, body.faceCheckId, hashToken(body.code)],
+    );
+    const row = result.rows[0];
+    if (!row) return res.status(400).json({ error: "invalid_or_expired_code" });
+
+    await pool.query(`UPDATE face_fallback_otp_codes SET used_at = now() WHERE id = $1`, [row.id]);
+    res.json({ allowed: true, faceCheckId: body.faceCheckId });
   } catch (err) {
     next(err);
   }
