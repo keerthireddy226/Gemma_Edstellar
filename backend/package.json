@@ -6,7 +6,7 @@
     "test": "vitest run",
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json && find dist -name '*.test.js' -delete",
-    "start": "node-pg-migrate up && node dist/index.js",
+    "start": "node dist/index.js",
     "migrate": "node-pg-migrate",
     "generate-item-audio": "tsx scripts/generateItemAudio.ts",
     "analyze-voice-lab": "tsx scripts/analyzeVoiceLab.ts",
