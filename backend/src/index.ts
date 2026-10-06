@@ -1,4 +1,5 @@
 import "dotenv/config";
+import dns from "node:dns";
 import express, { type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -16,6 +17,11 @@ import { coachRouter } from "./coach/routes.js";
 import { faceRouter } from "./face/routes.js";
 import { webauthnRouter } from "./auth/webauthnRoutes.js";
 import { requireAuth } from "./auth/middleware.js";
+
+// Railway's network has no IPv6 egress — without this, Node's dual-stack DNS
+// resolution can still pick a host's IPv6 address (e.g. smtp.gmail.com) and
+// fail with ENETUNREACH instead of falling back to IPv4.
+dns.setDefaultResultOrder("ipv4first");
 
 // Unset would make cors() below reflect any origin — fail loudly instead.
 if (!process.env.FRONTEND_URL) {
