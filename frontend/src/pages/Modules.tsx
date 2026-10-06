@@ -12,6 +12,7 @@ import {
   getSets,
   startPracticeSession,
   getCurrentPracticeSession,
+  getPracticeSession,
   submitPracticeAttempt,
   completePracticeSession,
   type PracticeSummary,
@@ -347,7 +348,7 @@ export function Modules() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { recording, start: startRecording, stop: stopRecording } = useVoiceRecorder();
 
   const [availability, setAvailability] = useState<SkillAvailability[] | null>(null);
@@ -374,6 +375,51 @@ export function Modules() {
   const [pendingStart, setPendingStart] = useState<{ skill: SkillTag; count?: number; itemTypeId?: string; setId?: string } | null>(
     null,
   );
+  // Mirrors pickerSkill/pickerType/pickerUnit into the URL (pSkill/pType/pUnit/pUnitName)
+  // so a refresh restores the same browsing screen instead of falling through to
+  // the in-progress-session resume check below. null clears all four.
+  function updateBrowseParams(next: { pSkill?: string; pType?: string; pUnit?: string; pUnitName?: string } | null) {
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        params.delete("pSkill");
+        params.delete("pType");
+        params.delete("pUnit");
+        params.delete("pUnitName");
+        if (next) {
+          if (next.pSkill) params.set("pSkill", next.pSkill);
+          if (next.pType) params.set("pType", next.pType);
+          if (next.pUnit) params.set("pUnit", next.pUnit);
+          if (next.pUnitName) params.set("pUnitName", next.pUnitName);
+        }
+        return params;
+      },
+      { replace: true },
+    );
+  }
+
+  // Restores pickerSkill/pickerType/pickerUnit from the URL once on mount —
+  // runs before the resume-session effect decides whether to honor browsing state.
+  const restoredBrowseRef = useRef(false);
+  useEffect(() => {
+    if (restoredBrowseRef.current) return;
+    restoredBrowseRef.current = true;
+    const pSkill = searchParams.get("pSkill");
+    const pType = searchParams.get("pType");
+    const pUnit = searchParams.get("pUnit");
+    const pUnitName = searchParams.get("pUnitName");
+    if (pSkill === "listening" || pSkill === "speaking" || pSkill === "reading" || pSkill === "writing") {
+      setPickerSkill(pSkill);
+      if (pType) {
+        setPickerType({ skill: pSkill, itemTypeId: pType });
+        if (pUnit && pUnitName) {
+          setPickerUnit({ skill: pSkill, itemTypeId: pType, unitId: pUnit, unitName: pUnitName });
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [faceEnrolled, setFaceEnrolled] = useState<boolean | null>(null);
   useEffect(() => {
     getFaceEnrollmentStatus()
@@ -393,6 +439,7 @@ export function Modules() {
           // old count-based session start, same as before this feature.
           setPendingStart({ skill: pickerType.skill, itemTypeId: pickerType.itemTypeId });
           setPickerType(null);
+          updateBrowseParams(null);
         } else {
           setUnits(res.units);
         }
@@ -401,6 +448,7 @@ export function Modules() {
         if (!cancelled) {
           setPendingStart({ skill: pickerType.skill, itemTypeId: pickerType.itemTypeId });
           setPickerType(null);
+          updateBrowseParams(null);
         }
       })
       .finally(() => {
@@ -454,21 +502,59 @@ export function Modules() {
   // first — Placement already had this via getCurrentSession, practice didn't.
   const [resumeChecked, setResumeChecked] = useState(false);
   useEffect(() => {
+    function applyResumedSession(res: { sessionId: string; items: TestItem[] }) {
+      setSessionId(res.sessionId);
+      setItems(res.items);
+      const firstUnattempted = res.items.findIndex((item) => !item.attempted);
+      setIndex(firstUnattempted === -1 ? 0 : firstUnattempted);
+      setAnswers(
+        Object.fromEntries(
+          res.items.flatMap((item, i) => (item.attempted ? [[i, { responseText: item.responseText ?? "" }]] : [])),
+        ),
+      );
+    }
+
+    const sessionIdParam = searchParams.get("session");
+    if (sessionIdParam) {
+      // The exact session the learner was in — resume it by id, not by
+      // guessing from skill/type (which can't tell two in-progress sessions
+      // of the same skill apart, e.g. an old abandoned one vs. this one).
+      getPracticeSession(sessionIdParam)
+        .then((res) => {
+          if (!res.completed) applyResumedSession(res);
+        })
+        .catch(() => {})
+        .finally(() => setResumeChecked(true));
+      return;
+    }
+
+    // No session= in the URL — only a bare /modules visit (no skill/type
+    // picked, no browse state restored) auto-resumes whatever's in progress,
+    // as a "continue where you left off" shortcut. Any explicit navigation
+    // (a skill picked, or deeper into type/unit) shows that screen instead —
+    // picking a type/set there will naturally resume its own match via
+    // POST /session, without this blind global check interfering.
+    const explicitNavigation = searchParams.has("pSkill") || searchParams.has("skill") || searchParams.has("pType") || searchParams.has("pUnit");
+    if (explicitNavigation) {
+      setResumeChecked(true);
+      return;
+    }
     getCurrentPracticeSession()
       .then((res) => {
         if (!res.inProgress) return;
-        setSessionId(res.sessionId);
-        setItems(res.items);
-        const firstUnattempted = res.items.findIndex((item) => !item.attempted);
-        setIndex(firstUnattempted === -1 ? 0 : firstUnattempted);
-        setAnswers(
-          Object.fromEntries(
-            res.items.flatMap((item, i) => (item.attempted ? [[i, { responseText: item.responseText ?? "" }]] : [])),
-          ),
+        applyResumedSession(res);
+        setSearchParams(
+          (prev) => {
+            const params = new URLSearchParams(prev);
+            params.set("session", res.sessionId);
+            return params;
+          },
+          { replace: true },
         );
       })
       .catch(() => {})
       .finally(() => setResumeChecked(true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [starting, setStarting] = useState(false);
@@ -501,6 +587,21 @@ export function Modules() {
       const res = await startPracticeSession(skill, count, itemTypeId, setId);
       setSessionId(res.sessionId);
       setItems(res.items);
+      // Tags the URL with this exact session so a refresh resumes it by id
+      // instead of falling back to skill/type guesswork — clearing the
+      // browse-picker params at the same time, since we're done browsing.
+      setSearchParams(
+        (prev) => {
+          const params = new URLSearchParams(prev);
+          params.delete("pSkill");
+          params.delete("pType");
+          params.delete("pUnit");
+          params.delete("pUnitName");
+          params.set("session", res.sessionId);
+          return params;
+        },
+        { replace: true },
+      );
       // Resuming an in-progress session returns every item with its own
       // `attempted` flag — land on the first one that isn't, instead of
       // always rewinding to index 0 (that used to make "Continue where you
@@ -526,10 +627,22 @@ export function Modules() {
   // only acts once, but a genuine navigation (e.g. a Sidebar skill link)
   // still goes through, fixing a bug where it got stuck on the first skill.
   const lastAutoStart = useRef<string | null>(null);
+  const autoStartMounted = useRef(false);
   useEffect(() => {
-    const raw = searchParams.toString();
+    // Keyed only on skill/type/count — not the full query string — so that
+    // updateBrowseParams setting pSkill/pType/pUnit (as the learner clicks
+    // into Type/Unit/Set) doesn't look like a fresh deep-link and wipe them
+    // straight back out.
+    const raw = `${searchParams.get("skill")}|${searchParams.get("type")}|${searchParams.get("count")}`;
+    const firstRun = !autoStartMounted.current;
+    autoStartMounted.current = true;
     if (lastAutoStart.current === raw) return;
     lastAutoStart.current = raw;
+    // On the very first render (e.g. a refresh), a deeper browse state
+    // (pType/pUnit, restored by the effect above from the URL) wins over
+    // this effect's own reset-to-TypePicker behavior — only a genuine new
+    // ?skill= click while the app is already running should reset it.
+    if (firstRun && (searchParams.has("pType") || searchParams.has("pUnit"))) return;
     const skill = searchParams.get("skill");
     const count = searchParams.get("count");
     const itemTypeId = searchParams.get("type");
@@ -540,6 +653,18 @@ export function Modules() {
       setSummary(null);
       setPickerType(null);
       setPickerUnit(null);
+      // Drop the old session= so a later refresh can't resume a session for
+      // the skill just navigated away from.
+      if (!firstRun) {
+        setSearchParams(
+          (prev) => {
+            const params = new URLSearchParams(prev);
+            params.delete("session");
+            return params;
+          },
+          { replace: true },
+        );
+      }
       if (itemTypeId) {
         setPendingStart({ skill, count: count ? Number(count) : undefined, itemTypeId });
       } else {
@@ -700,6 +825,14 @@ export function Modules() {
     setSessionId(null);
     setItems([]);
     setSummary(null);
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        params.delete("session");
+        return params;
+      },
+      { replace: true },
+    );
   }
 
   if (!resumeChecked) return null;
@@ -736,26 +869,59 @@ export function Modules() {
           unitName={pickerUnit.unitName}
           sets={sets}
           loading={loadingSets}
-          onBack={() => setPickerUnit(null)}
-          onSelect={(setId) => setPendingStart({ skill: pickerUnit.skill, itemTypeId: pickerUnit.itemTypeId, setId })}
+          onBack={() => {
+            setPickerUnit(null);
+            updateBrowseParams({ pSkill: pickerUnit.skill, pType: pickerUnit.itemTypeId });
+          }}
+          onSelect={(setId) => {
+            setPendingStart({ skill: pickerUnit.skill, itemTypeId: pickerUnit.itemTypeId, setId });
+            updateBrowseParams(null);
+          }}
         />
       );
     }
     if (pickerType) {
-      return <UnitPicker units={units} loading={loadingUnits} onBack={() => setPickerType(null)} onSelect={(unit) => setPickerUnit({ ...pickerType, unitId: unit.id, unitName: unit.name })} />;
+      return (
+        <UnitPicker
+          units={units}
+          loading={loadingUnits}
+          onBack={() => {
+            setPickerType(null);
+            updateBrowseParams({ pSkill: pickerType.skill });
+          }}
+          onSelect={(unit) => {
+            setPickerUnit({ ...pickerType, unitId: unit.id, unitName: unit.name });
+            updateBrowseParams({ pSkill: pickerType.skill, pType: pickerType.itemTypeId, pUnit: unit.id, pUnitName: unit.name });
+          }}
+        />
+      );
     }
     if (pickerSkill) {
       return (
         <TypePicker
           skill={pickerSkill}
           starting={starting}
-          onBack={() => setPickerSkill(null)}
-          onSelect={(typeId) => setPickerType({ skill: pickerSkill, itemTypeId: typeId })}
+          onBack={() => {
+            setPickerSkill(null);
+            updateBrowseParams(null);
+          }}
+          onSelect={(typeId) => {
+            setPickerType({ skill: pickerSkill, itemTypeId: typeId });
+            updateBrowseParams({ pSkill: pickerSkill, pType: typeId });
+          }}
         />
       );
     }
     return (
-      <SkillPicker availability={availability} loading={loadingAvailability} starting={starting} onStart={(skill) => setPickerSkill(skill)} />
+      <SkillPicker
+        availability={availability}
+        loading={loadingAvailability}
+        starting={starting}
+        onStart={(skill) => {
+          setPickerSkill(skill);
+          updateBrowseParams({ pSkill: skill });
+        }}
+      />
     );
   }
 

@@ -51,6 +51,16 @@ export function getCurrentPracticeSession(): Promise<
   return api("/practice/session/current");
 }
 
+// Loads one specific session by id — used to resume the exact session the
+// learner was in (tracked via a `session=` URL param) rather than guessing
+// from skill/type, which can't tell two in-progress sessions of the same
+// skill apart.
+export function getPracticeSession(
+  sessionId: string,
+): Promise<{ sessionId: string; skill: SkillTag; completed: boolean; items: TestItem[] }> {
+  return api(`/practice/session/${sessionId}`);
+}
+
 export function startPracticeSession(
   skill: SkillTag,
   count?: number,
