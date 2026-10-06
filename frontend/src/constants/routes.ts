@@ -20,6 +20,7 @@ export const ROUTES = {
   PRACTICE_TESTS: "/practice-tests",
   TUTOR: "/tutor",
   PROFILE: "/profile",
+  ADMIN_REVIEW: "/admin/review",
 } as const;
 
 // Which role(s) each login portal accepts.

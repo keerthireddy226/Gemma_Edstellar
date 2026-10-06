@@ -186,6 +186,30 @@ practiceRouter.get("/availability", requireAuth, async (req: AuthedRequest, res,
   }
 });
 
+// Shared by the resume-below (filtered by skill/type/set) and /session/current (no filter).
+async function loadResumedSession(userId: string, sessionRow: { id: string; composition: Record<string, unknown> }) {
+  const itemIds: string[] = (sessionRow.composition?.itemIds as string[]) ?? [];
+  const itemsResult = await pool.query(
+    `SELECT i.id, i.item_type_id, i.content, it.input_method, it.instruction_text, it.question_instruction, it.timer_seconds, it.two_phase_read_seconds, it.two_phase_write_seconds
+     FROM items i JOIN item_types it ON it.id = i.item_type_id
+     WHERE i.id = ANY($1::uuid[])`,
+    [itemIds],
+  );
+  const byId = new Map(itemsResult.rows.map((r) => [r.id, r]));
+  // Marks which items were already answered so resuming doesn't rewind the on-screen pointer.
+  const attemptsResult = await pool.query(`SELECT item_id, response_text FROM attempts WHERE session_id = $1`, [sessionRow.id]);
+  const attemptByItem = new Map(attemptsResult.rows.map((r) => [r.item_id, r.response_text]));
+  const resumedItems = itemIds
+    .map((id) => byId.get(id))
+    .filter(Boolean)
+    .map((row) => ({
+      ...toItemPayload(row!),
+      attempted: attemptByItem.has(row!.id),
+      responseText: attemptByItem.get(row!.id) ?? null,
+    }));
+  return withAudioUrls(userId, resumedItems);
+}
+
 // Resumes any already-in-progress session instead of minting a new item set.
 practiceRouter.post("/session", requireAuth, async (req: AuthedRequest, res, next) => {
   try {
@@ -207,31 +231,10 @@ practiceRouter.post("/session", requireAuth, async (req: AuthedRequest, res, nex
       body.setId ? [req.user!.id, body.setId] : [req.user!.id, body.skill, body.itemTypeId ?? null],
     );
     if (existing.rows[0]) {
-      const itemIds: string[] = existing.rows[0].composition?.itemIds ?? [];
-      const itemsResult = await pool.query(
-        `SELECT i.id, i.item_type_id, i.content, it.input_method, it.instruction_text, it.question_instruction, it.timer_seconds, it.two_phase_read_seconds, it.two_phase_write_seconds
-         FROM items i JOIN item_types it ON it.id = i.item_type_id
-         WHERE i.id = ANY($1::uuid[])`,
-        [itemIds],
-      );
-      const byId = new Map(itemsResult.rows.map((r) => [r.id, r]));
-      // Marks which items were already answered so resuming doesn't rewind the on-screen pointer.
-      const attemptsResult = await pool.query(`SELECT item_id, response_text FROM attempts WHERE session_id = $1`, [
-        existing.rows[0].id,
-      ]);
-      const attemptByItem = new Map(attemptsResult.rows.map((r) => [r.item_id, r.response_text]));
-      const resumedItems = itemIds
-        .map((id) => byId.get(id))
-        .filter(Boolean)
-        .map((row) => ({
-          ...toItemPayload(row!),
-          attempted: attemptByItem.has(row!.id),
-          responseText: attemptByItem.get(row!.id) ?? null,
-        }));
       return res.json({
         sessionId: existing.rows[0].id,
         skill: body.skill,
-        items: await withAudioUrls(req.user!.id, resumedItems),
+        items: await loadResumedSession(req.user!.id, existing.rows[0]),
       });
     }
 
@@ -260,6 +263,28 @@ practiceRouter.post("/session", requireAuth, async (req: AuthedRequest, res, nex
       sessionId: sessionResult.rows[0].id,
       skill: body.skill,
       items: await withAudioUrls(req.user!.id, items.map(toItemPayload)),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Registered before /session/:sessionId — otherwise "current" would match as a sessionId value.
+practiceRouter.get("/session/current", requireAuth, async (req: AuthedRequest, res, next) => {
+  try {
+    const existing = await pool.query(
+      `SELECT id, composition FROM sessions
+       WHERE user_id = $1 AND session_type = 'practice' AND completed_at IS NULL
+       ORDER BY started_at DESC LIMIT 1`,
+      [req.user!.id],
+    );
+    if (!existing.rows[0]) return res.json({ inProgress: false });
+
+    res.json({
+      inProgress: true,
+      sessionId: existing.rows[0].id,
+      skill: existing.rows[0].composition?.skill ?? null,
+      items: await loadResumedSession(req.user!.id, existing.rows[0]),
     });
   } catch (err) {
     next(err);

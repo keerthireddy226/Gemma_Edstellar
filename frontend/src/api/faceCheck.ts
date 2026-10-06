@@ -23,9 +23,9 @@ export interface FaceVerifyResult {
   reason?: string;
 }
 
-export function verifyFace(purpose: FaceCheckPurpose, imageBase64: string): Promise<FaceVerifyResult> {
+export function verifyFace(purpose: FaceCheckPurpose, imageBase64: string, sessionId?: string): Promise<FaceVerifyResult> {
   return api("/face/verify", {
     method: "POST",
-    body: JSON.stringify({ purpose, imageBase64 }),
+    body: JSON.stringify({ purpose, imageBase64, sessionId }),
   });
 }

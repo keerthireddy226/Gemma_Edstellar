@@ -258,6 +258,7 @@
   "roadmap": {
     "loading": "आपका रोडमैप लोड हो रहा है…",
     "loadError": "आपका रोडमैप लोड करने में कुछ गलत हो गया। कृपया फिर से प्रयास करें।",
+    "pendingReviewBanner": "Your placement result is being reviewed for identity verification. You can keep using everything below in the meantime.",
     "notReadyTitle": "आपका रोडमैप अभी तैयार नहीं है",
     "notReadyBody": "व्यक्तिगत योजना पाने के लिए अपनी प्लेसमेंट टेस्ट लें।",
     "notReadyBodyScheduled": "आपने अपनी प्लेसमेंट टेस्ट {{date}} के लिए शेड्यूल की है। जब भी आप तैयार हों इसे लें — आपका रोडमैप उसके तुरंत बाद बन जाएगा।",
@@ -361,12 +362,15 @@
     "security": {
       "title": "Security",
       "passkeyError": "Something went wrong setting up your passkey. Please try again.",
+      "passkeyRemoveError": "Something went wrong removing your passkey. Please try again.",
       "passkey": {
         "title": "Passkey",
         "subtitle": "A quick, secure way back in if a face check ever fails — set up once, using your device's fingerprint, face, or PIN.",
         "done": "Set up",
         "setUpAction": "Set up passkey",
-        "settingUp": "Setting up…"
+        "settingUp": "Setting up…",
+        "remove": "Remove",
+        "removing": "Removing…"
       }
     },
     "preferences": {
@@ -556,7 +560,10 @@
     },
     "fallback": {
       "passkey": "Verify with Passkey",
-      "passkeySuccess": "Passkey verified"
+      "passkeySuccess": "Passkey verified",
+      "confirmTitle": "Verify with passkey",
+      "confirmSubtitle": "Your device will ask you to confirm with your fingerprint, face, or PIN. Continue when you're ready.",
+      "confirmContinue": "Continue"
     },
     "enrollmentConsent": {
       "title": "Set up face verification",

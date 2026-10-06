@@ -6,15 +6,25 @@ export function useCamera() {
   const [active, setActive] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  // Guards against StrictMode's double-invoked effects: if stop() (or a newer
+  // start()) runs before this call's getUserMedia() resolves, its stream gets
+  // shut down immediately instead of silently overwriting the ref and leaking.
+  const generationRef = useRef(0);
 
   const start = useCallback(async () => {
+    const generation = ++generationRef.current;
     const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 960, facingMode: "user" } });
+    if (generation !== generationRef.current) {
+      stream.getTracks().forEach((t) => t.stop());
+      return;
+    }
     streamRef.current = stream;
     if (videoRef.current) videoRef.current.srcObject = stream;
     setActive(true);
   }, []);
 
   const stop = useCallback(() => {
+    generationRef.current++;
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;

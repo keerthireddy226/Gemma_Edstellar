@@ -258,6 +258,7 @@
   "roadmap": {
     "loading": "Chargement de votre feuille de route…",
     "loadError": "Une erreur s'est produite lors du chargement de votre feuille de route. Veuillez réessayer.",
+    "pendingReviewBanner": "Your placement result is being reviewed for identity verification. You can keep using everything below in the meantime.",
     "notReadyTitle": "Votre feuille de route n'est pas encore prête",
     "notReadyBody": "Passez votre test de positionnement pour obtenir un plan personnalisé.",
     "notReadyBodyScheduled": "Vous avez planifié votre test de positionnement pour le {{date}}. Passez-le quand vous serez prêt(e) — votre feuille de route se créera juste après.",
@@ -361,12 +362,15 @@
     "security": {
       "title": "Security",
       "passkeyError": "Something went wrong setting up your passkey. Please try again.",
+      "passkeyRemoveError": "Something went wrong removing your passkey. Please try again.",
       "passkey": {
         "title": "Passkey",
         "subtitle": "A quick, secure way back in if a face check ever fails — set up once, using your device's fingerprint, face, or PIN.",
         "done": "Set up",
         "setUpAction": "Set up passkey",
-        "settingUp": "Setting up…"
+        "settingUp": "Setting up…",
+        "remove": "Remove",
+        "removing": "Removing…"
       }
     },
     "preferences": {
@@ -556,7 +560,10 @@
     },
     "fallback": {
       "passkey": "Verify with Passkey",
-      "passkeySuccess": "Passkey verified"
+      "passkeySuccess": "Passkey verified",
+      "confirmTitle": "Verify with passkey",
+      "confirmSubtitle": "Your device will ask you to confirm with your fingerprint, face, or PIN. Continue when you're ready.",
+      "confirmContinue": "Continue"
     },
     "enrollmentConsent": {
       "title": "Set up face verification",

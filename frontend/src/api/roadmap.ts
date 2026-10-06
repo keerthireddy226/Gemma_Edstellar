@@ -18,6 +18,8 @@ export interface RoadmapData {
     skillPercents: Record<SkillTag, number | null>;
     skillLevels: Record<SkillTag, { level: CefrLevel; cappedByGap: boolean } | null> | null;
     takenAt: string;
+    // Non-blocking — the result and roadmap below are shown either way.
+    reviewStatus: "certified" | "pending_review" | "fraud_confirmed";
   };
   goalLevel: CefrLevel;
   accessWindow: { startDate: string; durationDays: number } | null;

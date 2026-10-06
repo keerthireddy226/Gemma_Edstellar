@@ -1,7 +1,7 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { pool } from "../db.js";
-import { requireAuth, type AuthedRequest } from "../auth/middleware.js";
+import { requireAuth, requireAdmin, type AuthedRequest } from "../auth/middleware.js";
 import { generateToken, hashToken } from "../auth/tokens.js";
 import { sendPlacementReminderEmail } from "../auth/mailer.js";
 import { submitAttemptSchema } from "./schemas.js";
@@ -557,9 +557,19 @@ placementRouter.post("/session/:sessionId/complete", requireAuth, async (req: Au
     const { skillPercents, skillLevels, roadmapSkillPercents } = computeSkillBreakdown(graded, overallPercent);
     const { cefrLevel, cefrCappedByGap } = computeHeadlineLevel(graded, rows, correctCount, pendingCount, skillLevels);
 
+    // Any flagged face check from this session (enrollment mismatch, repeated
+    // environmental failures, a mid-test spoof) holds the result for review —
+    // not a block, the learner still sees their result, just marked as pending.
+    const flagged = await pool.query(
+      `SELECT 1 FROM face_check_results WHERE session_id = $1 AND flagged_for_review LIMIT 1`,
+      [req.params.sessionId],
+    );
+    const status = flagged.rows[0] ? "pending_review" : "certified";
+
     await pool.query(
-      `INSERT INTO placements (user_id, overall_percent, cefr_level, skill_percents, skill_levels) VALUES ($1, $2, $3, $4, $5)`,
-      [req.user!.id, overallPercent, cefrLevel, JSON.stringify(skillPercents), JSON.stringify(skillLevels)],
+      `INSERT INTO placements (user_id, session_id, overall_percent, cefr_level, skill_percents, skill_levels, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [req.user!.id, req.params.sessionId, overallPercent, cefrLevel, JSON.stringify(skillPercents), JSON.stringify(skillLevels), status],
     );
 
     const { goalLevel } = await saveRoadmap(req.user!.id, cefrLevel, roadmapSkillPercents);
@@ -574,8 +584,55 @@ placementRouter.post("/session/:sessionId/complete", requireAuth, async (req: Au
       cefrCappedByGap,
       skillPercents,
       skillLevels,
+      reviewStatus: status,
       goalLevel,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// --- Admin review surface (Phase 2 async certification) ---
+
+placementRouter.get("/admin/pending-review", requireAuth, async (req: AuthedRequest, res, next) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const result = await pool.query(
+      `SELECT p.id, p.user_id, u.email, p.taken_at, p.overall_percent, p.cefr_level,
+              json_agg(json_build_object(
+                'decision', fcr.decision, 'similarityScore', fcr.similarity_score,
+                'sampleUri', fcr.sample_uri, 'createdAt', fcr.created_at
+              ) ORDER BY fcr.created_at) AS flagged_checks
+       FROM placements p
+       JOIN users u ON u.id = p.user_id
+       JOIN face_check_results fcr ON fcr.session_id = p.session_id AND fcr.flagged_for_review
+       WHERE p.status = 'pending_review'
+       GROUP BY p.id, u.email
+       ORDER BY p.taken_at ASC`,
+    );
+    res.json({ placements: result.rows });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const placementReviewSchema = z.object({
+  verdict: z.enum(["certified", "fraud_confirmed"]),
+  note: z.string().optional(),
+});
+
+placementRouter.post("/admin/:id/review", requireAuth, async (req: AuthedRequest, res, next) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const body = placementReviewSchema.parse(req.body);
+    const result = await pool.query(
+      `UPDATE placements SET status = $1, reviewed_by = $2, reviewed_at = now(), review_note = $3
+       WHERE id = $4 AND status = 'pending_review'
+       RETURNING id`,
+      [body.verdict, req.user!.id, body.note ?? null, req.params.id],
+    );
+    if (!result.rows[0]) return res.status(400).json({ error: "not_pending_review" });
+    res.json({ status: body.verdict });
   } catch (err) {
     next(err);
   }

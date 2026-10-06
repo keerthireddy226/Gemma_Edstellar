@@ -52,13 +52,27 @@ webauthnRouter.get("/status", requireAuth, async (req: AuthedRequest, res, next)
   }
 });
 
+// Scoped to this device's tag only — doesn't touch a passkey registered on another device.
+webauthnRouter.delete("/credential", requireAuth, async (req: AuthedRequest, res, next) => {
+  try {
+    const { deviceTag } = z.object({ deviceTag: z.string().min(1) }).parse(req.body);
+    await pool.query(`DELETE FROM webauthn_credentials WHERE user_id = $1 AND device_tag = $2`, [req.user!.id, deviceTag]);
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+});
+
 webauthnRouter.post("/register/options", requireAuth, async (req: AuthedRequest, res, next) => {
   try {
+    // Shown as the account label in the browser's own passkey picker — the raw user
+    // id made every registration look identical there, even though each is a distinct credential.
+    const userRow = await pool.query(`SELECT email FROM users WHERE id = $1`, [req.user!.id]);
     const existing = await pool.query(`SELECT credential_id, transports FROM webauthn_credentials WHERE user_id = $1`, [req.user!.id]);
     const options = await generateRegistrationOptions({
       rpName: RP_NAME,
       rpID: RP_ID,
-      userName: req.user!.id,
+      userName: userRow.rows[0]?.email ?? req.user!.id,
       attestationType: "none",
       excludeCredentials: existing.rows.map((r) => ({ id: r.credential_id, transports: r.transports ?? undefined })),
       // "platform" steers the browser away from phone/security-key options in its own picker —

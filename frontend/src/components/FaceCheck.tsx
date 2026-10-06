@@ -26,12 +26,20 @@ export function FaceCheck({ mode, purpose, onComplete, onBack }: FaceCheckProps)
   const [failedResultId, setFailedResultId] = useState<string | null>(null);
   const [fallbackEligible, setFallbackEligible] = useState(false);
   const [hasPasskey, setHasPasskey] = useState(false);
+  const [confirmingPasskey, setConfirmingPasskey] = useState(false);
 
   useEffect(() => {
     start().catch(() => setError(t("faceCheck.record.cameraError")));
     return () => stop();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Stops the camera the instant verification succeeds — not just on unmount,
+  // which otherwise leaves it running through the whole success screen.
+  useEffect(() => {
+    if (verified) stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verified]);
 
   async function submitVerify() {
     const imageBase64 = capture();
@@ -102,6 +110,32 @@ export function FaceCheck({ mode, purpose, onComplete, onBack }: FaceCheckProps)
     }
   }
 
+  if (confirmingPasskey) {
+    return (
+      <div className="app-surface min-h-screen flex items-center justify-center px-4">
+        <div className="bg-surface border border-rule rounded-card p-6 max-w-sm w-full flex flex-col items-center gap-4 text-center">
+          <h2 className="font-display font-bold text-xl text-ink">{t("faceCheck.fallback.confirmTitle")}</h2>
+          <p className="text-sm text-muted -mt-2">{t("faceCheck.fallback.confirmSubtitle")}</p>
+          <div className="flex gap-3 w-full">
+            <Button variant="secondary" onClick={() => setConfirmingPasskey(false)} disabled={submitting} className="flex-1">
+              {t("faceCheck.back")}
+            </Button>
+            <Button
+              onClick={() => {
+                setConfirmingPasskey(false);
+                verifyWithPasskey();
+              }}
+              disabled={submitting}
+              className="flex-1"
+            >
+              {t("faceCheck.fallback.confirmContinue")}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (verified) {
     return (
       <div className="app-surface min-h-screen flex items-center justify-center px-4">
@@ -141,7 +175,7 @@ export function FaceCheck({ mode, purpose, onComplete, onBack }: FaceCheckProps)
           <div className="flex flex-col gap-2">
             <p className="text-sm text-error">{blocked}</p>
             {fallbackEligible && hasPasskey && (
-              <Button variant="secondary" onClick={verifyWithPasskey} disabled={submitting}>
+              <Button variant="secondary" onClick={() => setConfirmingPasskey(true)} disabled={submitting}>
                 {t("faceCheck.fallback.passkey")}
               </Button>
             )}

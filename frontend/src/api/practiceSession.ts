@@ -43,6 +43,14 @@ export function getSets(unitId: string): Promise<{ sets: PracticeSet[] }> {
   return api(`/practice/units/${unitId}/sets`);
 }
 
+// Finds whatever practice session was already running, if any — used after
+// a page refresh wipes the frontend's own state (skill/unit/set, sessionId, etc).
+export function getCurrentPracticeSession(): Promise<
+  { inProgress: false } | { inProgress: true; sessionId: string; skill: SkillTag; items: TestItem[] }
+> {
+  return api("/practice/session/current");
+}
+
 export function startPracticeSession(
   skill: SkillTag,
   count?: number,

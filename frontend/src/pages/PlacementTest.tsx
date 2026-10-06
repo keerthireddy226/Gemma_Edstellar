@@ -13,6 +13,7 @@ import {
   type SessionSummary,
 } from "@/api/testSession";
 import { useVoiceRecorder, blobToBase64 } from "@/hooks/useVoiceRecorder";
+import { usePeriodicFaceCheck } from "@/hooks/usePeriodicFaceCheck";
 import { FaceCheck } from "@/components/FaceCheck";
 import { playSpokenAudio } from "@/lib/playSpokenAudio";
 import { AnswerInputControl } from "@/components/AnswerInputControl";
@@ -55,6 +56,8 @@ export function PlacementTest() {
   // Resuming an in-progress session skips the gate — nobody new could take
   // over mid-test just by reloading the page.
   const [faceChecked, setFaceChecked] = useState(false);
+  // Set by a mid-test spoof detection — re-shows the same gate, not a new screen.
+  const [requireReverify, setRequireReverify] = useState(false);
 
   useEffect(() => {
     getCurrentSession()
@@ -63,6 +66,7 @@ export function PlacementTest() {
   }, []);
 
   const readyToLoadSession = alreadyInProgress === true || faceChecked;
+  usePeriodicFaceCheck(readyToLoadSession && !requireReverify, "placement", sessionId, () => setRequireReverify(true));
 
   useEffect(() => {
     if (alreadyInProgress === null || !readyToLoadSession) return;
@@ -194,8 +198,17 @@ export function PlacementTest() {
     );
   }
 
-  if (!readyToLoadSession) {
-    return <FaceCheck mode="verify" purpose="placement" onComplete={() => setFaceChecked(true)} />;
+  if (!readyToLoadSession || requireReverify) {
+    return (
+      <FaceCheck
+        mode="verify"
+        purpose="placement"
+        onComplete={() => {
+          setFaceChecked(true);
+          setRequireReverify(false);
+        }}
+      />
+    );
   }
 
   if (loading) {

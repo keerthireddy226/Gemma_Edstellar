@@ -14,6 +14,7 @@ import {
   Clock,
   ListChecks,
   ArrowRight,
+  ShieldAlert,
 } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
 import { Button } from "@/components/Button";
@@ -526,6 +527,13 @@ export function Roadmap() {
 
   return (
     <div className="flex flex-col gap-4 w-full">
+      {placement.reviewStatus === "pending_review" && (
+        <div className="flex items-center gap-2.5 bg-warning/15 border border-warning/40 rounded-card px-4 py-3 text-sm text-ink">
+          <ShieldAlert size={18} className="text-warning shrink-0" />
+          {t("roadmap.pendingReviewBanner")}
+        </div>
+      )}
+
       <Hero
         firstName={firstName ?? ""}
         currentLevel={placement.cefrLevel}

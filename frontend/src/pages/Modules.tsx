@@ -11,6 +11,7 @@ import {
   getUnits,
   getSets,
   startPracticeSession,
+  getCurrentPracticeSession,
   submitPracticeAttempt,
   completePracticeSession,
   type PracticeSummary,
@@ -23,6 +24,7 @@ import { useVoiceRecorder, blobToBase64 } from "@/hooks/useVoiceRecorder";
 import { playSpokenAudio } from "@/lib/playSpokenAudio";
 import { getFaceEnrollmentStatus } from "@/api/faceCheck";
 import { FaceCheck } from "@/components/FaceCheck";
+import { usePeriodicFaceCheck } from "@/hooks/usePeriodicFaceCheck";
 import { AnswerInputControl } from "@/components/AnswerInputControl";
 import {
   AUDIO_FIRST_TYPES,
@@ -436,6 +438,9 @@ export function Modules() {
   }, [pendingStart, faceEnrolled, navigate, location.pathname, location.search]);
 
   const [sessionId, setSessionId] = useState<string | null>(null);
+  // Set by a mid-session spoof detection — re-shows the gate, session stays intact.
+  const [requireReverify, setRequireReverify] = useState(false);
+  usePeriodicFaceCheck(Boolean(sessionId) && !requireReverify, "practice", sessionId, () => setRequireReverify(true));
   const [items, setItems] = useState<TestItem[]>([]);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, CachedAnswer>>({});
@@ -443,6 +448,28 @@ export function Modules() {
   useEffect(() => {
     answersRef.current = answers;
   }, [answers]);
+
+  // Gates the whole render until this resolves, so a refresh mid-session
+  // lands back in that same session instead of flashing the picker screens
+  // first — Placement already had this via getCurrentSession, practice didn't.
+  const [resumeChecked, setResumeChecked] = useState(false);
+  useEffect(() => {
+    getCurrentPracticeSession()
+      .then((res) => {
+        if (!res.inProgress) return;
+        setSessionId(res.sessionId);
+        setItems(res.items);
+        const firstUnattempted = res.items.findIndex((item) => !item.attempted);
+        setIndex(firstUnattempted === -1 ? 0 : firstUnattempted);
+        setAnswers(
+          Object.fromEntries(
+            res.items.flatMap((item, i) => (item.attempted ? [[i, { responseText: item.responseText ?? "" }]] : [])),
+          ),
+        );
+      })
+      .catch(() => {})
+      .finally(() => setResumeChecked(true));
+  }, []);
 
   const [starting, setStarting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -673,6 +700,12 @@ export function Modules() {
     setSessionId(null);
     setItems([]);
     setSummary(null);
+  }
+
+  if (!resumeChecked) return null;
+
+  if (requireReverify) {
+    return <FaceCheck mode="verify" purpose="practice" onComplete={() => setRequireReverify(false)} />;
   }
 
   // No active or just-finished session — show the skill picker, or the

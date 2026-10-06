@@ -7,7 +7,7 @@ export const roadmapRouter = Router();
 roadmapRouter.get("/", requireAuth, async (req: AuthedRequest, res, next) => {
   try {
     const placementResult = await pool.query(
-      `SELECT overall_percent, cefr_level, skill_percents, skill_levels, taken_at
+      `SELECT overall_percent, cefr_level, skill_percents, skill_levels, taken_at, status
        FROM placements WHERE user_id = $1 ORDER BY taken_at DESC LIMIT 1`,
       [req.user!.id],
     );
@@ -72,6 +72,9 @@ roadmapRouter.get("/", requireAuth, async (req: AuthedRequest, res, next) => {
         // the frontend falls back to just showing the percent for those.
         skillLevels: placement.skill_levels ?? null,
         takenAt: placement.taken_at,
+        // Non-blocking — the learner still sees their result; this just flags
+        // it as awaiting an admin's look (Phase 2 async certification).
+        reviewStatus: placement.status ?? "certified",
       },
       goalLevel: profile.goal_level && profile.goal_level !== "unsure" ? profile.goal_level : placement.cefr_level,
       accessWindow:

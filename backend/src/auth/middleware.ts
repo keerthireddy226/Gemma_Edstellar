@@ -29,3 +29,11 @@ export async function requireAuth(req: AuthedRequest, res: Response, next: NextF
     next(err);
   }
 }
+
+export function requireAdmin(req: AuthedRequest, res: Response): boolean {
+  if (!req.user || !["org_admin", "admin", "super_admin"].includes(req.user.role)) {
+    res.status(403).json({ error: "forbidden" });
+    return false;
+  }
+  return true;
+}

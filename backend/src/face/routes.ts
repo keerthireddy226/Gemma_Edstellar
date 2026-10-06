@@ -135,6 +135,7 @@ faceRouter.get("/enrollment/status", requireAuth, async (req: AuthedRequest, res
 const verifySchema = z.object({
   purpose: z.enum(["placement", "practice", "practice_test"]),
   imageBase64: z.string(),
+  sessionId: z.string().uuid().optional(),
 });
 
 faceRouter.post("/verify", requireAuth, faceCheckLimiter, async (req: AuthedRequest, res, next) => {
@@ -153,9 +154,9 @@ faceRouter.post("/verify", requireAuth, faceCheckLimiter, async (req: AuthedRequ
     // No usable enrollment — a setup gap, not fixable by retrying here.
     if (!enrollment || enrollment.status !== "enrolled" || !isCompatibleEmbedding(enrollment.embedding)) {
       const result = await pool.query(
-        `INSERT INTO face_check_results (user_id, purpose, decision, sample_uri, flagged_for_review)
-         VALUES ($1, $2, 'error', $3, true) RETURNING id`,
-        [req.user!.id, body.purpose, sampleUri],
+        `INSERT INTO face_check_results (user_id, session_id, purpose, decision, sample_uri, flagged_for_review)
+         VALUES ($1, $2, $3, 'error', $4, true) RETURNING id`,
+        [req.user!.id, body.sessionId ?? null, body.purpose, sampleUri],
       );
       return res.status(201).json({ faceCheckId: result.rows[0].id, allowed: true, decision: "error" });
     }
@@ -167,9 +168,9 @@ faceRouter.post("/verify", requireAuth, faceCheckLimiter, async (req: AuthedRequ
     if (faces.length !== 1) {
       const decision = faces.length === 0 ? "no_face" : "multiple_faces";
       const result = await pool.query(
-        `INSERT INTO face_check_results (user_id, purpose, decision, face_count, sample_uri)
-         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-        [req.user!.id, body.purpose, decision, faces.length, sampleUri],
+        `INSERT INTO face_check_results (user_id, session_id, purpose, decision, face_count, sample_uri)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+        [req.user!.id, body.sessionId ?? null, body.purpose, decision, faces.length, sampleUri],
       );
       const envRetries = await countRecentFailures(req.user!.id, body.purpose, ["no_face", "multiple_faces", "error"]);
       return res.status(201).json({
@@ -186,9 +187,9 @@ faceRouter.post("/verify", requireAuth, faceCheckLimiter, async (req: AuthedRequ
     const quality = await assessQuality(image, box);
     if (!quality.ok) {
       const result = await pool.query(
-        `INSERT INTO face_check_results (user_id, purpose, decision, face_count, sample_uri)
-         VALUES ($1, $2, 'error', 1, $3) RETURNING id`,
-        [req.user!.id, body.purpose, sampleUri],
+        `INSERT INTO face_check_results (user_id, session_id, purpose, decision, face_count, sample_uri)
+         VALUES ($1, $2, $3, 'error', 1, $4) RETURNING id`,
+        [req.user!.id, body.sessionId ?? null, body.purpose, sampleUri],
       );
       const envRetries = await countRecentFailures(req.user!.id, body.purpose, ["no_face", "multiple_faces", "error"]);
       return res.status(201).json({
@@ -205,9 +206,9 @@ faceRouter.post("/verify", requireAuth, faceCheckLimiter, async (req: AuthedRequ
     if (!liveness.isLive) {
       // Attack attempt — never reaches fallback, always flagged.
       const result = await pool.query(
-        `INSERT INTO face_check_results (user_id, purpose, decision, liveness_score, spoof_detected, face_count, sample_uri, flagged_for_review)
-         VALUES ($1, $2, 'spoof', $3, true, 1, $4, true) RETURNING id`,
-        [req.user!.id, body.purpose, liveness.live, sampleUri],
+        `INSERT INTO face_check_results (user_id, session_id, purpose, decision, liveness_score, spoof_detected, face_count, sample_uri, flagged_for_review)
+         VALUES ($1, $2, $3, 'spoof', $4, true, 1, $5, true) RETURNING id`,
+        [req.user!.id, body.sessionId ?? null, body.purpose, liveness.live, sampleUri],
       );
       return res.status(201).json({
         faceCheckId: result.rows[0].id,
@@ -222,9 +223,9 @@ faceRouter.post("/verify", requireAuth, faceCheckLimiter, async (req: AuthedRequ
     const probeEmbedding = await embedFace(image, box);
     if (!probeEmbedding) {
       const result = await pool.query(
-        `INSERT INTO face_check_results (user_id, purpose, decision, liveness_score, face_count, sample_uri)
-         VALUES ($1, $2, 'error', $3, 1, $4) RETURNING id`,
-        [req.user!.id, body.purpose, liveness.live, sampleUri],
+        `INSERT INTO face_check_results (user_id, session_id, purpose, decision, liveness_score, face_count, sample_uri)
+         VALUES ($1, $2, $3, 'error', $4, 1, $5) RETURNING id`,
+        [req.user!.id, body.sessionId ?? null, body.purpose, liveness.live, sampleUri],
       );
       return res.status(201).json({
         faceCheckId: result.rows[0].id,
@@ -239,9 +240,9 @@ faceRouter.post("/verify", requireAuth, faceCheckLimiter, async (req: AuthedRequ
     const decision = similarity >= MATCH_THRESHOLD ? "match" : similarity >= UNCERTAIN_FLOOR ? "uncertain" : "mismatch";
 
     const result = await pool.query(
-      `INSERT INTO face_check_results (user_id, purpose, decision, similarity_score, liveness_score, face_count, sample_uri, flagged_for_review)
-       VALUES ($1, $2, $3, $4, $5, 1, $6, $7) RETURNING id`,
-      [req.user!.id, body.purpose, decision, similarity, liveness.live, sampleUri, decision !== "match"],
+      `INSERT INTO face_check_results (user_id, session_id, purpose, decision, similarity_score, liveness_score, face_count, sample_uri, flagged_for_review)
+       VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8) RETURNING id`,
+      [req.user!.id, body.sessionId ?? null, body.purpose, decision, similarity, liveness.live, sampleUri, decision !== "match"],
     );
 
     // uncertain/mismatch both count toward RETRY_LIMIT and look the same to the learner.

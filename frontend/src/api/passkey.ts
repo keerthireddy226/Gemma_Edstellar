@@ -12,6 +12,10 @@ export async function registerPasskey(): Promise<void> {
   await api("/auth/passkey/register/verify", { method: "POST", body: JSON.stringify({ response, deviceTag: getDeviceTag() }) });
 }
 
+export function removePasskey(): Promise<void> {
+  return api("/auth/passkey/credential", { method: "DELETE", body: JSON.stringify({ deviceTag: getDeviceTag() }) });
+}
+
 export async function verifyPasskeyFallback(faceCheckId: string): Promise<{ allowed: boolean; faceCheckId: string }> {
   const deviceTag = getDeviceTag();
   const options = await api("/auth/passkey/fallback/options", { method: "POST", body: JSON.stringify({ faceCheckId, deviceTag }) });

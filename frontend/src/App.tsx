@@ -24,6 +24,7 @@ import { Modules } from "@/pages/Modules";
 import { PracticeTests } from "@/pages/PracticeTests";
 import { Tutor } from "@/pages/Tutor";
 import { Profile } from "@/pages/Profile";
+import { AdminReview } from "@/pages/AdminReview";
 import { AppLayout } from "@/components/AppShell/AppLayout";
 
 // Unmatched path: logged-in goes to their landing page, logged-out to learner login.
@@ -98,6 +99,7 @@ function App() {
           <Route path={ROUTES.PRACTICE_TESTS} element={<PracticeTests />} />
           <Route path={ROUTES.TUTOR} element={<Tutor />} />
           <Route path={ROUTES.PROFILE} element={<Profile />} />
+          <Route path={ROUTES.ADMIN_REVIEW} element={<AdminReview />} />
         </Route>
         <Route path="*" element={<DefaultRedirect />} />
       </Routes>
