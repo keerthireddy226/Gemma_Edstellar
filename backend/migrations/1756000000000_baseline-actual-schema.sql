@@ -209,14 +209,6 @@ CREATE TABLE public.password_reset_tokens (
     used_at timestamp with time zone
 );
 
-CREATE SEQUENCE public.pgmigrations_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
 CREATE TABLE public.placements (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
