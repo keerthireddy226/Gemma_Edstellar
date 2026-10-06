@@ -30,6 +30,11 @@ if (!process.env.FRONTEND_URL) {
 
 const app = express();
 
+// Railway (and any platform behind a reverse proxy) forwards the real client
+// IP via X-Forwarded-For — without this, req.ip is the proxy's own address
+// for every request, breaking both rate-limiting and login IP logging.
+app.set("trust proxy", 1);
+
 app.use(helmet());
 // Restricted to the actual frontend origin, not reflected for any caller —
 // origin:true + credentials:true would let any site make credentialed requests.

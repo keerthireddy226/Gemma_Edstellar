@@ -146,6 +146,16 @@ authRouter.post("/login", loginLimiter, async (req, res, next) => {
 
     const { token } = await createSession(pool, user.id);
     setSessionCookie(res, token);
+    // Passive signal only — no decision is made from this yet. Persisted so
+    // there's real per-account login history to design anomaly detection
+    // against later instead of guessing.
+    pool
+      .query(`INSERT INTO login_events (user_id, ip_address, user_agent) VALUES ($1, $2, $3)`, [
+        user.id,
+        req.ip,
+        req.headers["user-agent"] ?? null,
+      ])
+      .catch((err) => console.error("failed to record login event:", err));
     res.json({
       id: user.id,
       email: body.email,
