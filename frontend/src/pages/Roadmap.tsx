@@ -21,7 +21,7 @@ import { Button } from "@/components/Button";
 import { Mascot } from "@/components/Mascot";
 import { MotivationalBar } from "@/components/MotivationalBar";
 import { getRoadmap, type RoadmapData, type RoadmapMilestone } from "@/api/roadmap";
-import { getDashboard } from "@/api/dashboard";
+import { getDashboard, getDailyProgress } from "@/api/dashboard";
 import { meetsGoal, percentToCefr } from "@/lib/cefr";
 import { ApiError } from "@/lib/api";
 import { ProgressRing } from "@/components/ProgressRing";
@@ -115,10 +115,12 @@ function StatsRow({
   progressPercent,
   accuracyPercent,
   streakDays,
+  todayMinutes,
 }: {
   progressPercent: number;
   accuracyPercent: number | null;
   streakDays: number;
+  todayMinutes: number;
 }) {
   const { t } = useTranslation();
   return (
@@ -151,7 +153,7 @@ function StatsRow({
           <span className="font-mono text-[10px] uppercase tracking-wider text-muted">{t("roadmap.today")}</span>
           <Clock size={20} strokeWidth={1.8} className="text-navy-deep" />
         </div>
-        <div className="font-display font-bold text-2xl text-ink">0m</div>
+        <div className="font-display font-bold text-2xl text-ink">{todayMinutes}m</div>
         <div className="text-xs text-muted mt-0.5">{t("roadmap.practicedSoFar")}</div>
       </div>
 
@@ -476,6 +478,9 @@ export function Roadmap() {
   // previously fetched here too but silently discarded — this page's
   // streak card was hardcoded to 0 regardless of the real value.
   const [streakDays, setStreakDays] = useState(0);
+  // Same "hardcoded instead of wired up" bug the streak card above already
+  // had — this tile showed a literal "0m" regardless of real practice time.
+  const [todayMinutes, setTodayMinutes] = useState(0);
 
   useEffect(() => {
     getRoadmap()
@@ -494,6 +499,10 @@ export function Roadmap() {
         setAccuracyPercent(res.stats.accuracyPercent);
         setStreakDays(res.stats.streakDays);
       })
+      .catch(() => {});
+    // Days are oldest-first, today last — see dashboard/routes.ts GET /daily.
+    getDailyProgress()
+      .then((res) => setTodayMinutes(res.days[res.days.length - 1]?.practiceMinutes ?? 0))
       .catch(() => {});
   }, [t]);
 
@@ -545,7 +554,7 @@ export function Roadmap() {
 
       <AchievementBanner />
 
-      <StatsRow progressPercent={progressPercent} accuracyPercent={accuracyPercent} streakDays={streakDays} />
+      <StatsRow progressPercent={progressPercent} accuracyPercent={accuracyPercent} streakDays={streakDays} todayMinutes={todayMinutes} />
 
       <MotivationalBar />
 
