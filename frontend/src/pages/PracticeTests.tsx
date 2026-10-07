@@ -1,8 +1,11 @@
 import { useTranslation } from "react-i18next";
 import { ClipboardCheck, Lock } from "lucide-react";
 
-// Reuses onboarding's exam-preference list/copy. No backend content yet — every card is a disabled preview.
-const EXAMS = ["versant", "ielts", "toefl", "pte", "cambridge", "other"] as const;
+// The real Versant exam products (not question types — those live in
+// Modules). Durations/skills sourced directly from Pearson's own product
+// pages. No backend/content built yet (see the Practice Tests build task),
+// so every card stays a disabled preview until that's real.
+const VERSANT_PRODUCTS = ["speakingListening", "fourSkills", "writing", "professional", "placement"] as const;
 
 export function PracticeTests() {
   const { t } = useTranslation();
@@ -20,16 +23,16 @@ export function PracticeTests() {
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {EXAMS.map((exam) => (
-          <div key={exam} className="relative bg-surface border border-rule rounded-card p-4 flex flex-col gap-2.5">
+        {VERSANT_PRODUCTS.map((id) => (
+          <div key={id} className="relative bg-surface border border-rule rounded-card p-4 flex flex-col gap-2.5">
             <span className="absolute top-3 right-3 text-[10px] font-semibold uppercase tracking-wide text-muted bg-paper-warm px-2 py-0.5 rounded-pill">
               {t("practiceTests.comingSoon")}
             </span>
             <span className="h-10 w-10 rounded-2xl bg-paper flex items-center justify-center text-muted">
               <Lock size={16} strokeWidth={2} />
             </span>
-            <span className="font-display font-semibold text-sm text-ink">{t(`onboarding.wizard.examGoal.exam.${exam}`)}</span>
-            <span className="text-xs text-muted">{t(`onboarding.wizard.examGoal.exam.${exam}Desc`)}</span>
+            <span className="font-display font-semibold text-sm text-ink">{t(`practiceTests.versantProduct.${id}`)}</span>
+            <span className="text-xs text-muted">{t(`practiceTests.versantProduct.${id}Desc`)}</span>
           </div>
         ))}
       </div>

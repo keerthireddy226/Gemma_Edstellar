@@ -309,8 +309,20 @@
     "toggleTheme": "थीम बदलें"
   },
   "practiceTests": {
-    "subtitle": "वास्तविक परीक्षा प्रारूपों पर आधारित पूर्ण-लंबाई, समयबद्ध अभ्यास परीक्षण।",
-    "comingSoon": "जल्द आ रहा है"
+    "subtitle": "Full-length, timed mock tests matching the real Versant exam products.",
+    "comingSoon": "जल्द आ रहा है",
+    "versantProduct": {
+      "speakingListening": "English Speaking and Listening Test",
+      "speakingListeningDesc": "Speaking and listening — 17 minutes.",
+      "fourSkills": "English 4-Skills Essentials Test",
+      "fourSkillsDesc": "Speaking, listening, reading, writing — 30 minutes.",
+      "writing": "English Writing Test",
+      "writingDesc": "Written English — 35 minutes.",
+      "professional": "Professional English Test",
+      "professionalDesc": "Speaking, listening, reading, writing — 60 minutes.",
+      "placement": "English Placement Test",
+      "placementDesc": "Speaking, listening, reading, writing — 50 minutes."
+    }
   },
   "tutor": {
     "subtitle": "आपके AI कोच के साथ एक हल्की अभ्यास बातचीत।",

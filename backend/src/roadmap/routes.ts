@@ -56,11 +56,32 @@ roadmapRouter.get("/", requireAuth, async (req: AuthedRequest, res, next) => {
       milestones.find((m) => m.target_day_offset >= daysSinceStart) ?? milestones[milestones.length - 1];
     const focusSkill = currentMilestone?.focus_skill ?? "listening";
 
-    const practiceItemsResult = await pool.query(
-      `SELECT id, name, question_instruction, estimated_seconds
-       FROM item_types WHERE $1 = ANY(skills) ORDER BY estimated_seconds ASC LIMIT 5`,
-      [focusSkill],
+    // All item types for this skill (not just 5) so a completed batch can
+    // roll over to the next one — see the batching below.
+    const allItemTypesResult = await pool.query(
+      `SELECT it.id, it.name, it.question_instruction, it.estimated_seconds,
+         EXISTS (
+           SELECT 1 FROM attempts a
+           JOIN sessions s ON s.id = a.session_id
+           JOIN items i ON i.id = a.item_id
+           WHERE s.user_id = $2 AND s.session_type = 'practice' AND i.item_type_id = it.id
+             AND (a.response_text IS NOT NULL OR a.response_uri IS NOT NULL)
+         ) AS completed
+       FROM item_types it WHERE $1 = ANY(it.skills) ORDER BY it.estimated_seconds ASC`,
+      [focusSkill, req.user!.id],
     );
+
+    // Show the first batch of 5 that isn't fully completed yet; once a
+    // batch is all ticked, the next page load naturally serves the next 5
+    // instead (falls back to the final batch if every item is completed).
+    const RECOMMENDED_BATCH_SIZE = 5;
+    const allTypeRows = allItemTypesResult.rows;
+    let batchStart = 0;
+    for (let i = 0; i < allTypeRows.length; i += RECOMMENDED_BATCH_SIZE) {
+      batchStart = i;
+      if (allTypeRows.slice(i, i + RECOMMENDED_BATCH_SIZE).some((r) => !r.completed)) break;
+    }
+    const practiceItemsResult = { rows: allTypeRows.slice(batchStart, batchStart + RECOMMENDED_BATCH_SIZE) };
 
     res.json({
       firstName: userResult.rows[0]?.first_name ?? null,
@@ -99,6 +120,7 @@ roadmapRouter.get("/", requireAuth, async (req: AuthedRequest, res, next) => {
           name: row.name,
           questionInstruction: row.question_instruction,
           estimatedSeconds: row.estimated_seconds,
+          completed: row.completed,
         })),
       },
     });

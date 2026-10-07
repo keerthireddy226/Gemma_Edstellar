@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { captureSilentFrame } from "@/lib/silentFaceCapture";
 import { verifyFace, type FaceCheckPurpose } from "@/api/faceCheck";
 
-const RECHECK_INTERVAL_MS = 5 * 60 * 1000;
+const RECHECK_INTERVAL_MS = 3 * 60 * 1000;
 
 // mismatch/uncertain are just logged; only spoof (a live attack signal) calls onSpoofDetected.
 export function usePeriodicFaceCheck(active: boolean, purpose: FaceCheckPurpose, sessionId: string | null, onSpoofDetected: () => void) {

@@ -31,7 +31,7 @@ export interface RoadmapData {
   };
   recommendedPractice: {
     focusSkill: SkillTag;
-    items: { itemTypeId: string; name: string; questionInstruction: string; estimatedSeconds: number }[];
+    items: { itemTypeId: string; name: string; questionInstruction: string; estimatedSeconds: number; completed: boolean }[];
   };
 }
 

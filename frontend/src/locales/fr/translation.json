@@ -309,8 +309,20 @@
     "toggleTheme": "Changer de thème"
   },
   "practiceTests": {
-    "subtitle": "Des tests d'entraînement complets et chronométrés, calqués sur les formats d'examen réels.",
-    "comingSoon": "Bientôt disponible"
+    "subtitle": "Full-length, timed mock tests matching the real Versant exam products.",
+    "comingSoon": "Bientôt disponible",
+    "versantProduct": {
+      "speakingListening": "English Speaking and Listening Test",
+      "speakingListeningDesc": "Speaking and listening — 17 minutes.",
+      "fourSkills": "English 4-Skills Essentials Test",
+      "fourSkillsDesc": "Speaking, listening, reading, writing — 30 minutes.",
+      "writing": "English Writing Test",
+      "writingDesc": "Written English — 35 minutes.",
+      "professional": "Professional English Test",
+      "professionalDesc": "Speaking, listening, reading, writing — 60 minutes.",
+      "placement": "English Placement Test",
+      "placementDesc": "Speaking, listening, reading, writing — 50 minutes."
+    }
   },
   "tutor": {
     "subtitle": "Une conversation d'entraînement sans pression avec votre coach IA.",

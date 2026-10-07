@@ -37,6 +37,11 @@ export interface StoredMannerScores {
 // generous, just catches unintelligibly fast/slow, not normal variation.
 const MIN_ACCEPTABLE_WPM = 70;
 const MAX_ACCEPTABLE_WPM = 220;
+// Below this many words, wordsPerMinute is dominated by fixed latency
+// (breath, button-press delay) rather than actual speaking rate — e.g. a
+// correct 2-word answer ("You cannot") can compute as ~38 WPM. Too noisy to
+// gate on below this length.
+const MIN_WORD_COUNT_FOR_PACE_CHECK = 4;
 
 // Single definition of "correct" everywhere. Typed: content only. Mic: content + pace + pronunciation must all clear the bar; a missing signal never counts against the learner.
 export function isTrulyCorrect(
@@ -52,7 +57,9 @@ export function isTrulyCorrect(
   if (inputMethod !== "mic" || !contentOk) return contentOk;
 
   const wpm = mannerScores?.wordsPerMinute;
-  if (typeof wpm === "number" && (wpm < MIN_ACCEPTABLE_WPM || wpm > MAX_ACCEPTABLE_WPM)) return false;
+  const wordCount = mannerScores?.wordCount;
+  const paceIsMeaningful = typeof wordCount !== "number" || wordCount >= MIN_WORD_COUNT_FOR_PACE_CHECK;
+  if (paceIsMeaningful && typeof wpm === "number" && (wpm < MIN_ACCEPTABLE_WPM || wpm > MAX_ACCEPTABLE_WPM)) return false;
 
   const gemini = mannerScores?.gemini;
   if (gemini && (gemini.pronunciation < bar || gemini.fluency < bar)) return false;

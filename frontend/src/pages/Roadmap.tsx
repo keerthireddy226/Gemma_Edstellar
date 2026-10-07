@@ -314,7 +314,13 @@ function RecommendedPractice({ practice, hasPracticed }: { practice: RoadmapData
       </h3>
       {practice.items.map((item) => (
         <div key={item.itemTypeId} className="flex items-center gap-2.5 px-2.5 py-2 rounded-input">
-          <span className="h-5 w-5 rounded-full border-2 border-rule-strong shrink-0" />
+          <span
+            className={`h-5 w-5 rounded-full border-2 shrink-0 flex items-center justify-center ${
+              item.completed ? "bg-success border-success text-paper" : "border-rule-strong"
+            }`}
+          >
+            {item.completed && <Check size={13} strokeWidth={3} />}
+          </span>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold text-ink truncate">{item.name}</div>
             <div className="text-xs text-muted line-clamp-2 leading-snug">
@@ -530,9 +536,13 @@ export function Roadmap() {
   const goalMet = meetsGoal(placement.cefrLevel, goalLevel);
   const daysAccessLeft = accessWindow ? Math.max(0, accessWindow.durationDays + daysUntil(accessWindow.startDate)) : null;
   const daysSinceStart = accessWindow ? -daysUntil(accessWindow.startDate) : 0;
-  // No practice-session tracking yet — always reflects a fresh start rather
-  // than a fabricated number.
-  const progressPercent = 0;
+  // How many of the plan's milestones should already be reached by today,
+  // given their scheduled day-offset — the same time-driven logic the
+  // dashboard already uses to pick "today's focus skill" (see
+  // dashboard/routes.ts), just expressed as a fraction here instead of
+  // picking one current milestone.
+  const milestonesReached = roadmap.milestones.filter((m) => m.targetDayOffset <= daysSinceStart).length;
+  const progressPercent = roadmap.milestones.length > 0 ? Math.round((milestonesReached / roadmap.milestones.length) * 100) : 0;
 
   return (
     <div className="flex flex-col gap-4 w-full">

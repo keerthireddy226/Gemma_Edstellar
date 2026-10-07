@@ -50,9 +50,15 @@ describe("isTrulyCorrect", () => {
   });
 
   it("for mic input with content passing, a wildly off pace fails it", () => {
-    expect(isTrulyCorrect(0.9, "B1", "mic", { wordsPerMinute: 30 }, passThresholdForLevel)).toBe(false);
-    expect(isTrulyCorrect(0.9, "B1", "mic", { wordsPerMinute: 300 }, passThresholdForLevel)).toBe(false);
-    expect(isTrulyCorrect(0.9, "B1", "mic", { wordsPerMinute: 130 }, passThresholdForLevel)).toBe(true);
+    expect(isTrulyCorrect(0.9, "B1", "mic", { wordsPerMinute: 30, wordCount: 10 }, passThresholdForLevel)).toBe(false);
+    expect(isTrulyCorrect(0.9, "B1", "mic", { wordsPerMinute: 300, wordCount: 10 }, passThresholdForLevel)).toBe(false);
+    expect(isTrulyCorrect(0.9, "B1", "mic", { wordsPerMinute: 130, wordCount: 10 }, passThresholdForLevel)).toBe(true);
+  });
+
+  it("for a short answer, a low pace never fails it — wordCount under the bar is too noisy for WPM to mean anything", () => {
+    // "You cannot" — 2 words, ~38 WPM purely from fixed response latency, content and pronunciation both fine.
+    expect(isTrulyCorrect(0.9, "B1", "mic", { wordsPerMinute: 38, wordCount: 2 }, passThresholdForLevel)).toBe(true);
+    expect(isTrulyCorrect(0.9, "B1", "mic", { wordsPerMinute: 300, wordCount: 2 }, passThresholdForLevel)).toBe(true);
   });
 
   it("a missing pace/gemini signal never counts against the learner", () => {
