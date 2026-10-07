@@ -223,14 +223,13 @@ dashboardRouter.get("/daily", requireAuth, async (req: AuthedRequest, res, next)
     // yet, but it should still count toward that day's questions-answered
     // total, just not toward accuracy.
     const attemptsResult = await pool.query(
-      `SELECT a.submitted_at, a.active_ms, sc.status, sc.content_score, sc.manner_scores, i.cefr_level, it.input_method
+      `SELECT a.submitted_at, a.active_ms, a.response_text, a.response_uri, sc.status, sc.content_score, sc.manner_scores, i.cefr_level, it.input_method
        FROM attempts a
        JOIN sessions s ON s.id = a.session_id
        JOIN items i ON i.id = a.item_id
        JOIN item_types it ON it.id = i.item_type_id
        LEFT JOIN scores sc ON sc.attempt_id = a.id
-       WHERE s.user_id = $1 AND s.session_type = 'practice' AND a.submitted_at >= $2
-         AND (a.response_text IS NOT NULL OR a.response_uri IS NOT NULL)`,
+       WHERE s.user_id = $1 AND s.session_type = 'practice' AND a.submitted_at >= $2`,
       [req.user!.id, since],
     );
 
@@ -244,12 +243,16 @@ dashboardRouter.get("/daily", requireAuth, async (req: AuthedRequest, res, next)
     // Bucketed by when the question was actually submitted, using its own
     // real active time — not session wall-clock span, which also counts
     // idle time and can't be attributed to the right day for a session left
-    // open overnight.
+    // open overnight. Minutes count for every attempt (e.g. time spent
+    // reading a passage_reconstruction prompt even if the write phase was
+    // never submitted) — matches getLearnerStats' total. "Questions
+    // completed" still requires an actual response, same as elsewhere.
     for (const row of attemptsResult.rows) {
       const bucket = byDay.get(dayKey(new Date(row.submitted_at)));
       if (!bucket) continue;
-      bucket.questions += 1;
       bucket.minutes += (row.active_ms ?? 0) / 60_000;
+      if (row.response_text === null && row.response_uri === null) continue;
+      bucket.questions += 1;
       if (row.status === "scored") {
         bucket.graded += 1;
         if (isTrulyCorrect(Number(row.content_score), row.cefr_level, row.input_method, row.manner_scores, passThresholdForLevel)) {
