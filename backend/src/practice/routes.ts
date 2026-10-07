@@ -10,6 +10,7 @@ import { pickDifficultySpread } from "../placement/routes.js";
 import type { SkillTag } from "../placement/roadmapBuilder.js";
 import { withAudioUrls } from "../voice/itemAudio.js";
 import { toItemPayload } from "../itemPayload.js";
+import { checkAndAwardBadges } from "../gamification/stats.js";
 
 export const practiceRouter = Router();
 
@@ -388,6 +389,7 @@ practiceRouter.post("/session/:sessionId/complete", requireAuth, async (req: Aut
     // temporary service problem, not "you didn't answer enough."
     const failedCount = summaryResult.rows.filter((r) => r.status === "failed").length;
 
+    await checkAndAwardBadges(req.user!.id);
     res.json({ gradedCount: graded.length, correctCount, pendingCount, failedCount });
   } catch (err) {
     next(err);

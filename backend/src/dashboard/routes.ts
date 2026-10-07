@@ -3,20 +3,14 @@ import { pool } from "../db.js";
 import { requireAuth, type AuthedRequest } from "../auth/middleware.js";
 import { isTrulyCorrect } from "../placement/fluencySignals.js";
 import { passThresholdForLevel } from "../placement/cefr.js";
+import { getLearnerStats, computeStreakDays, ALL_SKILLS, type SkillTag } from "../gamification/stats.js";
 
 export const dashboardRouter = Router();
-
-type SkillTag = "listening" | "speaking" | "reading" | "writing";
-const ALL_SKILLS: SkillTag[] = ["listening", "speaking", "reading", "writing"];
 // Ceiling on items of one skill per day — avoids a long, repetitive same-skill grind.
 const MAX_ITEMS_PER_SKILL_PER_DAY = 8;
 // Fallback average seconds-per-item for a skill with no matching item types
 // yet — shouldn't normally happen, just avoids a divide-by-zero.
 const FALLBACK_AVG_SECONDS_PER_ITEM = 60;
-// Per-session ceiling on counted practice time — a session left open and
-// resumed after a break shouldn't inflate practiceMinutes by the idle gap.
-const MAX_MINUTES_PER_SESSION = 120;
-
 // Weaker skills get proportionally more time; floored at 5 so a 100% skill still gets token upkeep.
 function computeSkillWeights(skillPercents: Record<SkillTag, number>): Record<SkillTag, number> {
   const inverse = ALL_SKILLS.map((s) => Math.max(100 - (skillPercents[s] ?? 0), 5));
@@ -30,26 +24,6 @@ function computeSkillWeights(skillPercents: Record<SkillTag, number>): Record<Sk
 
 function dayKey(d: Date): string {
   return d.toISOString().slice(0, 10);
-}
-
-// Longest run of consecutive days (ending today or yesterday) with a completed session.
-function computeStreakDays(completedDates: string[]): number {
-  const days = new Set(completedDates);
-  const today = new Date();
-  let cursor = dayKey(today);
-  if (!days.has(cursor)) {
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    cursor = dayKey(yesterday);
-    if (!days.has(cursor)) return 0;
-  }
-  let streak = 0;
-  const d = new Date(cursor);
-  while (days.has(dayKey(d))) {
-    streak++;
-    d.setDate(d.getDate() - 1);
-  }
-  return streak;
 }
 
 dashboardRouter.get("/", requireAuth, async (req: AuthedRequest, res, next) => {
@@ -168,62 +142,28 @@ dashboardRouter.get("/", requireAuth, async (req: AuthedRequest, res, next) => {
       return { skill, itemTarget, itemsCompletedToday, done: itemsCompletedToday >= itemTarget };
     });
 
-    const completedSessionsResult = await pool.query(
-      `SELECT started_at, completed_at FROM sessions
-       WHERE user_id = $1 AND session_type = 'practice' AND completed_at IS NOT NULL`,
-      [req.user!.id],
-    );
-    const sessions = completedSessionsResult.rows.length;
-    // Real elapsed wall-clock time per session, not an estimate — attempts
-    // don't carry a trustworthy per-item duration (window_start_at and
-    // submitted_at are both written at submission time), but the session's
-    // own started_at/completed_at span is genuine.
-    const practiceMinutes = Math.round(
-      completedSessionsResult.rows.reduce((sum, r) => {
-        const minutes = (new Date(r.completed_at).getTime() - new Date(r.started_at).getTime()) / 60_000;
-        return sum + Math.min(minutes, MAX_MINUTES_PER_SESSION);
-      }, 0),
-    );
-    const streakDays = computeStreakDays(completedSessionsResult.rows.map((r) => dayKey(new Date(r.completed_at))));
+    // Single source of truth for sessions/questions/minutes/streak/accuracy
+    // (streak here already forgives up to 2 missed days) plus level/XP —
+    // the same function session-completion uses to decide badge unlocks, so
+    // the dashboard and the badge checks can never disagree.
+    const learnerStats = await getLearnerStats(req.user!.id);
+    const { sessions, questionsCompleted, practiceMinutes, streakDays, accuracyPercent, level, totalXp } = learnerStats;
 
-    // A skip still submits an attempts row (so the item isn't offered
-    // again), but it isn't genuine practice — excluded here (and everywhere
-    // else in this file that counts "completed"/"answered" attempts) so
-    // skipping through a session doesn't inflate these stats the same as
-    // actually answering.
-    const questionsCompletedResult = await pool.query(
-      `SELECT count(*) FROM attempts a JOIN sessions s ON s.id = a.session_id
-       WHERE s.user_id = $1 AND s.session_type = 'practice'
-         AND (a.response_text IS NOT NULL OR a.response_uri IS NOT NULL)`,
+    const badgesResult = await pool.query(
+      `SELECT a.id, a.title, a.description, a.icon, ua.unlocked_at
+       FROM achievements a
+       LEFT JOIN user_achievements ua ON ua.achievement_id = a.id AND ua.user_id = $1
+       ORDER BY a.id`,
       [req.user!.id],
     );
-    const questionsCompleted = Number(questionsCompletedResult.rows[0].count);
-
-    // null (not 0) until there's at least one *graded* practice answer —
-    // same "no real evidence yet" reasoning as the placement skill
-    // breakdown: an accuracy of 0% before anything has been graded would
-    // misleadingly read as "you got everything wrong" rather than "you
-    // haven't practiced".
-    const accuracyResult = await pool.query(
-      `SELECT sc.content_score, sc.manner_scores, i.cefr_level, it.input_method
-       FROM attempts a
-       JOIN sessions s ON s.id = a.session_id
-       JOIN scores sc ON sc.attempt_id = a.id
-       JOIN items i ON i.id = a.item_id
-       JOIN item_types it ON it.id = i.item_type_id
-       WHERE s.user_id = $1 AND s.session_type = 'practice' AND sc.status = 'scored'`,
-      [req.user!.id],
-    );
-    const accuracyPercent =
-      accuracyResult.rows.length === 0
-        ? null
-        : Math.round(
-            (accuracyResult.rows.filter((r) =>
-              isTrulyCorrect(Number(r.content_score), r.cefr_level, r.input_method, r.manner_scores, passThresholdForLevel),
-            ).length /
-              accuracyResult.rows.length) *
-              100,
-          );
+    const badges = badgesResult.rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      description: r.description,
+      icon: r.icon,
+      unlocked: r.unlocked_at !== null,
+      unlockedAt: r.unlocked_at,
+    }));
 
     // "Continue where you left off" — an unfinished practice session, so
     // Overview can offer a direct resume link instead of the learner only
@@ -254,7 +194,8 @@ dashboardRouter.get("/", requireAuth, async (req: AuthedRequest, res, next) => {
       startSkill,
       modules,
       todaysTasks,
-      stats: { sessions, questionsCompleted, practiceMinutes, streakDays, accuracyPercent },
+      stats: { sessions, questionsCompleted, practiceMinutes, streakDays, accuracyPercent, level, totalXp },
+      badges,
       inProgressPractice,
     });
   } catch (err) {

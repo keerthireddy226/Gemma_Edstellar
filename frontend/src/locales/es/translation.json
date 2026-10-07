@@ -459,17 +459,11 @@
     "statsStreak": "Racha actual",
     "statsStreakValue_one": "{{count}} día",
     "statsStreakValue_other": "{{count}} días",
+    "statsLevel": "Level",
+    "statsLevelValue": "Lvl {{level}} · {{xp}} XP",
     "continuePracticeTitle": "Continúa donde lo dejaste",
     "continuePracticeBody": "{{skill}} — {{answered}} de {{total}} respondidas",
-    "achievementsTitle": "Logros",
-    "badgeFirstSession": "Primera sesión",
-    "badgeFirstSessionHint": "Completa una sesión de práctica",
-    "badgeTenQuestions": "10 preguntas",
-    "badgeTenQuestionsHint": "Responde 10 preguntas de práctica",
-    "badgeStreak": "Racha de 3 días",
-    "badgeStreakHint": "Practica 3 días seguidos",
-    "badgeSharp": "Puntería certera",
-    "badgeSharpHint": "Alcanza 80% de precisión en la práctica"
+    "achievementsTitle": "Logros"
   },
   "progressPage": {
     "title": "Tu Progreso",

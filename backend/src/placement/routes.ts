@@ -20,6 +20,7 @@ import {
 import { buildRoadmap, type AccessDuration, type SkillTag } from "./roadmapBuilder.js";
 import { withAudioUrls } from "../voice/itemAudio.js";
 import { toItemPayload } from "../itemPayload.js";
+import { checkAndAwardBadges } from "../gamification/stats.js";
 import { z } from "zod";
 
 
@@ -573,6 +574,7 @@ placementRouter.post("/session/:sessionId/complete", requireAuth, async (req: Au
     );
 
     const { goalLevel } = await saveRoadmap(req.user!.id, cefrLevel, roadmapSkillPercents);
+    await checkAndAwardBadges(req.user!.id);
 
     res.json({
       gradedCount: graded.length,

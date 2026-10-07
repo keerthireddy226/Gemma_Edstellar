@@ -15,7 +15,11 @@ import {
   ClipboardCheck,
   ArrowRight,
   Trophy,
-  Zap,
+  Target,
+  Layers,
+  Award,
+  Star,
+  Sparkles,
 } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
 import { Button } from "@/components/Button";
@@ -30,7 +34,7 @@ import {
   type ModuleStatus,
   type TodaysTask,
   type InProgressPractice,
-  type DashboardStats,
+  type Badge,
 } from "@/api/dashboard";
 import { ApiError } from "@/lib/api";
 import { SKILL_TINT_CLASSES, SKILL_RING_COLOR } from "@/lib/skillTints";
@@ -165,60 +169,44 @@ function ContinuePracticeCard({ practice }: { practice: InProgressPractice }) {
   );
 }
 
-// Badges derived from existing stats (no extra query) — dimmed/locked state still looks intentional on day one.
-function AchievementBadges({ stats }: { stats: DashboardStats }) {
-  const { t } = useTranslation();
-  const badges = [
-    {
-      key: "firstSession",
-      Icon: Trophy,
-      unlocked: stats.sessions >= 1,
-      title: t("dashboardHome.badgeFirstSession"),
-      hint: t("dashboardHome.badgeFirstSessionHint"),
-    },
-    {
-      key: "tenQuestions",
-      Icon: ListChecks,
-      unlocked: stats.questionsCompleted >= 10,
-      title: t("dashboardHome.badgeTenQuestions"),
-      hint: t("dashboardHome.badgeTenQuestionsHint"),
-    },
-    {
-      key: "streak",
-      Icon: Flame,
-      unlocked: stats.streakDays >= 3,
-      title: t("dashboardHome.badgeStreak"),
-      hint: t("dashboardHome.badgeStreakHint"),
-    },
-    {
-      key: "sharp",
-      Icon: Zap,
-      unlocked: stats.accuracyPercent !== null && stats.accuracyPercent >= 80,
-      title: t("dashboardHome.badgeSharp"),
-      hint: t("dashboardHome.badgeSharpHint"),
-    },
-  ];
+const BADGE_ICONS: Record<Badge["icon"], typeof Trophy> = {
+  flag: ClipboardCheck,
+  target: Target,
+  flame: Flame,
+  layers: Layers,
+  award: Award,
+  "list-checks": ListChecks,
+  trophy: Trophy,
+  star: Star,
+};
 
+// Real, persisted unlocks from the backend (achievements/user_achievements)
+// — earned once, on session completion, not recomputed from live stats on
+// every page load, so a badge's earned date is genuine.
+function AchievementBadges({ badges }: { badges: Badge[] }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      {badges.map((b) => (
-        <div
-          key={b.key}
-          className={`flex flex-col items-center text-center gap-2 rounded-card border p-4 ${
-            b.unlocked ? "bg-success/10 border-success/30" : "bg-surface border-rule"
-          }`}
-        >
-          <span
-            className={`h-11 w-11 rounded-full flex items-center justify-center ${
-              b.unlocked ? "bg-success/20 text-success" : "bg-paper-warm text-muted"
+      {badges.map((b) => {
+        const Icon = BADGE_ICONS[b.icon];
+        return (
+          <div
+            key={b.id}
+            className={`flex flex-col items-center text-center gap-2 rounded-card border p-4 ${
+              b.unlocked ? "bg-success/10 border-success/30" : "bg-surface border-rule"
             }`}
           >
-            <b.Icon size={22} strokeWidth={1.8} />
-          </span>
-          <div className={`text-xs font-bold ${b.unlocked ? "text-ink" : "text-muted"}`}>{b.title}</div>
-          {!b.unlocked && <div className="text-[11px] text-muted leading-snug">{b.hint}</div>}
-        </div>
-      ))}
+            <span
+              className={`h-11 w-11 rounded-full flex items-center justify-center ${
+                b.unlocked ? "bg-success/20 text-success" : "bg-paper-warm text-muted"
+              }`}
+            >
+              <Icon size={22} strokeWidth={1.8} />
+            </span>
+            <div className={`text-xs font-bold ${b.unlocked ? "text-ink" : "text-muted"}`}>{b.title}</div>
+            {!b.unlocked && <div className="text-[11px] text-muted leading-snug">{b.description}</div>}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -265,7 +253,7 @@ function LearnerDashboard() {
     );
   }
 
-  const { firstName, startSkill, modules, todaysTasks, stats, inProgressPractice } = data;
+  const { firstName, startSkill, modules, todaysTasks, stats, badges, inProgressPractice } = data;
   const remainingToday = todaysTasks.filter((task) => !task.done).length;
   const heroSubtitleKey =
     stats.sessions === 0
@@ -302,11 +290,12 @@ function LearnerDashboard() {
 
       {inProgressPractice && <ContinuePracticeCard practice={inProgressPractice} />}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <StatTile icon={CalendarCheck} label={t("dashboardHome.statsSessions")} value={String(stats.sessions)} tint="bg-listening/15 text-listening" />
         <StatTile icon={ListChecks} label={t("dashboardHome.statsQuestions")} value={String(stats.questionsCompleted)} tint="bg-writing/15 text-writing" />
         <StatTile icon={Clock} label={t("dashboardHome.statsTime")} value={t("dashboardHome.statsTimeValue", { minutes: stats.practiceMinutes })} tint="bg-warning/20 text-navy-deep" />
         <StatTile icon={Flame} label={t("dashboardHome.statsStreak")} value={t("dashboardHome.statsStreakValue", { count: stats.streakDays })} tint="bg-error/12 text-error" />
+        <StatTile icon={Sparkles} label={t("dashboardHome.statsLevel")} value={t("dashboardHome.statsLevelValue", { level: stats.level, xp: stats.totalXp })} tint="bg-accent/15 text-accent" />
       </div>
 
       <MotivationalBar />
@@ -327,7 +316,7 @@ function LearnerDashboard() {
 
       <section className="flex flex-col gap-3">
         <h3 className="font-mono text-[11px] font-medium tracking-[.24em] uppercase text-muted">{t("dashboardHome.achievementsTitle")}</h3>
-        <AchievementBadges stats={stats} />
+        <AchievementBadges badges={badges} />
       </section>
     </div>
   );

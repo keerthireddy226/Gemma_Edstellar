@@ -20,10 +20,26 @@ export interface DashboardStats {
   sessions: number;
   questionsCompleted: number;
   practiceMinutes: number;
+  // Already forgives up to 2 missed days before resetting — see
+  // gamification/stats.ts computeStreakDays.
   streakDays: number;
   // null until at least one practice answer has been graded — see
   // dashboard/routes.ts for why 0% isn't used as the "no data yet" value.
   accuracyPercent: number | null;
+  // 1 is the baseline — climbs only when a skill is genuinely mastered
+  // (never from time spent or session count).
+  level: number;
+  // A fun running counter, not a gate on anything.
+  totalXp: number;
+}
+
+export interface Badge {
+  id: string;
+  title: string;
+  description: string;
+  icon: "flag" | "target" | "flame" | "layers" | "award" | "list-checks" | "trophy" | "star";
+  unlocked: boolean;
+  unlockedAt: string | null;
 }
 
 export interface InProgressPractice {
@@ -38,6 +54,7 @@ export interface DashboardData {
   modules: DashboardModule[];
   todaysTasks: TodaysTask[];
   stats: DashboardStats;
+  badges: Badge[];
   inProgressPractice: InProgressPractice | null;
 }
 

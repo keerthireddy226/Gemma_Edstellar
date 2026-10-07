@@ -459,17 +459,11 @@
     "statsStreak": "Current Streak",
     "statsStreakValue_one": "{{count}} day",
     "statsStreakValue_other": "{{count}} days",
+    "statsLevel": "Level",
+    "statsLevelValue": "Lvl {{level}} · {{xp}} XP",
     "continuePracticeTitle": "Continue where you left off",
     "continuePracticeBody": "{{skill}} — {{answered}} of {{total}} answered",
-    "achievementsTitle": "Achievements",
-    "badgeFirstSession": "First Session",
-    "badgeFirstSessionHint": "Complete a practice session",
-    "badgeTenQuestions": "10 Questions",
-    "badgeTenQuestionsHint": "Answer 10 practice questions",
-    "badgeStreak": "3-Day Streak",
-    "badgeStreakHint": "Practice 3 days in a row",
-    "badgeSharp": "Sharp Shooter",
-    "badgeSharpHint": "Reach 80% practice accuracy"
+    "achievementsTitle": "Achievements"
   },
   "progressPage": {
     "title": "Your Progress",
