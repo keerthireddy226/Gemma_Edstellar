@@ -69,7 +69,9 @@ export interface LearnerStats {
   placementsCount: number;
 }
 
-const MAX_MINUTES_PER_SESSION = 120;
+// Exported — the daily-history route needs the same cap, so a session left
+// open overnight can't blow up one day's practice-minutes total.
+export const MAX_MINUTES_PER_SESSION = 120;
 
 export async function getLearnerStats(userId: string): Promise<LearnerStats> {
   const sessionsResult = await pool.query(

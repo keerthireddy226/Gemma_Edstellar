@@ -3,7 +3,7 @@ import { pool } from "../db.js";
 import { requireAuth, type AuthedRequest } from "../auth/middleware.js";
 import { isTrulyCorrect } from "../placement/fluencySignals.js";
 import { passThresholdForLevel } from "../placement/cefr.js";
-import { getLearnerStats, computeStreakDays, ALL_SKILLS, type SkillTag } from "../gamification/stats.js";
+import { getLearnerStats, computeStreakDays, ALL_SKILLS, MAX_MINUTES_PER_SESSION, type SkillTag } from "../gamification/stats.js";
 
 export const dashboardRouter = Router();
 // Ceiling on items of one skill per day — avoids a long, repetitive same-skill grind.
@@ -262,7 +262,8 @@ dashboardRouter.get("/daily", requireAuth, async (req: AuthedRequest, res, next)
     for (const row of sessionsResult.rows) {
       const bucket = byDay.get(dayKey(new Date(row.completed_at)));
       if (!bucket) continue;
-      bucket.minutes += (new Date(row.completed_at).getTime() - new Date(row.started_at).getTime()) / 60_000;
+      const minutes = (new Date(row.completed_at).getTime() - new Date(row.started_at).getTime()) / 60_000;
+      bucket.minutes += Math.min(minutes, MAX_MINUTES_PER_SESSION);
     }
 
     const days = Array.from(byDay.entries()).map(([date, b]) => ({
