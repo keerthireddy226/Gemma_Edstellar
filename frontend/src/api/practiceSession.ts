@@ -72,7 +72,7 @@ export function startPracticeSession(
 
 export function submitPracticeAttempt(
   sessionId: string,
-  payload: { itemId: string; responseText?: string; audioBase64?: string; audioMimeType?: string; durationMs?: number },
+  payload: { itemId: string; responseText?: string; audioBase64?: string; audioMimeType?: string; durationMs?: number; activeMs?: number },
 ) {
   return api(`/practice/session/${sessionId}/attempts`, {
     method: "POST",

@@ -69,10 +69,6 @@ export interface LearnerStats {
   placementsCount: number;
 }
 
-// Exported — the daily-history route needs the same cap, so a session left
-// open overnight can't blow up one day's practice-minutes total.
-export const MAX_MINUTES_PER_SESSION = 120;
-
 export async function getLearnerStats(userId: string): Promise<LearnerStats> {
   const sessionsResult = await pool.query(
     `SELECT started_at, completed_at FROM sessions
@@ -80,12 +76,16 @@ export async function getLearnerStats(userId: string): Promise<LearnerStats> {
     [userId],
   );
   const sessions = sessionsResult.rows.length;
-  const practiceMinutes = Math.round(
-    sessionsResult.rows.reduce((sum, r) => {
-      const minutes = (new Date(r.completed_at).getTime() - new Date(r.started_at).getTime()) / 60_000;
-      return sum + Math.min(minutes, MAX_MINUTES_PER_SESSION);
-    }, 0),
+  // Real time actually spent answering, not session wall-clock span — a
+  // session left open on another page/overnight added no active_ms, so it
+  // adds no practice time, instead of needing a per-session cap to contain it.
+  const activeMsResult = await pool.query(
+    `SELECT COALESCE(SUM(a.active_ms), 0) AS total_active_ms
+     FROM attempts a JOIN sessions s ON s.id = a.session_id
+     WHERE s.user_id = $1 AND s.session_type = 'practice'`,
+    [userId],
   );
+  const practiceMinutes = Math.round(Number(activeMsResult.rows[0].total_active_ms) / 60_000);
   const streakDays = computeStreakDays(sessionsResult.rows.map((r) => dayKey(new Date(r.completed_at))));
 
   const questionsCompletedResult = await pool.query(

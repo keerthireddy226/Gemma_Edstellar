@@ -496,6 +496,10 @@ export function Modules() {
   useEffect(() => {
     answersRef.current = answers;
   }, [answers]);
+  // Real time spent on the current question — reset whenever a new question
+  // is shown (the [index] effect below), read at submit/skip time. Counts
+  // only while actually on a question, never idle time elsewhere in the app.
+  const questionShownAtRef = useRef(Date.now());
 
   // Gates the whole render until this resolves, so a refresh mid-session
   // lands back in that same session instead of flashing the picker screens
@@ -687,6 +691,7 @@ export function Modules() {
       clearTimeout(twoPhaseTimeoutRef.current);
       twoPhaseTimeoutRef.current = null;
     }
+    questionShownAtRef.current = Date.now();
     const cached = answersRef.current[index];
     setAnswerText(cached?.responseText ?? "");
     setPendingAudio(cached?.audioBase64 ? { base64: cached.audioBase64, mimeType: cached.audioMimeType ?? "" } : null);
@@ -786,6 +791,7 @@ export function Modules() {
         audioBase64: pendingAudio?.base64,
         audioMimeType: pendingAudio?.mimeType,
         durationMs: recordingDurationMs ?? undefined,
+        activeMs: Date.now() - questionShownAtRef.current,
       });
       cacheCurrentAnswer();
       await finishOrAdvance();
@@ -801,7 +807,7 @@ export function Modules() {
     setSubmitting(true);
     setError(null);
     try {
-      await submitPracticeAttempt(sessionId, { itemId: current.id });
+      await submitPracticeAttempt(sessionId, { itemId: current.id, activeMs: Date.now() - questionShownAtRef.current });
       setAnswers((prev) => {
         const next = { ...prev };
         delete next[index];

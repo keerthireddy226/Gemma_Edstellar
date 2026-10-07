@@ -15,6 +15,10 @@ export interface AttemptBody {
   audioBase64?: string;
   audioMimeType?: string;
   durationMs?: number;
+  // Real time spent on this question (shown -> submitted), client-tracked —
+  // see the migration adding this column for why window_start_at/submitted_at
+  // can't answer this themselves.
+  activeMs?: number;
 }
 
 export interface GradedItem {
@@ -76,12 +80,13 @@ export async function gradeAndSaveAttempt(sessionId: string, body: AttemptBody):
   // question can't each insert their own row; Postgres serializes them and
   // the later one simply overwrites the earlier one's columns.
   const attemptResult = await pool.query(
-    `INSERT INTO attempts (session_id, item_id, window_start_at, submitted_at, response_uri, response_text)
-     VALUES ($1, $2, now(), now(), $3, $4)
+    `INSERT INTO attempts (session_id, item_id, window_start_at, submitted_at, response_uri, response_text, active_ms)
+     VALUES ($1, $2, now(), now(), $3, $4, $5)
      ON CONFLICT (session_id, item_id) DO UPDATE SET
-       window_start_at = now(), submitted_at = now(), response_uri = EXCLUDED.response_uri, response_text = EXCLUDED.response_text
+       window_start_at = now(), submitted_at = now(), response_uri = EXCLUDED.response_uri,
+       response_text = EXCLUDED.response_text, active_ms = EXCLUDED.active_ms
      RETURNING id`,
-    [sessionId, body.itemId, responseUri, responseText],
+    [sessionId, body.itemId, responseUri, responseText, body.activeMs ?? null],
   );
   const attemptId = attemptResult.rows[0].id;
 

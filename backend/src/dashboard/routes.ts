@@ -3,7 +3,7 @@ import { pool } from "../db.js";
 import { requireAuth, type AuthedRequest } from "../auth/middleware.js";
 import { isTrulyCorrect } from "../placement/fluencySignals.js";
 import { passThresholdForLevel } from "../placement/cefr.js";
-import { getLearnerStats, computeStreakDays, ALL_SKILLS, MAX_MINUTES_PER_SESSION, type SkillTag } from "../gamification/stats.js";
+import { getLearnerStats, computeStreakDays, ALL_SKILLS, type SkillTag } from "../gamification/stats.js";
 
 export const dashboardRouter = Router();
 // Ceiling on items of one skill per day — avoids a long, repetitive same-skill grind.
@@ -223,7 +223,7 @@ dashboardRouter.get("/daily", requireAuth, async (req: AuthedRequest, res, next)
     // yet, but it should still count toward that day's questions-answered
     // total, just not toward accuracy.
     const attemptsResult = await pool.query(
-      `SELECT a.submitted_at, sc.status, sc.content_score, sc.manner_scores, i.cefr_level, it.input_method
+      `SELECT a.submitted_at, a.active_ms, sc.status, sc.content_score, sc.manner_scores, i.cefr_level, it.input_method
        FROM attempts a
        JOIN sessions s ON s.id = a.session_id
        JOIN items i ON i.id = a.item_id
@@ -234,12 +234,6 @@ dashboardRouter.get("/daily", requireAuth, async (req: AuthedRequest, res, next)
       [req.user!.id, since],
     );
 
-    const sessionsResult = await pool.query(
-      `SELECT started_at, completed_at FROM sessions
-       WHERE user_id = $1 AND session_type = 'practice' AND completed_at IS NOT NULL AND completed_at >= $2`,
-      [req.user!.id, since],
-    );
-
     const byDay = new Map<string, { questions: number; correct: number; graded: number; minutes: number }>();
     for (let i = 0; i < DAILY_HISTORY_DAYS; i++) {
       const d = new Date(since);
@@ -247,23 +241,21 @@ dashboardRouter.get("/daily", requireAuth, async (req: AuthedRequest, res, next)
       byDay.set(dayKey(d), { questions: 0, correct: 0, graded: 0, minutes: 0 });
     }
 
+    // Bucketed by when the question was actually submitted, using its own
+    // real active time — not session wall-clock span, which also counts
+    // idle time and can't be attributed to the right day for a session left
+    // open overnight.
     for (const row of attemptsResult.rows) {
       const bucket = byDay.get(dayKey(new Date(row.submitted_at)));
       if (!bucket) continue;
       bucket.questions += 1;
+      bucket.minutes += (row.active_ms ?? 0) / 60_000;
       if (row.status === "scored") {
         bucket.graded += 1;
         if (isTrulyCorrect(Number(row.content_score), row.cefr_level, row.input_method, row.manner_scores, passThresholdForLevel)) {
           bucket.correct += 1;
         }
       }
-    }
-
-    for (const row of sessionsResult.rows) {
-      const bucket = byDay.get(dayKey(new Date(row.completed_at)));
-      if (!bucket) continue;
-      const minutes = (new Date(row.completed_at).getTime() - new Date(row.started_at).getTime()) / 60_000;
-      bucket.minutes += Math.min(minutes, MAX_MINUTES_PER_SESSION);
     }
 
     const days = Array.from(byDay.entries()).map(([date, b]) => ({

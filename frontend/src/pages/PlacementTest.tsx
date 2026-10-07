@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Volume2, CheckCircle2, Clock, X } from "lucide-react";
@@ -35,6 +35,10 @@ export function PlacementTest() {
   const { recording, start: startRecording, stop: stopRecording } = useVoiceRecorder();
 
   const [sessionId, setSessionId] = useState<string | null>(null);
+  // Real time spent on the current question — reset whenever a question
+  // first appears (session load/resume, or the next adaptive item), read at
+  // submit/skip time. Counts only while actually on a question.
+  const questionShownAtRef = useRef(Date.now());
   // Adaptive: this only ever grows by one at a time, appended from each
   // attempt response's `nextItem` — there's no pre-loaded fixed list, and
   // no going back to change an earlier answer (that would invalidate every
@@ -74,6 +78,7 @@ export function PlacementTest() {
       .then((res) => {
         setSessionId(res.sessionId);
         setItems(res.items);
+        questionShownAtRef.current = Date.now();
       })
       .catch(() => setError(t("placementTest.loadError")))
       .finally(() => setLoading(false));
@@ -149,6 +154,7 @@ export function PlacementTest() {
   async function advanceOrFinish(nextItem: TestItem | null) {
     if (nextItem) {
       setItems((prev) => [...prev, nextItem]);
+      questionShownAtRef.current = Date.now();
       return;
     }
     const result = await completeSession(sessionId!);
@@ -166,6 +172,7 @@ export function PlacementTest() {
         audioBase64: pendingAudio?.base64,
         audioMimeType: pendingAudio?.mimeType,
         durationMs: recordingDurationMs ?? undefined,
+        activeMs: Date.now() - questionShownAtRef.current,
       });
       await advanceOrFinish(result.nextItem);
     } catch {
@@ -180,7 +187,7 @@ export function PlacementTest() {
     setSubmitting(true);
     setError(null);
     try {
-      const result = await submitAttempt(sessionId, { itemId: current.id });
+      const result = await submitAttempt(sessionId, { itemId: current.id, activeMs: Date.now() - questionShownAtRef.current });
       await advanceOrFinish(result.nextItem);
     } catch {
       setError(t("placementTest.submitError"));

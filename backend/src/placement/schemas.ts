@@ -10,4 +10,9 @@ export const submitAttemptSchema = z.object({
   // Wall-clock length of the recording, in milliseconds — used to compute
   // speech rate (words per minute). Only meaningful for mic answers.
   durationMs: z.number().positive().optional(),
+  // Real time spent on this question — question shown to submitted, tracked
+  // client-side. Applies to every input method, not just mic answers. Used
+  // for practice-time stats instead of session wall-clock span, which also
+  // counts idle/dashboard time.
+  activeMs: z.number().int().min(0).optional(),
 });

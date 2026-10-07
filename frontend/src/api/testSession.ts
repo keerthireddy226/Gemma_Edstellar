@@ -76,7 +76,7 @@ export function getCurrentSession(): Promise<{ inProgress: boolean; questionsSho
 
 export function submitAttempt(
   sessionId: string,
-  payload: { itemId: string; responseText?: string; audioBase64?: string; audioMimeType?: string; durationMs?: number },
+  payload: { itemId: string; responseText?: string; audioBase64?: string; audioMimeType?: string; durationMs?: number; activeMs?: number },
 ): Promise<AttemptResult> {
   return api(`/placement/session/${sessionId}/attempts`, {
     method: "POST",
