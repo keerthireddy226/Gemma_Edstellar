@@ -559,8 +559,8 @@
     "enrollmentConsent": {
       "title": "Set up face verification",
       "subtitle": "This helps confirm it's really you taking the test.",
-      "body": "We'll take a photo of your face to create a reference for identity verification. This photo and a face scan will be used only to confirm your identity before tests, and is stored securely.",
-      "checkboxLabel": "I understand and consent to face identity verification.",
+      "body": "We'll take a photo of your face to create a reference for identity verification. This photo and face scans are used to confirm your identity before, and periodically during, placement tests and practice sessions (Modules) — not just once at the start. Stored securely, used only for this purpose.",
+      "checkboxLabel": "I understand and consent to face identity verification, including periodic checks during tests and practice sessions.",
       "submit": "Continue",
       "decline": "Not now"
     }
