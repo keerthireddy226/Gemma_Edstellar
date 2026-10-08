@@ -309,19 +309,36 @@
     "toggleTheme": "థీమ్ మార్చండి"
   },
   "practiceTests": {
-    "subtitle": "Full-length, timed mock tests matching the real Versant exam products.",
+    "subtitle": "నిజమైన Versant పరీక్షా ఉత్పత్తులకు సరిపోలే పూర్తి-నిడివి, సమయ-నిర్ధారిత మాక్ టెస్టులు.",
     "comingSoon": "త్వరలో వస్తుంది",
+    "setsCount": "{{count}} సెట్",
+    "setsCount_other": "{{count}} సెట్‌లు",
+    "questionsCount": "{{count}} ప్రశ్న",
+    "questionsCount_other": "{{count}} ప్రశ్నలు",
+    "completed": "పూర్తయింది",
+    "startExam": "ప్రారంభించండి",
+    "retake": "మళ్లీ ప్రయత్నించండి",
+    "backToProducts": "టెస్ట్‌లకు తిరిగి వెళ్ళండి",
+    "backToExams": "సెట్‌లకు తిరిగి వెళ్ళండి",
+    "loadError": "ఇప్పుడు లోడ్ చేయలేకపోయాము. దయచేసి మళ్లీ ప్రయత్నించండి.",
+    "saveAndNext": "సేవ్ చేసి తదుపరికి వెళ్ళండి",
+    "sectionLabel": "విభాగం {{current}} / {{total}} — {{label}}",
+    "scoreReport": {
+      "title": "పరీక్ష పూర్తయింది",
+      "overall": "మొత్తం స్కోరు",
+      "sectionResults": "విభాగాల ఫలితాలు"
+    },
     "versantProduct": {
-      "speakingListening": "English Speaking and Listening Test",
-      "speakingListeningDesc": "Speaking and listening — 17 minutes.",
-      "fourSkills": "English 4-Skills Essentials Test",
-      "fourSkillsDesc": "Speaking, listening, reading, writing — 30 minutes.",
-      "writing": "English Writing Test",
-      "writingDesc": "Written English — 35 minutes.",
-      "professional": "Professional English Test",
-      "professionalDesc": "Speaking, listening, reading, writing — 60 minutes.",
-      "placement": "English Placement Test",
-      "placementDesc": "Speaking, listening, reading, writing — 50 minutes."
+      "speakingListening": "ఇంగ్లీష్ స్పీకింగ్ అండ్ లిజనింగ్ టెస్ట్",
+      "speakingListeningDesc": "మాట్లాడటం మరియు వినడం — 17 నిమిషాలు.",
+      "fourSkills": "ఇంగ్లీష్ 4-స్కిల్స్ ఎసెన్షియల్స్ టెస్ట్",
+      "fourSkillsDesc": "మాట్లాడటం, వినడం, చదవడం, రాయడం — 30 నిమిషాలు.",
+      "writing": "ఇంగ్లీష్ రైటింగ్ టెస్ట్",
+      "writingDesc": "రాత ఇంగ్లీష్ — 35 నిమిషాలు.",
+      "professional": "ప్రొఫెషనల్ ఇంగ్లీష్ టెస్ట్",
+      "professionalDesc": "మాట్లాడటం, వినడం, చదవడం, రాయడం — 60 నిమిషాలు.",
+      "placement": "ఇంగ్లీష్ ప్లేస్‌మెంట్ టెస్ట్",
+      "placementDesc": "మాట్లాడటం, వినడం, చదవడం, రాయడం — 50 నిమిషాలు."
     }
   },
   "tutor": {

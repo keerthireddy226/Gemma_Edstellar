@@ -123,6 +123,10 @@ practiceRouter.get("/units", requireAuth, async (req: AuthedRequest, res, next) 
              SELECT 1 FROM sessions se
              WHERE se.user_id = $2 AND se.session_type = 'practice' AND se.completed_at IS NOT NULL
                AND se.composition->>'setId' = s.id::text
+               -- Every item answered with a real response, not skipped blank.
+               AND NOT EXISTS (
+                 SELECT 1 FROM attempts a WHERE a.session_id = se.id AND a.response_text IS NULL AND a.response_uri IS NULL
+               )
            )
          )::int AS completed_count
        FROM units u LEFT JOIN sets s ON s.unit_id = u.id
@@ -148,6 +152,11 @@ practiceRouter.get("/units/:unitId/sets", requireAuth, async (req: AuthedRequest
            SELECT 1 FROM sessions se
            WHERE se.user_id = $2 AND se.session_type = 'practice' AND se.completed_at IS NOT NULL
              AND se.composition->>'setId' = s.id::text
+             -- Every item answered with a real response, not skipped blank —
+             -- completed_at alone only means "reached the end of the list".
+             AND NOT EXISTS (
+               SELECT 1 FROM attempts a WHERE a.session_id = se.id AND a.response_text IS NULL AND a.response_uri IS NULL
+             )
          ) AS completed
        FROM sets s
        WHERE s.unit_id = $1

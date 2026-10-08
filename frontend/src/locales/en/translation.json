@@ -226,6 +226,7 @@
     }
   },
   "placementTest": {
+    "typeIntroStart": "Start",
     "loading": "Loading your test…",
     "loadError": "Something went wrong loading your test. Please try again.",
     "micError": "We couldn't access your microphone. Please allow microphone access and try again.",
@@ -311,6 +312,29 @@
   "practiceTests": {
     "subtitle": "Full-length, timed mock tests matching the real Versant exam products.",
     "comingSoon": "Coming soon",
+    "setsCount": "{{count}} set",
+    "setsCount_other": "{{count}} sets",
+    "questionsCount": "{{count}} question",
+    "questionsCount_other": "{{count}} questions",
+    "completed": "Completed",
+    "startExam": "Start",
+    "retake": "Retake",
+    "backToProducts": "Back to tests",
+    "backToExams": "Back to sets",
+    "loadError": "Couldn't load that right now. Please try again.",
+    "saveAndNext": "Save and Next",
+    "sectionLabel": "Section {{current}} of {{total}} — {{label}}",
+    "scoreReport": {
+      "title": "Test complete",
+      "overall": "Overall score",
+      "sectionResults": "Section results"
+    },
+    "overview": {
+      "title": "Before you begin",
+      "subtitle": "This test has multiple parts. In each part, you'll do a different task.",
+      "begin": "Begin Test",
+      "startSection": "Start {{label}}"
+    },
     "versantProduct": {
       "speakingListening": "English Speaking and Listening Test",
       "speakingListeningDesc": "Speaking and listening — 17 minutes.",
@@ -520,7 +544,28 @@
     "unitComplete": "All sets complete",
     "setsProgress": "{{done}} of {{total}} sets done",
     "backToUnits": "Back to units",
-    "setCompleted": "Completed"
+    "setCompleted": "Completed",
+    "startPractice": "Start Practice",
+    "typeDesc": {
+      "reading": "Read the sentence aloud, naturally and clearly.",
+      "repeats": "Listen once, then repeat it back exactly.",
+      "sentence_builds": "Rearrange the words into a correct sentence.",
+      "conversations": "Listen to a dialogue, then answer about it.",
+      "reading_selective": "Read and pick out the key information.",
+      "short_answer": "Answer a quick question in a few words.",
+      "passage_comprehension": "Listen to a passage, then answer about it.",
+      "speaking_situations": "Respond naturally to a real-world scenario.",
+      "story_retelling": "Listen to a story, then retell it in your own words.",
+      "open_questions": "Share your own opinion, freely spoken.",
+      "dictation": "Type exactly what you hear.",
+      "response_selection": "Pick the correct response from the options.",
+      "passage_reconstruction": "Read it, then rebuild it from memory.",
+      "summary_and_opinion": "Summarize a passage and give your view.",
+      "reading_comprehension": "Read a passage and answer questions on it.",
+      "sentence_completion": "Fill in the missing word or phrase.",
+      "typing": "A short typing warm-up.",
+      "email_writing": "Write a short, real-world email."
+    }
   },
   "faceCheck": {
     "back": "Back",

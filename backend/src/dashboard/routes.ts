@@ -81,29 +81,32 @@ dashboardRouter.get("/", requireAuth, async (req: AuthedRequest, res, next) => {
       if (currentMilestone) startSkill = currentMilestone.focus_skill;
     }
 
-    const itemTypesResult = await pool.query(
-      `SELECT it.id AS item_type_id, it.skills, it.estimated_seconds,
-         EXISTS (
-           SELECT 1 FROM attempts a
-           JOIN sessions s ON s.id = a.session_id
-           JOIN items i ON i.id = a.item_id
-           WHERE s.user_id = $1 AND s.session_type = 'practice' AND i.item_type_id = it.id
-             AND (a.response_text IS NOT NULL OR a.response_uri IS NOT NULL)
-         ) AS practiced
-       FROM item_types it`,
+    const itemTypesResult = await pool.query(`SELECT it.id AS item_type_id, it.skills, it.estimated_seconds FROM item_types it`);
+
+    // Real item-level completion: items actually answered (a real response,
+    // not just a skip) out of every approved practice-pool item carrying
+    // that skill — not "touched every item type at least once" (which let
+    // 100% be reached after a handful of questions out of hundreds).
+    const skillCompletionResult = await pool.query(
+      `SELECT unnest(it.skills) AS skill, count(DISTINCT i.id) AS total,
+         count(DISTINCT a.item_id) FILTER (WHERE a.item_id IS NOT NULL) AS attempted
+       FROM items i
+       JOIN item_types it ON it.id = i.item_type_id
+       LEFT JOIN attempts a ON a.item_id = i.id
+         AND a.session_id IN (SELECT id FROM sessions WHERE user_id = $1 AND session_type = 'practice')
+         AND (a.response_text IS NOT NULL OR a.response_uri IS NOT NULL)
+       WHERE i.status = 'approved' AND i.pool = 'practice'
+       GROUP BY skill`,
       [req.user!.id],
     );
-
-    // A skill's module is "completed" once the learner has tried at least
-    // one item from every item type that carries that skill — not once
-    // they've exhausted the whole bank (60-72 items), which would make
-    // "Completed" practically unreachable.
+    const completionBySkill = new Map(skillCompletionResult.rows.map((r) => [r.skill, r]));
     const modules = ALL_SKILLS.map((skill) => {
-      const types = itemTypesResult.rows.filter((r) => (r.skills as string[]).includes(skill));
-      const practicedCount = types.filter((r) => r.practiced).length;
-      const progressPercent = types.length > 0 ? Math.round((practicedCount / types.length) * 100) : 0;
+      const row = completionBySkill.get(skill);
+      const total = row ? Number(row.total) : 0;
+      const attempted = row ? Number(row.attempted) : 0;
+      const progressPercent = total > 0 ? Math.round((attempted / total) * 100) : 0;
       const status: "not_started" | "in_progress" | "completed" =
-        practicedCount === 0 ? "not_started" : practicedCount === types.length ? "completed" : "in_progress";
+        attempted === 0 ? "not_started" : attempted === total ? "completed" : "in_progress";
       return { skill, status, progressPercent };
     });
 

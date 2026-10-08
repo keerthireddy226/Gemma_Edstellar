@@ -309,19 +309,36 @@
     "toggleTheme": "Cambiar tema"
   },
   "practiceTests": {
-    "subtitle": "Full-length, timed mock tests matching the real Versant exam products.",
+    "subtitle": "Exámenes de práctica completos y cronometrados que coinciden con los productos reales de Versant.",
     "comingSoon": "Próximamente",
+    "setsCount": "{{count}} set",
+    "setsCount_other": "{{count}} sets",
+    "questionsCount": "{{count}} pregunta",
+    "questionsCount_other": "{{count}} preguntas",
+    "completed": "Completado",
+    "startExam": "Comenzar",
+    "retake": "Repetir",
+    "backToProducts": "Volver a los exámenes",
+    "backToExams": "Volver a los sets",
+    "loadError": "No se pudo cargar en este momento. Inténtalo de nuevo.",
+    "saveAndNext": "Guardar y siguiente",
+    "sectionLabel": "Sección {{current}} de {{total}} — {{label}}",
+    "scoreReport": {
+      "title": "Prueba completada",
+      "overall": "Puntuación general",
+      "sectionResults": "Resultados por sección"
+    },
     "versantProduct": {
-      "speakingListening": "English Speaking and Listening Test",
-      "speakingListeningDesc": "Speaking and listening — 17 minutes.",
-      "fourSkills": "English 4-Skills Essentials Test",
-      "fourSkillsDesc": "Speaking, listening, reading, writing — 30 minutes.",
-      "writing": "English Writing Test",
-      "writingDesc": "Written English — 35 minutes.",
-      "professional": "Professional English Test",
-      "professionalDesc": "Speaking, listening, reading, writing — 60 minutes.",
-      "placement": "English Placement Test",
-      "placementDesc": "Speaking, listening, reading, writing — 50 minutes."
+      "speakingListening": "Examen de Habla y Escucha en Inglés",
+      "speakingListeningDesc": "Habla y escucha — 17 minutos.",
+      "fourSkills": "Examen de las 4 Habilidades Esenciales en Inglés",
+      "fourSkillsDesc": "Habla, escucha, lectura, escritura — 30 minutos.",
+      "writing": "Examen de Escritura en Inglés",
+      "writingDesc": "Inglés escrito — 35 minutos.",
+      "professional": "Examen de Inglés Profesional",
+      "professionalDesc": "Habla, escucha, lectura, escritura — 60 minutos.",
+      "placement": "Examen de Nivelación de Inglés",
+      "placementDesc": "Habla, escucha, lectura, escritura — 50 minutos."
     }
   },
   "tutor": {

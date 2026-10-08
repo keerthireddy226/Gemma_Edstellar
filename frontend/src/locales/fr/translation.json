@@ -309,19 +309,36 @@
     "toggleTheme": "Changer de thème"
   },
   "practiceTests": {
-    "subtitle": "Full-length, timed mock tests matching the real Versant exam products.",
+    "subtitle": "Tests blancs complets et chronométrés, identiques aux véritables épreuves Versant.",
     "comingSoon": "Bientôt disponible",
+    "setsCount": "{{count}} set",
+    "setsCount_other": "{{count}} sets",
+    "questionsCount": "{{count}} question",
+    "questionsCount_other": "{{count}} questions",
+    "completed": "Terminé",
+    "startExam": "Commencer",
+    "retake": "Recommencer",
+    "backToProducts": "Retour aux tests",
+    "backToExams": "Retour aux sets",
+    "loadError": "Impossible de charger pour le moment. Veuillez réessayer.",
+    "saveAndNext": "Enregistrer et suivant",
+    "sectionLabel": "Section {{current}} sur {{total}} — {{label}}",
+    "scoreReport": {
+      "title": "Test terminé",
+      "overall": "Score global",
+      "sectionResults": "Résultats par section"
+    },
     "versantProduct": {
-      "speakingListening": "English Speaking and Listening Test",
-      "speakingListeningDesc": "Speaking and listening — 17 minutes.",
-      "fourSkills": "English 4-Skills Essentials Test",
-      "fourSkillsDesc": "Speaking, listening, reading, writing — 30 minutes.",
-      "writing": "English Writing Test",
-      "writingDesc": "Written English — 35 minutes.",
-      "professional": "Professional English Test",
-      "professionalDesc": "Speaking, listening, reading, writing — 60 minutes.",
-      "placement": "English Placement Test",
-      "placementDesc": "Speaking, listening, reading, writing — 50 minutes."
+      "speakingListening": "Test d'expression orale et de compréhension orale en anglais",
+      "speakingListeningDesc": "Expression et compréhension orales — 17 minutes.",
+      "fourSkills": "Test des 4 compétences essentielles en anglais",
+      "fourSkillsDesc": "Expression orale, compréhension orale, lecture, écriture — 30 minutes.",
+      "writing": "Test d'expression écrite en anglais",
+      "writingDesc": "Anglais écrit — 35 minutes.",
+      "professional": "Test d'anglais professionnel",
+      "professionalDesc": "Expression orale, compréhension orale, lecture, écriture — 60 minutes.",
+      "placement": "Test de positionnement en anglais",
+      "placementDesc": "Expression orale, compréhension orale, lecture, écriture — 50 minutes."
     }
   },
   "tutor": {

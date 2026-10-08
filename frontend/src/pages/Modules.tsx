@@ -1,7 +1,35 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Volume2, Mic, CheckCircle2, ArrowLeft, Clock, Headphones, BookOpen, PenLine, ChevronRight } from "lucide-react";
+import {
+  Volume2,
+  Mic,
+  CheckCircle2,
+  ArrowLeft,
+  Clock,
+  Headphones,
+  BookOpen,
+  PenLine,
+  ChevronRight,
+  MessagesSquare,
+  Keyboard,
+  BookOpenCheck,
+  ScanText,
+  Repeat2,
+  ListChecks,
+  Blocks,
+  HelpCircle,
+  BookMarked,
+  MessageCircleQuestion,
+  Mic2,
+  BookOpenText,
+  Drama,
+  FileText,
+  PenSquare,
+  Type,
+  Mail,
+  Puzzle,
+} from "lucide-react";
 import { ROUTES } from "@/constants/routes";
 import { Button } from "@/components/Button";
 import { ProgressRing } from "@/components/ProgressRing";
@@ -84,6 +112,44 @@ const SKILL_TYPES: Record<SkillTag, string[]> = {
   writing: ["dictation", "email_writing", "passage_reconstruction", "sentence_completion", "summary_and_opinion", "typing"],
 };
 
+// A distinct icon per question type — reusing one skill-level icon for all
+// of a skill's types (the old design) made every card in a page look the same.
+const ITEM_TYPE_ICON: Record<string, typeof Headphones> = {
+  reading: Mic2,
+  repeats: Repeat2,
+  sentence_builds: Blocks,
+  conversations: MessagesSquare,
+  reading_selective: ScanText,
+  short_answer: HelpCircle,
+  passage_comprehension: BookOpenCheck,
+  speaking_situations: Drama,
+  story_retelling: BookMarked,
+  open_questions: MessageCircleQuestion,
+  dictation: Keyboard,
+  response_selection: ListChecks,
+  passage_reconstruction: Puzzle,
+  summary_and_opinion: FileText,
+  reading_comprehension: BookOpenText,
+  sentence_completion: PenSquare,
+  typing: Type,
+  email_writing: Mail,
+};
+
+// Rotated by index so a skill's type cards each get a distinct accent
+// instead of all sharing one flat skill-level tint. Kept as parallel arrays
+// (not derived from one string) since the icon badge needs the soft 15%
+// tint but the top accent strip needs the solid color.
+const CARD_TINT_ROTATION = [
+  "bg-navy/15 text-navy-deep",
+  "bg-accent/15 text-accent",
+  "bg-warning/20 text-navy-deep",
+  "bg-speaking/15 text-speaking",
+  "bg-reading/15 text-reading",
+  "bg-writing/15 text-writing",
+  "bg-listening/15 text-listening",
+];
+const CARD_STRIP_ROTATION = ["bg-navy", "bg-accent", "bg-warning", "bg-speaking", "bg-reading", "bg-writing", "bg-listening"];
+
 // Colors the CEFR code in a unit name ("A1 - Beginner") as a difficulty ramp, reusing existing per-skill color tokens.
 const CEFR_TINT_CLASSES: Record<string, string> = {
   A1: "bg-listening/15 text-listening",
@@ -136,7 +202,7 @@ function SkillPicker({
   const { t } = useTranslation();
 
   return (
-    <div className="max-w-2xl mx-auto flex flex-col gap-4">
+    <div className="w-full flex flex-col gap-6">
       <div>
         <h1 className="font-display font-bold text-2xl text-ink">{t("modules.title")}</h1>
         <p className="text-sm text-muted mt-1">{t("modules.subtitle")}</p>
@@ -145,7 +211,7 @@ function SkillPicker({
       {loading ? (
         <p className="text-sm text-muted">{t("modules.loadingAvailability")}</p>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {(availability ?? []).map(({ skill, remaining, total }) => {
             const exhausted = remaining === 0;
             const percent = total > 0 ? Math.round(((total - remaining) / total) * 100) : 0;
@@ -154,23 +220,23 @@ function SkillPicker({
                 key={skill}
                 onClick={() => !exhausted && onStart(skill)}
                 disabled={starting || exhausted}
-                className="group text-left flex items-center gap-4 bg-surface border border-rule rounded-card px-4 py-4 transition-all cursor-pointer hover:border-rule-strong hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-14px_rgba(0,0,0,0.28)] disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
+                className="group text-left flex flex-col items-center text-center gap-3 bg-surface border border-rule rounded-card p-6 transition-all cursor-pointer hover:border-rule-strong hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-14px_rgba(0,0,0,0.28)] disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
               >
-                <ProgressRing percent={percent} size={52} strokeWidth={4} colorClass={SKILL_RING_COLOR[skill]}>
+                <ProgressRing percent={percent} size={72} strokeWidth={5} colorClass={SKILL_RING_COLOR[skill]}>
                   <span
-                    className={`h-9 w-9 rounded-2xl flex items-center justify-center text-lg transition-transform group-hover:scale-110 ${SKILL_TINT_CLASSES[skill]}`}
+                    className={`h-12 w-12 rounded-2xl flex items-center justify-center text-2xl transition-transform group-hover:scale-110 ${SKILL_TINT_CLASSES[skill]}`}
                   >
                     {SKILL_EMOJI[skill]}
                   </span>
                 </ProgressRing>
-                <div className="flex-1 min-w-0">
+                <div>
                   <div className="font-display font-bold text-lg text-ink">{t(`skills.${skill}`)}</div>
-                  <div className="text-xs text-muted">
+                  <div className="text-xs text-muted mt-1">
                     {exhausted ? t("modules.allDone") : t("modules.remainingItems", { count: remaining, total })}
                   </div>
                 </div>
                 {!exhausted && (
-                  <ChevronRight size={20} className="text-muted shrink-0 transition-transform group-hover:translate-x-1" />
+                  <ChevronRight size={18} className="text-muted shrink-0 transition-transform group-hover:translate-x-1" />
                 )}
               </button>
             );
@@ -188,7 +254,7 @@ function TypePicker({ skill, starting, onBack, onSelect }: { skill: SkillTag; st
   const types = SKILL_TYPES[skill];
 
   return (
-    <div className="max-w-3xl mx-auto flex flex-col gap-4">
+    <div className="w-full flex flex-col gap-6">
       <button
         onClick={onBack}
         className="flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink transition-colors cursor-pointer self-start"
@@ -196,33 +262,38 @@ function TypePicker({ skill, starting, onBack, onSelect }: { skill: SkillTag; st
         <ArrowLeft size={16} strokeWidth={1.8} /> {t("modules.backToSkills")}
       </button>
 
-      <div className="flex items-center gap-3">
-        <span className={`h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 text-2xl ${SKILL_TINT_CLASSES[skill]}`}>
+      <div className="flex items-center gap-4">
+        <span className={`h-16 w-16 rounded-2xl flex items-center justify-center shrink-0 text-3xl ${SKILL_TINT_CLASSES[skill]}`}>
           {SKILL_EMOJI[skill]}
         </span>
         <div>
-          <h1 className="font-display font-bold text-xl text-ink">{t(`skills.${skill}`)} Practice</h1>
-          <p className="text-xs text-muted">{t("modules.pickTypeSubtitle")}</p>
+          <h1 className="font-display font-bold text-2xl text-ink">{t(`skills.${skill}`)} Practice</h1>
+          <p className="text-sm text-muted">{t("modules.pickTypeSubtitle")}</p>
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {types.map((typeId) => {
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {types.map((typeId, i) => {
           const meta = ITEM_TYPE_META[typeId];
           if (!meta) return null;
+          const TypeIcon = ITEM_TYPE_ICON[typeId] ?? Icon;
+          const tint = CARD_TINT_ROTATION[i % CARD_TINT_ROTATION.length];
+          const strip = CARD_STRIP_ROTATION[i % CARD_STRIP_ROTATION.length];
           return (
             <button
               key={typeId}
               onClick={() => onSelect(typeId)}
               disabled={starting}
-              className="group text-left bg-surface border border-rule rounded-card p-4 transition-all cursor-pointer flex flex-col gap-3 disabled:opacity-60 disabled:cursor-not-allowed hover:border-rule-strong hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-14px_rgba(0,0,0,0.28)]"
+              className="group relative text-left bg-surface border border-rule rounded-card p-5 transition-all cursor-pointer flex flex-col gap-3 overflow-hidden disabled:opacity-60 disabled:cursor-not-allowed hover:border-rule-strong hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-14px_rgba(0,0,0,0.28)]"
             >
-              <span
-                className={`h-11 w-11 rounded-2xl flex items-center justify-center shrink-0 text-xl transition-transform group-hover:scale-110 ${SKILL_TINT_CLASSES[skill]}`}
-              >
-                <Icon size={20} strokeWidth={2} />
+              <span className={`absolute top-0 left-0 right-0 h-1 ${strip}`} />
+              <span className={`h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110 ${tint}`}>
+                <TypeIcon size={22} strokeWidth={2} />
               </span>
-              <span className="font-display font-semibold text-sm text-ink">{meta.name}</span>
+              <div className="flex flex-col gap-1">
+                <span className="font-display font-bold text-base text-ink leading-snug">{meta.name}</span>
+                <span className="text-xs text-muted leading-relaxed">{t(`modules.typeDesc.${typeId}`)}</span>
+              </div>
             </button>
           );
         })}
@@ -245,18 +316,18 @@ function UnitPicker({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="max-w-2xl mx-auto flex flex-col gap-4">
+    <div className="w-full flex flex-col gap-6">
       <button
         onClick={onBack}
         className="flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink transition-colors cursor-pointer self-start"
       >
         <ArrowLeft size={16} strokeWidth={1.8} /> {t("modules.backToTypes")}
       </button>
-      <h1 className="font-display font-bold text-xl text-ink">{t("modules.pickUnitTitle")}</h1>
+      <h1 className="font-display font-bold text-2xl text-ink">{t("modules.pickUnitTitle")}</h1>
       {loading ? (
         <p className="text-sm text-muted">{t("modules.loadingAvailability")}</p>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {units.map((unit) => {
             const percent = unit.setCount > 0 ? Math.round((unit.completedCount / unit.setCount) * 100) : 0;
             const done = unit.setCount > 0 && unit.completedCount === unit.setCount;
@@ -264,18 +335,18 @@ function UnitPicker({
               <button
                 key={unit.id}
                 onClick={() => onSelect(unit)}
-                className="group text-left flex items-center gap-4 bg-surface border border-rule rounded-card px-4 py-4 transition-all cursor-pointer hover:border-rule-strong hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-14px_rgba(0,0,0,0.28)]"
+                className="group text-left flex items-center gap-4 bg-surface border border-rule rounded-card p-6 transition-all cursor-pointer hover:border-rule-strong hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-14px_rgba(0,0,0,0.28)]"
               >
-                <ProgressRing percent={percent} size={52} strokeWidth={4} colorClass={done ? "text-success" : "text-navy"}>
+                <ProgressRing percent={percent} size={60} strokeWidth={5} colorClass={done ? "text-success" : "text-navy"}>
                   <span
-                    className={`h-9 w-9 rounded-2xl flex items-center justify-center text-lg transition-transform group-hover:scale-110 ${cefrTint(unit.name)}`}
+                    className={`h-10 w-10 rounded-2xl flex items-center justify-center text-xl transition-transform group-hover:scale-110 ${cefrTint(unit.name)}`}
                   >
-                    {done ? <CheckCircle2 size={18} /> : cefrEmoji(unit.name)}
+                    {done ? <CheckCircle2 size={20} /> : cefrEmoji(unit.name)}
                   </span>
                 </ProgressRing>
                 <div className="flex-1 min-w-0">
                   <div className="font-display font-bold text-base text-ink">{unit.name}</div>
-                  <div className="text-xs text-muted">
+                  <div className="text-xs text-muted mt-0.5">
                     {done ? t("modules.unitComplete") : t("modules.setsProgress", { done: unit.completedCount, total: unit.setCount })}
                   </div>
                 </div>
@@ -305,30 +376,30 @@ function SetPicker({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="max-w-2xl mx-auto flex flex-col gap-4">
+    <div className="w-full flex flex-col gap-6">
       <button
         onClick={onBack}
         className="flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink transition-colors cursor-pointer self-start"
       >
         <ArrowLeft size={16} strokeWidth={1.8} /> {t("modules.backToUnits")}
       </button>
-      <h1 className="font-display font-bold text-xl text-ink">{unitName}</h1>
+      <h1 className="font-display font-bold text-2xl text-ink">{unitName}</h1>
       {loading ? (
         <p className="text-sm text-muted">{t("modules.loadingAvailability")}</p>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {sets.map((set, i) => (
             <button
               key={set.id}
               onClick={() => onSelect(set.id)}
-              className="group text-left flex items-center gap-4 bg-surface border border-rule rounded-card px-4 py-4 transition-all cursor-pointer hover:border-rule-strong hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-14px_rgba(0,0,0,0.28)]"
+              className="group text-left flex items-center gap-4 bg-surface border border-rule rounded-card p-6 transition-all cursor-pointer hover:border-rule-strong hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-14px_rgba(0,0,0,0.28)]"
             >
               <span
-                className={`h-10 w-10 rounded-2xl flex items-center justify-center shrink-0 font-display font-bold text-base transition-transform group-hover:scale-110 ${
+                className={`h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 font-display font-bold text-lg transition-transform group-hover:scale-110 ${
                   set.completed ? "bg-success/15 text-success" : "bg-accent/15 text-accent"
                 }`}
               >
-                {set.completed ? <CheckCircle2 size={20} /> : i + 1}
+                {set.completed ? <CheckCircle2 size={22} /> : i + 1}
               </span>
               <span className="flex-1 text-base font-semibold text-ink">{set.name}</span>
               {set.completed ? (
@@ -572,6 +643,10 @@ export function Modules() {
   const [recordingDurationMs, setRecordingDurationMs] = useState<number | null>(null);
   const [summary, setSummary] = useState<PracticeSummary | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
+  // Gates the first question behind the type's real instruction_text (how
+  // this task works) on a genuinely fresh start — not shown again when
+  // resuming a session already partway through, since that'd already been seen.
+  const [showTypeIntro, setShowTypeIntro] = useState(false);
   // "two-phase" items (Passage Reconstruction): show the passage, then hide
   // it and switch to a blank textarea — testing recall, not copying.
   const [twoPhaseStage, setTwoPhaseStage] = useState<"idle" | "reading" | "writing">("idle");
@@ -618,6 +693,7 @@ export function Modules() {
         ),
       );
       setSummary(null);
+      setShowTypeIntro(res.items.every((item) => !item.attempted));
     } catch {
       setError(t("modules.startError"));
     } finally {
@@ -965,6 +1041,25 @@ export function Modules() {
   }
 
   if (!current) return null;
+
+  if (showTypeIntro) {
+    const typeMeta = ITEM_TYPE_META[current.itemTypeId];
+    const TypeIntroIcon = ITEM_TYPE_ICON[current.itemTypeId] ?? Headphones;
+    return (
+      <div className="max-w-lg mx-auto bg-surface border border-rule rounded-card shadow-sm p-8 flex flex-col gap-5 items-center text-center">
+        <span className="h-14 w-14 rounded-2xl bg-navy/15 text-navy-deep flex items-center justify-center">
+          <TypeIntroIcon size={26} strokeWidth={2} />
+        </span>
+        <div>
+          <h1 className="font-display font-bold text-xl text-ink">{typeMeta?.name}</h1>
+          <p className="text-sm text-muted mt-2 leading-relaxed">{current.instructionText}</p>
+        </div>
+        <Button onClick={() => setShowTypeIntro(false)} className="w-full">
+          {t("modules.startPractice")}
+        </Button>
+      </div>
+    );
+  }
 
   // A mic answer is submittable once there's a saved recording, whether or
   // not live transcription produced any text — an empty transcript falls

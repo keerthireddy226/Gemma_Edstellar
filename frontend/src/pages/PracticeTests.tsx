@@ -1,40 +1,711 @@
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { ClipboardCheck, Lock } from "lucide-react";
+import { ClipboardCheck, Volume2, ArrowLeft, Clock, CheckCircle2, ChevronRight, Headphones, BookOpen, PenLine, Briefcase } from "lucide-react";
+import { ROUTES } from "@/constants/routes";
+import { Button } from "@/components/Button";
+import { AnswerInputControl } from "@/components/AnswerInputControl";
+import { SKILL_TINT_CLASSES } from "@/lib/skillTints";
+import {
+  getProducts,
+  getExamsForProduct,
+  startExamSession,
+  submitExamAttempt,
+  completeExamSession,
+  type ExamProduct,
+  type ExamSummary,
+  type PartBoundary,
+  type ExamCompleteResult,
+} from "@/api/practiceTests";
+import type { TestItem } from "@/api/testSession";
+import { useVoiceRecorder, blobToBase64 } from "@/hooks/useVoiceRecorder";
+import { playSpokenAudio } from "@/lib/playSpokenAudio";
+import {
+  AUDIO_FIRST_TYPES,
+  SKILL_BADGE_CLASS,
+  ITEM_TYPE_META,
+  getSpokenSegments,
+  getVisibleText,
+  getPassageAndQuestion,
+} from "@/lib/testItemDisplay";
 
-// The real Versant exam products (not question types — those live in
-// Modules). Durations/skills sourced directly from Pearson's own product
-// pages. No backend/content built yet (see the Practice Tests build task),
-// so every card stays a disabled preview until that's real.
+// Fallback reading time for a two-phase item with no server-set duration.
+const DEFAULT_TWO_PHASE_READ_SECONDS = 30;
+
+interface CachedAnswer {
+  responseText: string;
+  audioBase64?: string;
+  audioMimeType?: string;
+  audioBlobUrl?: string;
+  durationMs?: number;
+}
+
+// The real Versant exam products. Durations/skills sourced directly from
+// Pearson's own product pages.
 const VERSANT_PRODUCTS = ["speakingListening", "fourSkills", "writing", "professional", "placement"] as const;
+
+const PRODUCT_ICON: Record<(typeof VERSANT_PRODUCTS)[number], typeof Headphones> = {
+  speakingListening: Headphones,
+  fourSkills: BookOpen,
+  writing: PenLine,
+  professional: Briefcase,
+  placement: ClipboardCheck,
+};
+
+// Five genuinely distinct hues (checked against the actual CSS values, not
+// just token names — `listening` and `accent` are the same moss green, so
+// reusing both here made two cards look identical). Solid, not a pale tint —
+// a 15% wash of these warm/earthy tones reads as near-identical pastel; full
+// saturation is what actually makes five cards look five different colors.
+const PRODUCT_SOLID: Record<(typeof VERSANT_PRODUCTS)[number], string> = {
+  speakingListening: "bg-speaking", // terracotta
+  fourSkills: "bg-reading", // wheat/amber
+  writing: "bg-writing", // clay pink
+  professional: "bg-navy", // clay brown
+  placement: "bg-accent", // moss green
+};
 
 export function PracticeTests() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
 
-  return (
-    <div className="max-w-3xl mx-auto flex flex-col gap-5">
-      <div className="flex items-center gap-3">
-        <span className="h-12 w-12 rounded-2xl bg-accent/15 text-accent flex items-center justify-center shrink-0">
-          <ClipboardCheck size={22} strokeWidth={2} />
+  const [products, setProducts] = useState<ExamProduct[] | null>(null);
+  useEffect(() => {
+    getProducts()
+      .then((res) => setProducts(res.products))
+      .catch(() => setProducts([]));
+  }, []);
+
+  const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
+  const [exams, setExams] = useState<ExamSummary[] | null>(null);
+  const [loadingExams, setLoadingExams] = useState(false);
+
+  function openProduct(productId: string) {
+    setSelectedProduct(productId);
+    setExams(null);
+    setLoadingExams(true);
+    getExamsForProduct(productId)
+      .then((res) => setExams(res.exams))
+      .catch(() => setExams([]))
+      .finally(() => setLoadingExams(false));
+  }
+
+  function refreshExams() {
+    if (!selectedProduct) return;
+    getExamsForProduct(selectedProduct)
+      .then((res) => setExams(res.exams))
+      .catch(() => {});
+  }
+
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [partBoundaries, setPartBoundaries] = useState<PartBoundary[]>([]);
+  const [items, setItems] = useState<TestItem[]>([]);
+  const [index, setIndex] = useState(0);
+  const [answers, setAnswers] = useState<Record<number, CachedAnswer>>({});
+  const answersRef = useRef(answers);
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
+  const questionShownAtRef = useRef(Date.now());
+
+  const [starting, setStarting] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [answerText, setAnswerText] = useState("");
+  const [hasPlayed, setHasPlayed] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [pendingAudio, setPendingAudio] = useState<{ base64: string; mimeType: string } | null>(null);
+  const [audioBlobUrl, setAudioBlobUrl] = useState<string | null>(null);
+  const [recordingDurationMs, setRecordingDurationMs] = useState<number | null>(null);
+  const [summary, setSummary] = useState<ExamCompleteResult | null>(null);
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
+  const { recording, start: startRecording, stop: stopRecording } = useVoiceRecorder();
+
+  // Gates question 1 behind a Pearson-style "Overview" of every section —
+  // only on a genuinely fresh start, not a resumed session (already seen it).
+  const [showExamOverview, setShowExamOverview] = useState(false);
+  // Tracks which parts' one-time instructions interstitial has already been
+  // dismissed this page load (in-memory only — a refresh mid-exam re-shows
+  // the current section's card once, which is an acceptable rough edge for
+  // a "nice to have" explainer rather than a safety-critical gate).
+  const shownPartsRef = useRef(new Set<string>());
+  const [showSectionIntro, setShowSectionIntro] = useState(false);
+
+  // "two-phase" items (Passage Reconstruction): show the passage, then hide
+  // it and switch to a blank textarea — testing recall, not copying.
+  const [twoPhaseStage, setTwoPhaseStage] = useState<"idle" | "reading" | "writing">("idle");
+  const twoPhaseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  async function handleStartExam(examId: string) {
+    setStarting(true);
+    setError(null);
+    try {
+      const res = await startExamSession(examId);
+      setSessionId(res.sessionId);
+      setPartBoundaries(res.partBoundaries);
+      setItems(res.items);
+      const firstUnattempted = res.items.findIndex((item) => !item.attempted);
+      const startIndex = firstUnattempted === -1 ? 0 : firstUnattempted;
+      setIndex(startIndex);
+      setAnswers(
+        Object.fromEntries(
+          res.items.flatMap((item, i) => (item.attempted ? [[i, { responseText: item.responseText ?? "" }]] : [])),
+        ),
+      );
+      setSummary(null);
+
+      const isFreshStart = res.items.every((item) => !item.attempted);
+      setShowExamOverview(isFreshStart);
+      // Resuming mid-section shouldn't re-interrupt with that section's
+      // intro — mark every part up to and including the resumed one as
+      // already seen; a fresh start leaves every part unseen, so the
+      // index-tracking effect below shows part 0's intro once the overview
+      // (if any) is dismissed.
+      shownPartsRef.current = isFreshStart
+        ? new Set()
+        : new Set(res.partBoundaries.filter((b) => b.startIndex <= startIndex).map((b) => b.partId));
+    } catch {
+      setError(t("practiceTests.loadError"));
+    } finally {
+      setStarting(false);
+    }
+  }
+
+  const current = items[index];
+  const needsAudioFirst = current ? AUDIO_FIRST_TYPES.has(current.itemTypeId) : false;
+  const visibleText = current && !needsAudioFirst ? getVisibleText(current) : "";
+  const meta = current ? ITEM_TYPE_META[current.itemTypeId] : undefined;
+  const currentPartIndex = partBoundaries.findIndex((b) => index >= b.startIndex && index < b.startIndex + b.count);
+  const currentPart = currentPartIndex === -1 ? null : partBoundaries[currentPartIndex];
+
+  // First time `index` lands inside a given part this session, show that
+  // part's one-time instructions interstitial — crossing back into an
+  // already-entered part (via Back) never re-triggers it.
+  useEffect(() => {
+    if (!sessionId || !currentPart) return;
+    if (!shownPartsRef.current.has(currentPart.partId)) {
+      shownPartsRef.current.add(currentPart.partId);
+      setShowSectionIntro(true);
+    } else {
+      setShowSectionIntro(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, sessionId]);
+
+  useEffect(() => {
+    if (twoPhaseTimeoutRef.current !== null) {
+      clearTimeout(twoPhaseTimeoutRef.current);
+      twoPhaseTimeoutRef.current = null;
+    }
+    questionShownAtRef.current = Date.now();
+    const cached = answersRef.current[index];
+    setAnswerText(cached?.responseText ?? "");
+    setPendingAudio(cached?.audioBase64 ? { base64: cached.audioBase64, mimeType: cached.audioMimeType ?? "" } : null);
+    setAudioBlobUrl(cached?.audioBlobUrl ?? null);
+    setRecordingDurationMs(cached?.durationMs ?? null);
+    setHasPlayed(!!cached);
+    setTwoPhaseStage(cached ? "writing" : "idle");
+    setError(null);
+  }, [index]);
+
+  // Live countdown, display-only — doesn't gate or auto-submit anything.
+  useEffect(() => {
+    if (!current?.timerSeconds) {
+      setRemainingSeconds(null);
+      return;
+    }
+    setRemainingSeconds(current.timerSeconds);
+    const interval = setInterval(() => {
+      setRemainingSeconds((prev) => (prev === null ? null : Math.max(0, prev - 1)));
+    }, 1000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, current?.timerSeconds]);
+
+  function handleStartReading() {
+    if (!current) return;
+    setTwoPhaseStage("reading");
+    const readSeconds = current.twoPhaseReadSeconds ?? DEFAULT_TWO_PHASE_READ_SECONDS;
+    twoPhaseTimeoutRef.current = setTimeout(() => {
+      twoPhaseTimeoutRef.current = null;
+      setTwoPhaseStage("writing");
+    }, readSeconds * 1000);
+  }
+
+  async function handlePlay() {
+    if (!current) return;
+    setPlaying(true);
+    await playSpokenAudio(current, getSpokenSegments(current));
+    setPlaying(false);
+    setHasPlayed(true);
+  }
+
+  async function handleToggleRecord() {
+    setError(null);
+    if (!recording) {
+      try {
+        await startRecording();
+      } catch {
+        setError(t("placementTest.micError"));
+      }
+      return;
+    }
+    const { blob, mimeType, transcript, durationMs } = await stopRecording();
+    if (transcript) setAnswerText(transcript);
+    if (blob) {
+      const base64 = await blobToBase64(blob);
+      setPendingAudio({ base64, mimeType });
+      setAudioBlobUrl(URL.createObjectURL(blob));
+      setRecordingDurationMs(durationMs);
+    }
+  }
+
+  function cacheCurrentAnswer() {
+    setAnswers((prev) => ({
+      ...prev,
+      [index]: {
+        responseText: answerText,
+        audioBase64: pendingAudio?.base64,
+        audioMimeType: pendingAudio?.mimeType,
+        audioBlobUrl: audioBlobUrl ?? undefined,
+        durationMs: recordingDurationMs ?? undefined,
+      },
+    }));
+  }
+
+  async function finishOrAdvance() {
+    if (index + 1 < items.length) {
+      setIndex(index + 1);
+    } else if (sessionId) {
+      const result = await completeExamSession(sessionId);
+      setSummary(result);
+    }
+  }
+
+  async function handleSubmit() {
+    if (!current || !sessionId) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await submitExamAttempt(sessionId, {
+        itemId: current.id,
+        responseText: answerText.trim() || undefined,
+        audioBase64: pendingAudio?.base64,
+        audioMimeType: pendingAudio?.mimeType,
+        durationMs: recordingDurationMs ?? undefined,
+        activeMs: Date.now() - questionShownAtRef.current,
+      });
+      cacheCurrentAnswer();
+      await finishOrAdvance();
+    } catch {
+      setError(t("placementTest.submitError"));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleSkip() {
+    if (!current || !sessionId) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await submitExamAttempt(sessionId, { itemId: current.id, activeMs: Date.now() - questionShownAtRef.current });
+      setAnswers((prev) => {
+        const next = { ...prev };
+        delete next[index];
+        return next;
+      });
+      await finishOrAdvance();
+    } catch {
+      setError(t("placementTest.submitError"));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function handleBack() {
+    if (index === 0) return;
+    cacheCurrentAnswer();
+    setIndex(index - 1);
+  }
+
+  function resetToExamList() {
+    setSessionId(null);
+    setItems([]);
+    setPartBoundaries([]);
+    setSummary(null);
+    refreshExams();
+  }
+
+  // --- Exam overview (Pearson-style Part/Task/Questions table), fresh starts only ---
+  if (sessionId && current && showExamOverview) {
+    return (
+      <div className="max-w-lg mx-auto bg-surface border border-rule rounded-card shadow-sm p-8 flex flex-col gap-5 items-center text-center">
+        <span className="h-14 w-14 rounded-2xl bg-accent/15 text-accent flex items-center justify-center">
+          <ClipboardCheck size={26} strokeWidth={2} />
+        </span>
+        <h1 className="font-display font-bold text-xl text-ink">{t("practiceTests.overview.title")}</h1>
+        <p className="text-sm text-muted -mt-2">{t("practiceTests.overview.subtitle")}</p>
+        <div className="w-full flex flex-col gap-2 text-left">
+          {partBoundaries.map((part, i) => (
+            <div key={part.partId} className="flex items-center gap-3 bg-paper-warm rounded-input px-4 py-2.5">
+              <span className="h-7 w-7 rounded-full bg-navy/15 text-navy-deep flex items-center justify-center text-xs font-bold shrink-0">
+                {String.fromCharCode(65 + i)}
+              </span>
+              <span className="flex-1 text-sm font-semibold text-ink">{part.label}</span>
+              <span className="text-xs text-muted">{t("practiceTests.questionsCount", { count: part.count })}</span>
+            </div>
+          ))}
+        </div>
+        <Button onClick={() => setShowExamOverview(false)} className="w-full">
+          {t("practiceTests.overview.begin")}
+        </Button>
+      </div>
+    );
+  }
+
+  // --- Per-section instructions, once per part per session ---
+  if (sessionId && current && showSectionIntro && currentPart) {
+    return (
+      <div className="max-w-lg mx-auto bg-surface border border-rule rounded-card shadow-sm p-8 flex flex-col gap-5 items-center text-center">
+        <span className="h-14 w-14 rounded-2xl bg-navy/15 text-navy-deep flex items-center justify-center">
+          <ClipboardCheck size={26} strokeWidth={2} />
         </span>
         <div>
-          <h1 className="font-display font-bold text-xl text-ink">{t("nav.practiceTests")}</h1>
-          <p className="text-xs text-muted">{t("practiceTests.subtitle")}</p>
+          <h1 className="font-display font-bold text-xl text-ink">{currentPart.label}</h1>
+          <p className="text-sm text-muted mt-2 leading-relaxed">{current.instructionText}</p>
+        </div>
+        <Button onClick={() => setShowSectionIntro(false)} className="w-full">
+          {t("practiceTests.overview.startSection", { label: currentPart.label })}
+        </Button>
+      </div>
+    );
+  }
+
+  // --- Running session ---
+  if (sessionId && current) {
+    const canSubmit = current.inputMethod === "mic" ? !recording && !!audioBlobUrl : answerText.trim() !== "";
+    const progressPct = Math.round((index / items.length) * 100);
+    return (
+      <div className="max-w-xl mx-auto flex flex-col gap-3">
+        <div className="flex items-center justify-between px-1">
+          <span className="text-xs font-semibold text-ink">
+            {currentPart
+              ? t("practiceTests.sectionLabel", { current: currentPartIndex + 1, total: partBoundaries.length, label: currentPart.label })
+              : null}
+          </span>
+          <span className="text-xs font-mono text-muted">
+            {t("placementTest.progress", { current: index + 1, total: items.length })}
+          </span>
+        </div>
+
+        <div
+          className="relative w-full bg-surface border border-rule rounded-card shadow-sm overflow-hidden flex flex-col"
+          style={{ height: "calc(100vh - 240px)" }}
+        >
+          <div
+            className="absolute top-0 left-0 right-0 h-1.5"
+            style={{ backgroundColor: `var(--color-${(meta?.skills ?? current.skills)[0]})` }}
+          />
+          <div className="flex-1 p-8 pt-8 flex flex-col justify-center gap-5 overflow-y-auto">
+            <div className="flex flex-col gap-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-mono uppercase tracking-wide text-ink font-semibold">{meta?.name}</span>
+                {remainingSeconds !== null ? (
+                  <span
+                    className={`flex items-center gap-1 text-xs font-mono font-bold px-2.5 py-1 rounded-pill border transition-colors ${
+                      remainingSeconds <= 5 ? "text-error border-error/30 bg-error/10" : "text-navy-deep border-navy/20 bg-navy/10"
+                    }`}
+                  >
+                    <Clock size={16} />
+                    {String(Math.floor(remainingSeconds / 60)).padStart(1, "0")}:{String(remainingSeconds % 60).padStart(2, "0")}
+                  </span>
+                ) : null}
+              </div>
+              <div className="flex items-center gap-1.5">
+                {(meta?.skills ?? current.skills).map((skill) => (
+                  <span
+                    key={skill}
+                    className={`text-xs font-semibold uppercase tracking-wide px-2.5 py-1 rounded-pill border ${SKILL_BADGE_CLASS[skill]}`}
+                  >
+                    {t(`skills.${skill}`)}
+                  </span>
+                ))}
+              </div>
+              <div className="h-2 rounded-pill bg-paper-warm overflow-hidden">
+                <div className="h-full bg-navy rounded-pill transition-all" style={{ width: `${progressPct}%` }} />
+              </div>
+            </div>
+
+            <h2 className="font-display font-bold text-lg text-ink text-center leading-snug">{current.questionInstruction}</h2>
+
+            {current.inputMethod === "two-phase" ? (
+              twoPhaseStage === "idle" ? (
+                <div className="flex justify-center">
+                  <Button variant="secondary" onClick={handleStartReading}>
+                    {t("modules.startReading")}
+                  </Button>
+                </div>
+              ) : twoPhaseStage === "reading" ? (
+                <p
+                  className="text-sm text-ink bg-paper-warm rounded-card border-l-4 p-4 leading-relaxed shadow-sm"
+                  style={{ borderLeftColor: `var(--color-${(meta?.skills ?? current.skills)[0]})` }}
+                >
+                  {getVisibleText(current)}
+                </p>
+              ) : (
+                <p className="text-sm text-muted italic text-center">{t("modules.passageHidden")}</p>
+              )
+            ) : needsAudioFirst ? (
+              <div className="flex flex-col items-center gap-2">
+                <button
+                  onClick={handlePlay}
+                  disabled={playing || recording}
+                  className="h-14 w-14 rounded-full bg-navy text-lime btn-shine flex items-center justify-center shadow-[0_8px_18px_-8px_rgba(0,0,0,0.3)] transition-transform hover:scale-105 disabled:opacity-60 disabled:hover:scale-100 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  <Volume2 size={22} />
+                </button>
+                <span className="text-xs text-muted">
+                  {playing ? t("placementTest.playing") : hasPlayed ? t("placementTest.playAgain") : t("placementTest.play")}
+                </span>
+              </div>
+            ) : getPassageAndQuestion(current) ? (
+              <div className="flex flex-col gap-2.5">
+                <p
+                  className="text-sm text-ink bg-paper-warm rounded-card border-l-4 p-4 whitespace-pre-wrap leading-relaxed shadow-sm"
+                  style={{ borderLeftColor: `var(--color-${(meta?.skills ?? current.skills)[0]})` }}
+                >
+                  {getPassageAndQuestion(current)!.passage}
+                </p>
+                <p className="text-sm font-semibold text-ink px-1">{getPassageAndQuestion(current)!.question}</p>
+              </div>
+            ) : (
+              <p
+                className="text-sm text-ink bg-paper-warm rounded-card border-l-4 p-4 leading-relaxed shadow-sm"
+                style={{ borderLeftColor: `var(--color-${(meta?.skills ?? current.skills)[0]})` }}
+              >
+                {visibleText}
+              </p>
+            )}
+
+            {current.inputMethod === "two-phase" ? (
+              twoPhaseStage === "writing" && (
+                <textarea
+                  value={answerText}
+                  onChange={(e) => setAnswerText(e.target.value)}
+                  placeholder={t("placementTest.answerPlaceholder")}
+                  className="w-full rounded-card border border-rule bg-surface px-4 py-3 text-sm text-ink shadow-sm focus:border-navy focus:outline-none transition-colors"
+                  rows={4}
+                />
+              )
+            ) : (
+              <AnswerInputControl
+                item={current}
+                answerText={answerText}
+                onAnswerTextChange={setAnswerText}
+                recording={recording}
+                onToggleRecord={handleToggleRecord}
+                audioBlobUrl={audioBlobUrl}
+                needsAudioFirst={needsAudioFirst}
+                hasPlayed={hasPlayed}
+                playing={playing}
+                stopIconSize={18}
+                textareaRows={4}
+              />
+            )}
+
+            {error && <p className="text-sm text-error text-center">{error}</p>}
+          </div>
+
+          <div className="shrink-0 border-t border-rule px-8 py-4 flex items-center gap-3">
+            <Button variant="secondary" onClick={handleBack} disabled={index === 0 || submitting || recording} className="!px-3.5">
+              <ArrowLeft size={20} />
+            </Button>
+            <button
+              onClick={handleSkip}
+              disabled={submitting || recording}
+              className="text-sm font-medium text-muted hover:text-ink transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed px-1"
+            >
+              {t("placementTest.skip")}
+            </button>
+            <Button onClick={handleSubmit} disabled={!canSubmit || submitting} className="flex-1">
+              {submitting
+                ? t("placementTest.submitting")
+                : index + 1 < items.length
+                  ? t("practiceTests.saveAndNext")
+                  : t("placementTest.finish")}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (starting) {
+    return <p className="text-sm text-muted">{t("modules.starting")}</p>;
+  }
+
+  // --- Score report ---
+  if (summary) {
+    return (
+      <div className="max-w-lg mx-auto bg-surface border border-rule rounded-card shadow-sm p-8 flex flex-col gap-5 items-center text-center">
+        <div className="h-14 w-14 rounded-full bg-navy text-lime flex items-center justify-center">
+          <CheckCircle2 size={32} />
+        </div>
+        <h1 className="font-display font-bold text-2xl text-ink">{t("practiceTests.scoreReport.title")}</h1>
+        <div className="flex flex-col items-center gap-1">
+          <span className="text-4xl font-display font-bold text-ink">{summary.overallPercent}%</span>
+          <span className="text-xs text-muted uppercase tracking-wide">{t("practiceTests.scoreReport.overall")}</span>
+        </div>
+
+        <div className="w-full flex flex-col gap-2.5 text-left">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted">{t("practiceTests.scoreReport.sectionResults")}</span>
+          {summary.partResults.map((part) => {
+            const pct = part.gradedCount > 0 ? Math.round((part.correctCount / part.gradedCount) * 100) : 0;
+            return (
+              <div key={part.label} className="flex flex-col gap-1">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-ink font-medium">{part.label}</span>
+                  <span className="text-muted font-mono text-xs">
+                    {part.correctCount}/{part.gradedCount}
+                  </span>
+                </div>
+                <div className="h-2 rounded-pill bg-paper-warm overflow-hidden">
+                  <div className="h-full bg-navy rounded-pill transition-all" style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {summary.failedCount > 0 && (
+          <p className="text-sm text-error">{t("placementTest.failedNote", { failed: summary.failedCount })}</p>
+        )}
+        <div className="flex items-center gap-3 w-full">
+          <Button variant="secondary" onClick={resetToExamList} className="flex-1">
+            {t("practiceTests.backToExams")}
+          </Button>
+          <Button onClick={() => navigate(ROUTES.DASHBOARD)} className="flex-1">
+            {t("modules.backToDashboard")}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // --- Exam (set) picker for the selected product ---
+  if (selectedProduct) {
+    const Icon = PRODUCT_ICON[selectedProduct as (typeof VERSANT_PRODUCTS)[number]];
+    return (
+      <div className="w-full flex flex-col gap-6">
+        <button
+          onClick={() => setSelectedProduct(null)}
+          className="flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink transition-colors cursor-pointer self-start"
+        >
+          <ArrowLeft size={16} /> {t("practiceTests.backToProducts")}
+        </button>
+        <div className="flex items-center gap-4">
+          <span
+            className={`h-16 w-16 rounded-2xl flex items-center justify-center shrink-0 text-white shadow-sm ${PRODUCT_SOLID[selectedProduct as (typeof VERSANT_PRODUCTS)[number]]}`}
+          >
+            <Icon size={30} strokeWidth={2} />
+          </span>
+          <div>
+            <h1 className="font-display font-bold text-2xl text-ink">{t(`practiceTests.versantProduct.${selectedProduct}`)}</h1>
+            <p className="text-sm text-muted">{t(`practiceTests.versantProduct.${selectedProduct}Desc`)}</p>
+          </div>
+        </div>
+
+        {loadingExams ? (
+          <p className="text-sm text-muted">{t("modules.starting")}</p>
+        ) : (
+          <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            {(exams ?? []).map((exam, i) => (
+              <div
+                key={exam.id}
+                className="flex flex-col gap-4 bg-surface border border-rule rounded-card p-6"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-1">
+                    <span className="font-display font-bold text-base text-ink">{exam.name || `Set ${i + 1}`}</span>
+                    <span className="text-sm text-muted">{t("practiceTests.questionsCount", { count: exam.itemCount })}</span>
+                  </div>
+                  {exam.completed && (
+                    <span className="flex items-center gap-1 text-xs font-semibold text-success shrink-0">
+                      <CheckCircle2 size={14} /> {t("practiceTests.completed")}
+                    </span>
+                  )}
+                </div>
+                <Button onClick={() => handleStartExam(exam.id)} className="w-full">
+                  {exam.completed ? t("practiceTests.retake") : t("practiceTests.startExam")}
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // --- Product picker ---
+  return (
+    <div className="w-full flex flex-col gap-6">
+      <div className="flex items-center gap-4">
+        <span className="h-16 w-16 rounded-2xl bg-accent/15 text-accent flex items-center justify-center shrink-0">
+          <ClipboardCheck size={30} strokeWidth={2} />
+        </span>
+        <div>
+          <h1 className="font-display font-bold text-2xl text-ink">{t("nav.practiceTests")}</h1>
+          <p className="text-sm text-muted">{t("practiceTests.subtitle")}</p>
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {VERSANT_PRODUCTS.map((id) => (
-          <div key={id} className="relative bg-surface border border-rule rounded-card p-4 flex flex-col gap-2.5">
-            <span className="absolute top-3 right-3 text-[10px] font-semibold uppercase tracking-wide text-muted bg-paper-warm px-2 py-0.5 rounded-pill">
-              {t("practiceTests.comingSoon")}
-            </span>
-            <span className="h-10 w-10 rounded-2xl bg-paper flex items-center justify-center text-muted">
-              <Lock size={16} strokeWidth={2} />
-            </span>
-            <span className="font-display font-semibold text-sm text-ink">{t(`practiceTests.versantProduct.${id}`)}</span>
-            <span className="text-xs text-muted">{t(`practiceTests.versantProduct.${id}Desc`)}</span>
-          </div>
-        ))}
+      <div className="grid gap-5" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))" }}>
+        {VERSANT_PRODUCTS.map((id) => {
+          const product = products?.find((p) => p.id === id);
+          const Icon = PRODUCT_ICON[id];
+          const durationMatch = t(`practiceTests.versantProduct.${id}Desc`).match(/\d+\s*minutes/);
+          return (
+            <button
+              key={id}
+              onClick={() => openProduct(id)}
+              className="group relative text-left bg-surface border border-rule rounded-card p-6 flex flex-col gap-4 overflow-hidden transition-all cursor-pointer hover:border-rule-strong hover:shadow-[0_16px_32px_-16px_rgba(0,0,0,0.3)] hover:-translate-y-1"
+            >
+              {/* Oversized, very faint echo of the card's own icon — a
+                  decorative watermark, not another color block, so it adds
+                  presence without competing with the readable icon badge. */}
+              <Icon
+                size={140}
+                strokeWidth={1.5}
+                className="absolute -right-6 -bottom-6 text-ink/[0.04] group-hover:text-ink/[0.07] transition-colors pointer-events-none"
+              />
+              <span
+                className={`relative h-16 w-16 rounded-2xl flex items-center justify-center text-white shadow-md transition-transform group-hover:scale-110 ${PRODUCT_SOLID[id]}`}
+              >
+                <Icon size={28} strokeWidth={2} />
+              </span>
+              <div className="relative flex flex-col gap-1.5">
+                <span className="font-display font-bold text-lg text-ink leading-snug">{t(`practiceTests.versantProduct.${id}`)}</span>
+                <span className="text-sm text-muted leading-relaxed">{t(`practiceTests.versantProduct.${id}Desc`)}</span>
+              </div>
+              <div className="relative flex items-center gap-2 mt-auto">
+                {product && (
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-muted bg-paper-warm px-2.5 py-1 rounded-pill">
+                    {t("practiceTests.setsCount", { count: product.setCount })}
+                  </span>
+                )}
+                {durationMatch && (
+                  <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted bg-paper-warm px-2.5 py-1 rounded-pill">
+                    <Clock size={11} /> {durationMatch[0]}
+                  </span>
+                )}
+                <span className="ml-auto flex items-center gap-1 text-xs font-bold text-ink transition-transform group-hover:translate-x-1">
+                  <ChevronRight size={16} strokeWidth={2.5} />
+                </span>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

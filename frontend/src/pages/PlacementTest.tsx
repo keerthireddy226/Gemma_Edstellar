@@ -63,6 +63,11 @@ export function PlacementTest() {
   // Set by a mid-test spoof detection — re-shows the same gate, not a new screen.
   const [requireReverify, setRequireReverify] = useState(false);
 
+  // First time a given item type appears this session, gate it behind a
+  // brief "how this task works" card instead of diving straight in.
+  const seenTypesRef = useRef(new Set<string>());
+  const [showTypeIntro, setShowTypeIntro] = useState(false);
+
   useEffect(() => {
     getCurrentSession()
       .then((res) => setAlreadyInProgress(res.inProgress))
@@ -79,6 +84,16 @@ export function PlacementTest() {
         setSessionId(res.sessionId);
         setItems(res.items);
         questionShownAtRef.current = Date.now();
+        // A resumed session's history already includes every previously
+        // answered item — those types have already been introduced.
+        res.items.forEach((item) => {
+          if (item.attempted) seenTypesRef.current.add(item.itemTypeId);
+        });
+        const latest = res.items[res.items.length - 1];
+        if (latest && !seenTypesRef.current.has(latest.itemTypeId)) {
+          seenTypesRef.current.add(latest.itemTypeId);
+          setShowTypeIntro(true);
+        }
       })
       .catch(() => setError(t("placementTest.loadError")))
       .finally(() => setLoading(false));
@@ -155,6 +170,12 @@ export function PlacementTest() {
     if (nextItem) {
       setItems((prev) => [...prev, nextItem]);
       questionShownAtRef.current = Date.now();
+      if (!seenTypesRef.current.has(nextItem.itemTypeId)) {
+        seenTypesRef.current.add(nextItem.itemTypeId);
+        setShowTypeIntro(true);
+      } else {
+        setShowTypeIntro(false);
+      }
       return;
     }
     const result = await completeSession(sessionId!);
@@ -317,6 +338,25 @@ export function PlacementTest() {
   }
 
   if (!current) return null;
+
+  if (showTypeIntro) {
+    return (
+      <div className="app-surface min-h-screen flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-lg bg-surface border border-rule rounded-card shadow-sm p-8 flex flex-col gap-5 items-center text-center">
+          <div className="h-14 w-14 rounded-full bg-navy flex items-center justify-center">
+            <Volume2 size={24} className="text-lime" />
+          </div>
+          <div>
+            <h1 className="font-display font-bold text-xl text-ink">{meta?.name}</h1>
+            <p className="text-sm text-muted mt-2 leading-relaxed">{current.instructionText}</p>
+          </div>
+          <Button onClick={() => setShowTypeIntro(false)} className="w-full">
+            {t("placementTest.typeIntroStart")}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   // A mic answer is submittable once there's a saved recording, whether or
   // not live transcription (or manual typing) produced any text — an empty
