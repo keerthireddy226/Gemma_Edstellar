@@ -16,7 +16,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "Gemma_Edstellar backend",
+  "description": "Spica_Edstellar backend",
   "type": "module",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
